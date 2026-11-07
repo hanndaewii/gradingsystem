@@ -1,0 +1,420 @@
+/**
+ * Design-Taste Token System - Three Layer Architecture
+ * Layer 1: Primitive Tokens (raw values)
+ * Layer 2: Semantic Tokens (meaning-based)
+ * Layer 3: Component Tokens (component-specific)
+ *
+ * Data-Type: software | Site-Kind: software | Page-Type: software
+ */
+
+@layer base {
+  :root {
+    /* ==========================================================================
+       LAYER 1: PRIMITIVE TOKENS (Raw Values)
+       ========================================================================== */
+
+    /* Color Primitives - Slate */
+    --primitive-slate-50: #f8fafc;
+    --primitive-slate-100: #f1f5f9;
+    --primitive-slate-200: #e2e8f0;
+    --primitive-slate-300: #cbd5e1;
+    --primitive-slate-400: #94a3b8;
+    --primitive-slate-500: #64748b;
+    --primitive-slate-600: #475569;
+    --primitive-slate-700: #334155;
+    --primitive-slate-800: #1e293b;
+    --primitive-slate-900: #0f172a;
+    --primitive-slate-950: #020617;
+
+    /* Color Primitives - Indigo (Brand) */
+    --primitive-indigo-50: #eef2ff;
+    --primitive-indigo-100: #e0e7ff;
+    --primitive-indigo-200: #c7d2fe;
+    --primitive-indigo-300: #a5b4fc;
+    --primitive-indigo-400: #818cf8;
+    --primitive-indigo-500: #6366f1;
+    --primitive-indigo-600: #4f46e5;
+    --primitive-indigo-700: #4338ca;
+    --primitive-indigo-800: #3730a3;
+    --primitive-indigo-900: #312e81;
+    --primitive-indigo-950: #1e1b4b;
+
+    /* Color Primitives - Emerald (Success) */
+    --primitive-emerald-50: #ecfdf5;
+    --primitive-emerald-100: #d1fae5;
+    --primitive-emerald-200: #a7f3d0;
+    --primitive-emerald-300: #6ee7b7;
+    --primitive-emerald-400: #34d399;
+    --primitive-emerald-500: #10b981;
+    --primitive-emerald-600: #059669;
+    --primitive-emerald-700: #047857;
+    --primitive-emerald-800: #065f46;
+    --primitive-emerald-900: #064e3b;
+    --primitive-emerald-950: #022c22;
+
+    /* Color Primitives - Amber (Warning) */
+    --primitive-amber-50: #fffbeb;
+    --primitive-amber-100: #fef3c7;
+    --primitive-amber-200: #fde68a;
+    --primitive-amber-300: #fcd34d;
+    --primitive-amber-400: #fbbf24;
+    --primitive-amber-500: #f59e0b;
+    --primitive-amber-600: #d97706;
+    --primitive-amber-700: #b45309;
+    --primitive-amber-800: #92400e;
+    --primitive-amber-900: #78350f;
+    --primitive-amber-950: #451a03;
+
+    /* Color Primitives - Rose (Error/Destructive) */
+    --primitive-rose-50: #fff1f2;
+    --primitive-rose-100: #ffe4e6;
+    --primitive-rose-200: #fecdd3;
+    --primitive-rose-300: #fda4af;
+    --primitive-rose-400: #fb7185;
+    --primitive-rose-500: #f43f5e;
+    --primitive-rose-600: #e11d48;
+    --primitive-rose-700: #be123c;
+    --primitive-rose-800: #9f1239;
+    --primitive-rose-900: #881337;
+    --primitive-rose-950: #4c0519;
+
+    /* Typography Primitives */
+    --primitive-font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    --primitive-font-mono: 'JetBrains Mono', 'Fira Code', Consolas, monospace;
+    --primitive-font-display: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+
+    /* Spacing Primitives (4px base unit) */
+    --primitive-space-0: 0;
+    --primitive-space-1: 0.25rem;  /* 4px */
+    --primitive-space-2: 0.5rem;   /* 8px */
+    --primitive-space-3: 0.75rem;  /* 12px */
+    --primitive-space-4: 1rem;     /* 16px */
+    --primitive-space-5: 1.25rem;  /* 20px */
+    --primitive-space-6: 1.5rem;   /* 24px */
+    --primitive-space-8: 2rem;     /* 32px */
+    --primitive-space-10: 2.5rem;  /* 40px */
+    --primitive-space-12: 3rem;    /* 48px */
+    --primitive-space-16: 4rem;    /* 64px */
+    --primitive-space-20: 5rem;    /* 80px */
+    --primitive-space-24: 6rem;    /* 96px */
+
+    /* Border Radius Primitives */
+    --primitive-radius-none: 0;
+    --primitive-radius-sm: 0.25rem;   /* 4px */
+    --primitive-radius-md: 0.375rem;  /* 6px */
+    --primitive-radius-lg: 0.5rem;    /* 8px */
+    --primitive-radius-xl: 0.75rem;   /* 12px */
+    --primitive-radius-2xl: 1rem;     /* 16px */
+    --primitive-radius-full: 9999px;
+    --primitive-radius-soft: 0.625rem; /* 10px - design-taste soft radius */
+
+    /* Shadow Primitives */
+    --primitive-shadow-xs: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+    --primitive-shadow-sm: 0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1);
+    --primitive-shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+    --primitive-shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
+    --primitive-shadow-xl: 0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1);
+    --primitive-shadow-2xl: 0 25px 50px -12px rgb(0 0 0 / 0.25);
+    --primitive-shadow-inner: inset 0 2px 4px 0 rgb(0 0 0 / 0.05);
+    --primitive-shadow-focus: 0 0 0 3px rgb(99 102 241 / 0.4);
+
+    /* Duration Primitives */
+    --primitive-duration-instant: 0ms;
+    --primitive-duration-fast: 150ms;
+    --primitive-duration-normal: 200ms;
+    --primitive-duration-slow: 300ms;
+    --primitive-duration-slower: 500ms;
+
+    /* Easing Primitives */
+    --primitive-ease-in: cubic-bezier(0.4, 0, 1, 1);
+    --primitive-ease-out: cubic-bezier(0, 0, 0.2, 1);
+    --primitive-ease-in-out: cubic-bezier(0.4, 0, 0.2, 1);
+    --primitive-ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+
+    /* Z-Index Primitives */
+    --primitive-z-hide: -1;
+    --primitive-z-base: 0;
+    --primitive-z-dropdown: 100;
+    --primitive-z-sticky: 200;
+    --primitive-z-modal: 300;
+    --primitive-z-popover: 400;
+    --primitive-z-toast: 500;
+    --primitive-z-tooltip: 600;
+
+    /* ==========================================================================
+       LAYER 2: SEMANTIC TOKENS (Meaning-Based)
+       ========================================================================== */
+
+    /* Background Semantic Colors */
+    --color-bg-primary: var(--primitive-slate-50);
+    --color-bg-secondary: var(--primitive-slate-100);
+    --color-bg-tertiary: var(--primitive-slate-200);
+    --color-bg-inverse: var(--primitive-slate-900);
+    --color-bg-brand: var(--primitive-indigo-600);
+    --color-bg-brand-hover: var(--primitive-indigo-700);
+
+    /* Text Semantic Colors */
+    --color-text-primary: var(--primitive-slate-900);
+    --color-text-secondary: var(--primitive-slate-600);
+    --color-text-tertiary: var(--primitive-slate-400);
+    --color-text-inverse: var(--primitive-slate-50);
+    --color-text-brand: var(--primitive-indigo-600);
+    --color-text-disabled: var(--primitive-slate-400);
+
+    /* Border Semantic Colors */
+    --color-border-primary: var(--primitive-slate-200);
+    --color-border-secondary: var(--primitive-slate-300);
+    --color-border-focus: var(--primitive-indigo-500);
+    --color-border-error: var(--primitive-rose-500);
+    --color-border-success: var(--primitive-emerald-500);
+    --color-border-warning: var(--primitive-amber-500);
+
+    /* Status Semantic Colors */
+    --color-status-error: var(--primitive-rose-600);
+    --color-status-error-bg: var(--primitive-rose-50);
+    --color-status-success: var(--primitive-emerald-600);
+    --color-status-success-bg: var(--primitive-emerald-50);
+    --color-status-warning: var(--primitive-amber-600);
+    --color-status-warning-bg: var(--primitive-amber-50);
+    --color-status-info: var(--primitive-indigo-600);
+    --color-status-info-bg: var(--primitive-indigo-50);
+
+    /* Brand Semantic Colors */
+    --color-brand-primary: var(--primitive-indigo-600);
+    --color-brand-primary-hover: var(--primitive-indigo-700);
+    --color-brand-primary-active: var(--primitive-indigo-800);
+    --color-brand-secondary: var(--primitive-slate-600);
+    --color-brand-secondary-hover: var(--primitive-slate-700);
+
+    /* Typography Semantic */
+    --font-sans: var(--primitive-font-sans);
+    --font-mono: var(--primitive-font-mono);
+    --font-display: var(--primitive-font-display);
+
+    /* Spacing Semantic */
+    --space-0: var(--primitive-space-0);
+    --space-1: var(--primitive-space-1);
+    --space-2: var(--primitive-space-2);
+    --space-3: var(--primitive-space-3);
+    --space-4: var(--primitive-space-4);
+    --space-5: var(--primitive-space-5);
+    --space-6: var(--primitive-space-6);
+    --space-8: var(--primitive-space-8);
+    --space-10: var(--primitive-space-10);
+    --space-12: var(--primitive-space-12);
+    --space-16: var(--primitive-space-16);
+    --space-20: var(--primitive-space-20);
+    --space-24: var(--primitive-space-24);
+
+    /* Border Radius Semantic */
+    --radius-none: var(--primitive-radius-none);
+    --radius-sm: var(--primitive-radius-sm);
+    --radius-md: var(--primitive-radius-md);
+    --radius-lg: var(--primitive-radius-lg);
+    --radius-xl: var(--primitive-radius-xl);
+    --radius-2xl: var(--primitive-radius-2xl);
+    --radius-full: var(--primitive-radius-full);
+    --radius-soft: var(--primitive-radius-soft);
+
+    /* Shadow Semantic */
+    --shadow-xs: var(--primitive-shadow-xs);
+    --shadow-sm: var(--primitive-shadow-sm);
+    --shadow-md: var(--primitive-shadow-md);
+    --shadow-lg: var(--primitive-shadow-lg);
+    --shadow-xl: var(--primitive-shadow-xl);
+    --shadow-2xl: var(--primitive-shadow-2xl);
+    --shadow-inner: var(--primitive-shadow-inner);
+    --shadow-focus: var(--primitive-shadow-focus);
+
+    /* Duration Semantic */
+    --duration-instant: var(--primitive-duration-instant);
+    --duration-fast: var(--primitive-duration-fast);
+    --duration-normal: var(--primitive-duration-normal);
+    --duration-slow: var(--primitive-duration-slow);
+    --duration-slower: var(--primitive-duration-slower);
+
+    /* Easing Semantic */
+    --ease-in: var(--primitive-ease-in);
+    --ease-out: var(--primitive-ease-out);
+    --ease-in-out: var(--primitive-ease-in-out);
+    --ease-spring: var(--primitive-ease-spring);
+
+    /* Z-Index Semantic */
+    --z-hide: var(--primitive-z-hide);
+    --z-base: var(--primitive-z-base);
+    --z-dropdown: var(--primitive-z-dropdown);
+    --z-sticky: var(--primitive-z-sticky);
+    --z-modal: var(--primitive-z-modal);
+    --z-popover: var(--primitive-z-popover);
+    --z-toast: var(--primitive-z-toast);
+    --z-tooltip: var(--primitive-z-tooltip);
+
+    /* ==========================================================================
+       LAYER 3: COMPONENT TOKENS (Component-Specific)
+       ========================================================================== */
+
+    /* Button Component Tokens */
+    --color-button-primary-bg: var(--color-brand-primary);
+    --color-button-primary-hover: var(--color-brand-primary-hover);
+    --color-button-primary-active: var(--color-brand-primary-active);
+    --color-button-primary-text: var(--color-text-inverse);
+
+    --color-button-secondary-bg: var(--color-bg-secondary);
+    --color-button-secondary-hover: var(--color-bg-tertiary);
+    --color-button-secondary-active: var(--primitive-slate-300);
+    --color-button-secondary-text: var(--color-text-primary);
+
+    --color-button-ghost-bg: transparent;
+    --color-button-ghost-hover: var(--color-bg-secondary);
+    --color-button-ghost-active: var(--color-bg-tertiary);
+    --color-button-ghost-text: var(--color-text-primary);
+
+    --color-button-destructive-bg: var(--color-status-error);
+    --color-button-destructive-hover: var(--primitive-rose-700);
+    --color-button-destructive-active: var(--primitive-rose-800);
+    --color-button-destructive-text: var(--color-text-inverse);
+
+    /* Input Component Tokens */
+    --color-input-bg: var(--color-bg-primary);
+    --color-input-border: var(--color-border-primary);
+    --color-input-focus: var(--color-border-focus);
+    --color-input-placeholder: var(--color-text-tertiary);
+    --color-input-error: var(--color-border-error);
+
+    /* Card Component Tokens */
+    --color-card-bg: var(--color-bg-primary);
+    --color-card-border: var(--color-border-primary);
+    --color-card-hover: var(--color-bg-secondary);
+
+    /* Table Component Tokens */
+    --color-table-header-bg: var(--color-bg-secondary);
+    --color-table-row-bg: var(--color-bg-primary);
+    --color-table-row-hover: var(--color-bg-secondary);
+    --color-table-border: var(--color-border-primary);
+
+    /* Badge Component Tokens */
+    --color-badge-default-bg: var(--color-bg-tertiary);
+    --color-badge-success-bg: var(--color-status-success-bg);
+    --color-badge-warning-bg: var(--color-status-warning-bg);
+    --color-badge-error-bg: var(--color-status-error-bg);
+    --color-badge-info-bg: var(--color-status-info-bg);
+
+    /* ==========================================================================
+       DARK MODE OVERRIDES
+       ========================================================================== */
+  }
+
+  .dark {
+    /* Background Semantic Colors - Dark */
+    --color-bg-primary: var(--primitive-slate-950);
+    --color-bg-secondary: var(--primitive-slate-900);
+    --color-bg-tertiary: var(--primitive-slate-800);
+    --color-bg-inverse: var(--primitive-slate-50);
+    --color-bg-brand: var(--primitive-indigo-500);
+    --color-bg-brand-hover: var(--primitive-indigo-600);
+
+    /* Text Semantic Colors - Dark */
+    --color-text-primary: var(--primitive-slate-50);
+    --color-text-secondary: var(--primitive-slate-400);
+    --color-text-tertiary: var(--primitive-slate-500);
+    --color-text-inverse: var(--primitive-slate-900);
+    --color-text-brand: var(--primitive-indigo-400);
+    --color-text-disabled: var(--primitive-slate-600);
+
+    /* Border Semantic Colors - Dark */
+    --color-border-primary: var(--primitive-slate-800);
+    --color-border-secondary: var(--primitive-slate-700);
+    --color-border-focus: var(--primitive-indigo-400);
+    --color-border-error: var(--primitive-rose-400);
+    --color-border-success: var(--primitive-emerald-400);
+    --color-border-warning: var(--primitive-amber-400);
+
+    /* Status Semantic Colors - Dark */
+    --color-status-error: var(--primitive-rose-400);
+    --color-status-error-bg: var(--primitive-rose-950);
+    --color-status-success: var(--primitive-emerald-400);
+    --color-status-success-bg: var(--primitive-emerald-950);
+    --color-status-warning: var(--primitive-amber-400);
+    --color-status-warning-bg: var(--primitive-amber-950);
+    --color-status-info: var(--primitive-indigo-400);
+    --color-status-info-bg: var(--primitive-indigo-950);
+
+    /* Brand Semantic Colors - Dark */
+    --color-brand-primary: var(--primitive-indigo-500);
+    --color-brand-primary-hover: var(--primitive-indigo-400);
+    --color-brand-primary-active: var(--primitive-indigo-300);
+    --color-brand-secondary: var(--primitive-slate-400);
+    --color-brand-secondary-hover: var(--primitive-slate-300);
+
+    /* Component Tokens - Dark */
+    --color-button-primary-bg: var(--color-brand-primary);
+    --color-button-primary-hover: var(--color-brand-primary-hover);
+    --color-button-primary-active: var(--color-brand-primary-active);
+    --color-button-primary-text: var(--color-text-inverse);
+
+    --color-button-secondary-bg: var(--color-bg-tertiary);
+    --color-button-secondary-hover: var(--primitive-slate-700);
+    --color-button-secondary-active: var(--primitive-slate-600);
+    --color-button-secondary-text: var(--color-text-primary);
+
+    --color-button-ghost-bg: transparent;
+    --color-button-ghost-hover: var(--color-bg-tertiary);
+    --color-button-ghost-active: var(--primitive-slate-700);
+    --color-button-ghost-text: var(--color-text-primary);
+
+    --color-button-destructive-bg: var(--color-status-error);
+    --color-button-destructive-hover: var(--primitive-rose-500);
+    --color-button-destructive-active: var(--primitive-rose-600);
+    --color-button-destructive-text: var(--color-text-inverse);
+
+    --color-input-bg: var(--color-bg-secondary);
+    --color-input-border: var(--color-border-primary);
+    --color-input-focus: var(--color-border-focus);
+    --color-input-placeholder: var(--color-text-tertiary);
+    --color-input-error: var(--color-border-error);
+
+    --color-card-bg: var(--color-bg-secondary);
+    --color-card-border: var(--color-border-primary);
+    --color-card-hover: var(--color-bg-tertiary);
+
+    --color-table-header-bg: var(--color-bg-tertiary);
+    --color-table-row-bg: var(--color-bg-secondary);
+    --color-table-row-hover: var(--color-bg-tertiary);
+    --color-table-border: var(--color-border-primary);
+
+    --color-badge-default-bg: var(--color-bg-tertiary);
+    --color-badge-success-bg: var(--color-status-success-bg);
+    --color-badge-warning-bg: var(--color-status-warning-bg);
+    --color-badge-error-bg: var(--color-status-error-bg);
+    --color-badge-info-bg: var(--color-status-info-bg);
+  }
+
+  /* ==========================================================================
+     MEDIA QUERIES FOR RESPONSIVE TOKENS
+     ========================================================================== */
+
+  @media (prefers-reduced-motion: reduce) {
+    :root {
+      --duration-instant: 0ms;
+      --duration-fast: 0ms;
+      --duration-normal: 0ms;
+      --duration-slow: 0ms;
+      --duration-slower: 0ms;
+    }
+  }
+
+  @media (prefers-contrast: high) {
+    :root {
+      --color-border-primary: var(--primitive-slate-400);
+      --color-border-secondary: var(--primitive-slate-500);
+      --shadow-xs: 0 0 0 1px var(--color-border-primary);
+      --shadow-sm: 0 0 0 1px var(--color-border-primary);
+      --shadow-md: 0 0 0 2px var(--color-border-primary);
+    }
+
+    .dark {
+      --color-border-primary: var(--primitive-slate-500);
+      --color-border-secondary: var(--primitive-slate-400);
+    }
+  }
+}

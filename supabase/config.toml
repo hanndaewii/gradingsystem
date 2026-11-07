@@ -1,0 +1,99 @@
+# Supabase Configuration
+# Generated for CWPC BAD Electronic Grading System
+
+[project]
+id = "cwc-bad-grading"
+name = "CWPC BAD Grading System"
+
+[api]
+enabled = true
+port = 54321
+schemas = ["public", "storage", "graphql_public"]
+extra_search_path = ["public", "extensions"]
+max_rows = 1000
+
+[db]
+host = "127.0.0.1"
+port = 54322
+user = "postgres"
+password = "postgres"
+name = "postgres"
+pool_size = 10
+migrations_dir = "supabase/migrations"
+
+[studio]
+enabled = true
+port = 54323
+
+[inbucket]
+enabled = true
+port = 54324
+smtp_port = 54325
+pop3_port = 54326
+
+[auth]
+enabled = true
+site_url = "http://localhost:3000"
+additional_redirect_urls = ["http://localhost:3000/auth/callback", "http://localhost:3000/**"]
+jwt_secret = "your-super-secret-jwt-token-with-at-least-32-characters-long"
+enable_signup = true
+enable_confirmations = true
+enable_email_confirmation = true
+enable_phone_confirmation = false
+enable_phone_signup = false
+disable_signup = false
+external_phone_providers = []
+external_oauth_providers = ["google", "github", "microsoft"]
+password_min_length = 8
+password_required_characters = ""
+sms_autoconfirm = false
+email_autoconfirm = false
+rate_limit_email_sent = 60
+rate_limit_sms_sent = 60
+rate_limit_verify = 60
+rate_limit_token_refresh = 60
+rate_limit_password_recovery = 60
+lockout_duration = 900
+lockout_threshold = 5
+
+[auth.email]
+enable_signup = true
+double_confirm_changes = true
+secure_email_change = true
+template = "supabase/email_templates/confirm_signup.html"
+
+[auth.sms]
+enabled = false
+
+[auth.external]
+google_enabled = false
+google_client_id = ""
+google_secret = ""
+github_enabled = false
+github_client_id = ""
+github_secret = ""
+microsoft_enabled = false
+microsoft_client_id = ""
+microsoft_secret = ""
+
+[storage]
+enabled = true
+file_size_limit = "50MiB"
+buckets = [
+  { name = "avatars", public = false, file_size_limit = "5MiB", allowed_mime_types = ["image/png", "image/jpeg", "image/webp", "image/gif"] },
+  { name = "documents", public = false, file_size_limit = "50MiB", allowed_mime_types = ["application/pdf", "application/msword", "application/vnd.openxmlformats-officedocument.wordprocessingml.document"] },
+  { name = "reports", public = false, file_size_limit = "100MiB", allowed_mime_types = ["application/pdf", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", "text/csv"] },
+  { name = "imports", public = false, file_size_limit = "10MiB", allowed_mime_types = ["text/csv", "application/vnd.ms-excel", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"] }
+]
+
+[functions]
+enabled = true
+verify_jwt = true
+import_map = "supabase/functions/import_map.json"
+
+[realtime]
+enabled = true
+max_rows_per_second = 1000
+
+[edge_runtime]
+policy = "local"
