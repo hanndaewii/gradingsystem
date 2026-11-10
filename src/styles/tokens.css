@@ -12,12 +12,12 @@
   --font-serif: "Newsreader", Georgia, serif;
   --font-mono: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
 
-  --text-xs: 12px;
-  --text-sm: 14px;
-  --text-base: 17px;
-  --text-lg: 20px;
-  --text-xl: 24px;
-  --text-2xl: 30px;
+  --text-xs: 13px;
+  --text-sm: 15px;
+  --text-base: 18px;
+  --text-lg: 21px;
+  --text-xl: 25px;
+  --text-2xl: 32px;
   --leading-tight: 1.25;
   --leading-normal: 1.55;
   --label-tracking: 0.08em;
@@ -28,9 +28,9 @@
   --surface: #fbfdf6;
   --rule: #c9dcbe;
   --rule-strong: #a9c49c;
-  --ink: #17211a;
-  --ink-2: #35463a;
-  --ink-3: #4f6153;
+  --ink: #000000;
+  --ink-2: #212b24;
+  --ink-3: #39463c;
   --brand: #2f5138;         /* deep pine — primary fills, active tabs/nav */
   --brand-hover: #3a6244;
   --accent: #9a6208;        /* gold — ticks / submitted / focus only */
