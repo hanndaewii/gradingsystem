@@ -1,0 +1,10 @@
+/* ============================================================
+   index.css — the single CSS entry point (D18).
+   Import order IS load order. main.tsx (WO-3) must import this
+   first; domain stylesheets (.prof-/.sec-/.adm-/.sh-) load after
+   and may only use tokens + their own class prefixes.
+   ============================================================ */
+
+@import "./tokens.css";
+@import "./base.css";
+@import "./components.css";

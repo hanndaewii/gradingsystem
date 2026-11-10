@@ -1,0 +1,307 @@
+/* ============================================================
+   shell.css — WO-3 app chrome (.sh- prefix only, tokens only).
+   The masthead is a ledger rule: paper background with a single
+   hairline bottom border — never a filled bar, never a shadow.
+   ============================================================ */
+
+.sh-root {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+/* ---- masthead ---- */
+
+.sh-header {
+  position: sticky;
+  top: 0;
+  z-index: var(--z-header);
+  background: var(--paper);
+  border-bottom: 1px solid var(--rule);
+}
+
+.sh-header__inner {
+  max-width: 1120px;
+  margin: 0 auto;
+  height: var(--header-h);
+  padding: 0 var(--space-6);
+  display: flex;
+  align-items: center;
+  gap: var(--space-5);
+}
+
+.sh-brand {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+  text-decoration: none;
+}
+
+.sh-brand__title {
+  font-family: var(--font-serif);
+  font-size: var(--text-lg);
+  font-weight: 600;
+  line-height: var(--leading-tight);
+  color: var(--ink);
+  white-space: nowrap;
+}
+
+/* mono-label utility supplies family/size/tracking/uppercase */
+.sh-brand__role {
+  color: var(--ink-3);
+  white-space: nowrap;
+}
+
+.sh-nav {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+}
+
+.sh-nav__link {
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  letter-spacing: var(--label-tracking);
+  text-transform: uppercase;
+  color: var(--ink-3);
+  text-decoration: none;
+  padding: var(--space-1) 0;
+  border-bottom: 1px solid transparent;
+}
+
+.sh-nav__link:hover {
+  color: var(--ink);
+}
+
+.sh-nav__link[aria-current="page"] {
+  color: var(--ink);
+  border-bottom-color: var(--rule-strong);
+}
+
+.sh-header__end {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+/* Native button (ui Button doesn't forward aria-pressed) reusing the
+   ghost primitive's classes; only the glyph line-height is adjusted. */
+.sh-theme-toggle {
+  line-height: 1;
+}
+
+/* ---- content column ---- */
+
+.sh-main {
+  flex: 1;
+  width: 100%;
+  max-width: 1120px;
+  margin: 0 auto;
+  padding: var(--space-7) var(--space-6) var(--space-8);
+}
+
+/* ---- full-page loading (session restore — no login flash) ---- */
+
+.sh-fullpage {
+  min-height: calc(100vh - var(--header-h) - 2 * var(--space-7));
+  display: grid;
+  place-items: center;
+}
+
+/* ---- login ---- */
+
+.sh-login {
+  min-height: calc(100vh - var(--header-h) - var(--space-8));
+  display: grid;
+  place-items: center;
+}
+
+.sh-login__card {
+  width: min(420px, 100%);
+  background: var(--surface);
+  border: 1px solid var(--rule);
+  border-radius: var(--radius-lg);
+  padding: var(--space-7);
+}
+
+.sh-login__head {
+  display: grid;
+  gap: var(--space-1);
+  margin-bottom: var(--space-5);
+}
+
+.sh-login__title {
+  font-size: var(--text-xl);
+  font-weight: 600;
+}
+
+.sh-login__sub {
+  color: var(--ink-2);
+  font-size: var(--text-sm);
+}
+
+.sh-login__form {
+  display: grid;
+  gap: var(--space-4);
+}
+
+.sh-login__alert {
+  border: 1px solid var(--danger);
+  border-radius: var(--radius);
+  color: var(--danger);
+  font-size: var(--text-sm);
+  padding: var(--space-2) var(--space-3);
+}
+
+.sh-login__hint {
+  margin-top: var(--space-4);
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  color: var(--ink-3);
+}
+
+.sh-login__demo {
+  margin-top: var(--space-4);
+  padding-top: var(--space-4);
+  border-top: 1px solid var(--rule);
+  display: grid;
+  gap: var(--space-2);
+}
+
+.sh-chips {
+  display: grid;
+  gap: var(--space-2);
+}
+
+.sh-chip {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-3);
+  width: 100%;
+  text-align: left;
+  font: inherit;
+  color: var(--ink);
+  background: var(--paper-2);
+  border: 1px solid var(--rule);
+  border-radius: var(--radius);
+  padding: var(--space-2) var(--space-3);
+  cursor: pointer;
+}
+
+.sh-chip:hover {
+  border-color: var(--rule-strong);
+}
+
+.sh-chip__name {
+  font-size: var(--text-sm);
+}
+
+.sh-chip__email {
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  color: var(--ink-2);
+}
+
+/* ---- profile modal ---- */
+
+.sh-profile__list {
+  display: grid;
+}
+
+.sh-profile__row {
+  display: grid;
+  grid-template-columns: 120px 1fr;
+  gap: var(--space-4);
+  align-items: baseline;
+  padding: var(--space-2) 0;
+  border-bottom: 1px solid var(--rule);
+}
+
+.sh-profile__row:last-child {
+  border-bottom: none;
+}
+
+.sh-profile__name {
+  font-size: var(--text-lg);
+  font-weight: 600;
+}
+
+.sh-profile__mono {
+  font-size: var(--text-sm);
+}
+
+.sh-profile__bio {
+  white-space: pre-line;
+}
+
+.sh-profile__empty {
+  color: var(--ink-3);
+}
+
+.sh-profile__form {
+  display: grid;
+  gap: var(--space-4);
+}
+
+.sh-profile__count {
+  display: block;
+  text-align: right;
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  color: var(--ink-3);
+}
+
+.sh-profile__reset-note {
+  margin-top: var(--space-3);
+}
+
+/* Modal footers that need a left + right group (ui-modal__footer is
+   justify-content: flex-end; this spreads across the full width). */
+.sh-footer-spread {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+
+.sh-footer-spread__group {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+/* ---- not found ---- */
+
+.sh-notfound {
+  min-height: calc(100vh - var(--header-h) - var(--space-8));
+  display: grid;
+  place-content: center;
+  justify-items: center;
+  gap: var(--space-2);
+  text-align: center;
+}
+
+.sh-notfound__title {
+  font-size: var(--text-2xl);
+}
+
+.sh-notfound__body {
+  color: var(--ink-2);
+}
+
+.sh-notfound__link {
+  margin-top: var(--space-3);
+  font-family: var(--font-mono);
+  font-size: var(--text-sm);
+  color: var(--ink-2);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.sh-notfound__link:hover {
+  color: var(--ink);
+}

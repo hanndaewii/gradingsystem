@@ -1,0 +1,784 @@
+/* ============================================================
+   components.css — WO-1 primitive classes (.ui-*)
+   LOCKED aesthetic: hairlines instead of shadows; no box-shadow
+   anywhere; no blue primary (primary button = ink fill / paper
+   text); gold appears ONLY on TickIcon, ProgressSegments
+   submitted state, StatusPill done, the focus ring, and the
+   celebration. Radii 3px/5px. Mono small-caps labels.
+   Domain CSS (.prof-/.sec-/.adm-/.sh-) must not redefine these.
+   ============================================================ */
+
+/* ---- Button ---- */
+
+.ui-btn {
+  appearance: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  height: 34px;
+  padding: 0 var(--space-4);
+  border: 1px solid transparent;
+  border-radius: var(--radius);
+  background: transparent;
+  color: var(--ink);
+  font-family: var(--font-serif);
+  font-size: var(--text-sm);
+  line-height: 1;
+  white-space: nowrap;
+  cursor: pointer;
+  transition:
+    background-color var(--dur-fast) var(--ease),
+    border-color var(--dur-fast) var(--ease),
+    color var(--dur-fast) var(--ease),
+    opacity var(--dur-fast) var(--ease);
+}
+
+.ui-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.ui-btn--sm {
+  height: 27px;
+  padding: 0 var(--space-3);
+  font-size: var(--text-xs);
+}
+
+/* primary = ink fill, paper text (never blue, never gold) */
+.ui-btn--primary {
+  background: var(--ink);
+  border-color: var(--ink);
+  color: var(--paper);
+}
+
+.ui-btn--primary:hover:not(:disabled) {
+  background: var(--ink-2);
+  border-color: var(--ink-2);
+}
+
+.ui-btn--secondary {
+  background: var(--surface);
+  border-color: var(--rule-strong);
+  color: var(--ink);
+}
+
+.ui-btn--secondary:hover:not(:disabled) {
+  background: var(--paper-2);
+  border-color: var(--ink-3);
+}
+
+.ui-btn--ghost {
+  background: transparent;
+  color: var(--ink-2);
+}
+
+.ui-btn--ghost:hover:not(:disabled) {
+  background: var(--paper-2);
+  color: var(--ink);
+}
+
+.ui-btn--danger {
+  background: var(--danger);
+  border-color: var(--danger);
+  color: var(--paper);
+}
+
+.ui-btn--danger:hover:not(:disabled) {
+  opacity: 0.88;
+}
+
+.ui-btn--link {
+  height: auto;
+  padding: 0;
+  color: var(--ink);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.ui-btn--link:hover:not(:disabled) {
+  color: var(--ink-2);
+  text-decoration: none;
+}
+
+.ui-btn--loading {
+  opacity: 0.78;
+}
+
+/* ---- StatusPill ---- */
+
+.ui-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 2px 8px;
+  border: 1px solid var(--rule-strong);
+  border-radius: var(--radius);
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  letter-spacing: var(--label-tracking);
+  text-transform: uppercase;
+  color: var(--ink-2);
+  white-space: nowrap;
+}
+
+.ui-pill--progress {
+  color: var(--draft);
+  border-color: var(--draft);
+}
+
+/* done = the one gold pill (allowed: StatusPill done) */
+.ui-pill--done {
+  color: var(--accent-ink);
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+
+.ui-pill--done .ui-tick {
+  color: var(--accent);
+}
+
+/* ---- ProgressSegments ---- */
+
+.ui-segs {
+  display: flex;
+  gap: 2px;
+  width: 100%;
+}
+
+.ui-seg-cell {
+  flex: 1 1 0;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.ui-seg {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  border: 1px solid var(--rule-strong);
+  border-radius: var(--radius);
+  background: transparent;
+  transition:
+    background-color var(--dur-fast) var(--ease),
+    border-color var(--dur-fast) var(--ease);
+}
+
+.ui-seg--sm {
+  height: 8px;
+}
+
+.ui-seg--md {
+  height: 12px;
+}
+
+/* draft = partial hatch fill by ratio, in --draft */
+.ui-seg__fill {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  width: 0;
+  background-image: repeating-linear-gradient(135deg, var(--draft) 0 1px, transparent 1px 4px);
+  opacity: 0.65;
+}
+
+/* submitted = solid gold + paper tick (allowed) */
+.ui-seg--submitted {
+  background: var(--accent);
+  border-color: var(--accent);
+}
+
+.ui-seg--submitted .ui-tick {
+  color: var(--paper);
+}
+
+.ui-seg--active {
+  border-color: var(--ink);
+}
+
+.ui-seg--submitted.ui-seg--active {
+  border-color: var(--accent-ink);
+}
+
+.ui-seg__label {
+  text-align: center;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ---- Tabs ---- */
+
+.ui-tabs {
+  display: flex;
+  align-items: stretch;
+}
+
+.ui-tabs--underline {
+  gap: var(--space-4);
+  border-bottom: 1px solid var(--rule);
+}
+
+.ui-tabs--segmented {
+  display: inline-flex;
+  gap: 2px;
+  width: fit-content;
+  padding: 2px;
+  border: 1px solid var(--rule-strong);
+  border-radius: var(--radius);
+  background: var(--paper-2);
+}
+
+.ui-tab {
+  appearance: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: var(--space-2) 2px;
+  border: none;
+  border-bottom: 2px solid transparent;
+  border-radius: 0;
+  margin-bottom: -1px;
+  background: transparent;
+  color: var(--ink-2);
+  font-family: var(--font-serif);
+  font-size: var(--text-sm);
+  white-space: nowrap;
+  cursor: pointer;
+  transition:
+    color var(--dur-fast) var(--ease),
+    border-color var(--dur-fast) var(--ease),
+    background-color var(--dur-fast) var(--ease);
+}
+
+.ui-tab:hover:not(:disabled):not([aria-selected="true"]) {
+  color: var(--ink);
+}
+
+.ui-tab[aria-selected="true"] {
+  color: var(--ink);
+  border-bottom-color: var(--ink);
+}
+
+.ui-tab:disabled {
+  color: var(--ink-3);
+  cursor: not-allowed;
+}
+
+.ui-tabs--segmented .ui-tab {
+  margin-bottom: 0;
+  padding: 4px 12px;
+  border-bottom: none;
+  border-radius: 2px;
+}
+
+.ui-tabs--segmented .ui-tab[aria-selected="true"] {
+  background: var(--ink);
+  color: var(--paper);
+}
+
+/* gold tick inside a period tab (allowed: TickIcon) */
+.ui-tab .ui-tick {
+  color: var(--accent);
+}
+
+.ui-tab__label {
+  min-width: 0;
+}
+
+.ui-tab__badge {
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  font-variant-numeric: tabular-nums;
+  color: var(--ink-3);
+}
+
+/* ---- Field / Input / Select / Textarea ---- */
+
+.ui-field {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.ui-field__label {
+  display: block;
+}
+
+.ui-field__hint {
+  font-size: var(--text-xs);
+  color: var(--ink-3);
+  line-height: 1.4;
+}
+
+.ui-field__error {
+  font-size: var(--text-xs);
+  color: var(--danger);
+  line-height: 1.4;
+}
+
+.ui-input,
+.ui-select,
+.ui-textarea {
+  width: 100%;
+  padding: 6px 10px;
+  border: 1px solid var(--rule-strong);
+  border-radius: var(--radius);
+  background: var(--surface);
+  color: var(--ink);
+  font-family: var(--font-serif);
+  font-size: var(--text-sm);
+  transition: border-color var(--dur-fast) var(--ease);
+}
+
+/* Border affordance only — the focus outline itself is never removed. */
+.ui-input:focus,
+.ui-select:focus,
+.ui-textarea:focus {
+  border-color: var(--ink-3);
+}
+
+.ui-input::placeholder,
+.ui-textarea::placeholder {
+  color: var(--ink-3);
+  opacity: 1;
+}
+
+.ui-input.is-invalid,
+.ui-select.is-invalid,
+.ui-textarea.is-invalid {
+  border-color: var(--danger);
+}
+
+.ui-textarea {
+  min-height: 88px;
+  resize: vertical;
+  line-height: var(--leading-normal);
+}
+
+/* ---- Checkbox ---- */
+
+.ui-checkbox {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: var(--text-sm);
+  color: var(--ink);
+  cursor: pointer;
+}
+
+.ui-checkbox__input {
+  flex: none;
+  width: 15px;
+  height: 15px;
+  margin: 0;
+  accent-color: var(--ink);
+  cursor: pointer;
+}
+
+.ui-checkbox__input:disabled {
+  cursor: not-allowed;
+}
+
+.ui-checkbox:has(.ui-checkbox__input:disabled) {
+  opacity: 0.55;
+}
+
+/* ---- EmptyState ---- */
+
+.ui-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-7) var(--space-5);
+  border: 1px dashed var(--rule-strong);
+  border-radius: var(--radius-lg);
+  text-align: center;
+}
+
+.ui-empty__title {
+  font-size: var(--text-lg);
+  font-weight: 600;
+}
+
+.ui-empty__body {
+  max-width: 52ch;
+  font-size: var(--text-sm);
+  color: var(--ink-2);
+}
+
+.ui-empty__action {
+  margin-top: var(--space-1);
+}
+
+/* ---- Panel ---- */
+
+.ui-panel {
+  background: var(--surface);
+  border: 1px solid var(--rule);
+  border-radius: var(--radius-lg);
+}
+
+.ui-panel__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  min-height: 38px;
+  padding: var(--space-2) var(--space-4);
+  border-bottom: 1px solid var(--rule);
+}
+
+.ui-panel__label {
+  min-width: 0;
+}
+
+.ui-panel__actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex: none;
+}
+
+.ui-panel__body {
+  padding: var(--space-4);
+}
+
+.ui-panel--dense .ui-panel__head {
+  min-height: 32px;
+  padding: var(--space-1) var(--space-3);
+}
+
+.ui-panel--dense .ui-panel__body {
+  padding: var(--space-3);
+}
+
+/* ---- Menu ---- */
+
+.ui-menu {
+  position: relative;
+  display: inline-flex;
+}
+
+.ui-menu__trigger {
+  appearance: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: 1px solid transparent;
+  border-radius: var(--radius);
+  background: transparent;
+  color: var(--ink-2);
+  font-family: var(--font-mono);
+  font-size: 15px;
+  line-height: 1;
+  letter-spacing: 1px;
+  cursor: pointer;
+  transition:
+    background-color var(--dur-fast) var(--ease),
+    color var(--dur-fast) var(--ease);
+}
+
+.ui-menu__trigger:hover,
+.ui-menu__trigger[aria-expanded="true"] {
+  background: var(--paper-2);
+  color: var(--ink);
+}
+
+.ui-menu__list {
+  position: absolute;
+  top: calc(100% + 4px);
+  z-index: var(--z-nav);
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 168px;
+  padding: 4px;
+  background: var(--surface);
+  border: 1px solid var(--rule-strong);
+  border-radius: var(--radius-lg);
+}
+
+.ui-menu--start .ui-menu__list {
+  left: 0;
+}
+
+.ui-menu--end .ui-menu__list {
+  right: 0;
+}
+
+.ui-menu__item {
+  appearance: none;
+  padding: 6px 10px;
+  border: none;
+  border-radius: var(--radius);
+  background: transparent;
+  color: var(--ink);
+  font-family: var(--font-serif);
+  font-size: var(--text-sm);
+  text-align: left;
+  cursor: pointer;
+}
+
+.ui-menu__item:hover:not(:disabled) {
+  background: var(--paper-2);
+}
+
+.ui-menu__item:disabled {
+  color: var(--ink-3);
+  cursor: not-allowed;
+}
+
+.ui-menu__item--danger {
+  color: var(--danger);
+}
+
+/* ---- Spinner ---- */
+
+.ui-spinner {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: var(--text-xs);
+  color: var(--ink-3);
+}
+
+.ui-spinner__circle {
+  flex: none;
+  width: 16px;
+  height: 16px;
+  border: 2px solid var(--rule-strong);
+  border-top-color: var(--ink-2);
+  border-radius: 50%;
+  animation: ui-spin 700ms linear infinite;
+}
+
+.ui-spinner--sm .ui-spinner__circle {
+  width: 13px;
+  height: 13px;
+}
+
+@keyframes ui-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* ---- TickIcon ---- */
+
+.ui-tick {
+  flex: none;
+  color: var(--accent); /* gold — allowed on TickIcon */
+}
+
+.ui-tick--draw .ui-tick__path {
+  stroke-dasharray: 1;
+  stroke-dashoffset: 1;
+  animation: ui-tick-draw var(--dur-slow) var(--ease) forwards;
+}
+
+@keyframes ui-tick-draw {
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+/* ---- Modal ---- */
+
+.ui-modal {
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-modal);
+  display: grid;
+  place-items: center;
+  padding: var(--space-4);
+}
+
+.ui-modal__backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(28, 26, 22, 0.38);
+}
+
+[data-theme="dim"] .ui-modal__backdrop {
+  background: rgba(0, 0, 0, 0.55);
+}
+
+.ui-modal__panel {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  max-height: min(680px, calc(100vh - 32px));
+  overflow: hidden;
+  background: var(--surface);
+  border: 1px solid var(--rule-strong);
+  border-radius: var(--radius-lg);
+}
+
+.ui-modal__panel--sm {
+  max-width: 420px;
+}
+
+.ui-modal__panel--md {
+  max-width: 560px;
+}
+
+.ui-modal__panel--lg {
+  max-width: 720px;
+}
+
+.ui-modal__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-4);
+  border-bottom: 1px solid var(--rule);
+}
+
+.ui-modal__title {
+  font-size: var(--text-lg);
+  font-weight: 600;
+}
+
+.ui-modal__close {
+  appearance: none;
+  flex: none;
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  border: none;
+  border-radius: var(--radius);
+  background: transparent;
+  color: var(--ink-3);
+  font-family: var(--font-mono);
+  font-size: 16px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.ui-modal__close:hover {
+  background: var(--paper-2);
+  color: var(--ink);
+}
+
+.ui-modal__body {
+  padding: var(--space-4);
+  overflow: auto;
+}
+
+.ui-modal__footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--space-2);
+  padding: var(--space-3) var(--space-4);
+  border-top: 1px solid var(--rule);
+}
+
+/* ---- ConfirmDialog (danger tone accent on top of Modal) ---- */
+
+.ui-confirm {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  font-size: var(--text-sm);
+  color: var(--ink-2);
+}
+
+.ui-confirm--danger {
+  color: var(--ink);
+}
+
+/* ---- Toasts (viewport sits ABOVE modals: --z-toast 60 > --z-modal 50) ---- */
+
+.ui-toasts {
+  position: fixed;
+  right: var(--space-4);
+  bottom: var(--space-4);
+  z-index: var(--z-toast);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  width: min(360px, calc(100vw - 32px));
+  pointer-events: none;
+}
+
+.ui-toast {
+  pointer-events: auto;
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-2);
+  padding: 10px var(--space-3);
+  background: var(--surface);
+  border: 1px solid var(--rule-strong);
+  border-left: 3px solid var(--ink-3);
+  border-radius: var(--radius);
+}
+
+.ui-toast--info {
+  border-left-color: var(--ink-3);
+}
+
+.ui-toast--success {
+  border-left-color: var(--ok);
+}
+
+.ui-toast--warn {
+  border-left-color: var(--warn);
+}
+
+.ui-toast--danger {
+  border-left-color: var(--danger);
+}
+
+.ui-toast__content {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.ui-toast__title {
+  font-size: var(--text-sm);
+  font-weight: 600;
+  line-height: var(--leading-tight);
+}
+
+.ui-toast__desc {
+  margin-top: 2px;
+  font-size: var(--text-xs);
+  color: var(--ink-2);
+  line-height: 1.45;
+}
+
+.ui-toast .ui-tick {
+  margin-top: 1px;
+  color: var(--accent); /* gold tick on success toasts (allowed) */
+}
+
+.ui-toast__close {
+  appearance: none;
+  flex: none;
+  padding: 1px 4px;
+  border: none;
+  border-radius: var(--radius);
+  background: transparent;
+  color: var(--ink-3);
+  font-family: var(--font-mono);
+  font-size: 14px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.ui-toast__close:hover {
+  background: var(--paper-2);
+  color: var(--ink);
+}

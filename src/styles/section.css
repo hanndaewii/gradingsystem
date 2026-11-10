@@ -1,0 +1,1049 @@
+/* ============================================================
+   section.css — WO-5 (.sec- prefix only, tokens only, D18).
+   Academic ledger: hairlines, mono tabular numerals, gold only
+   on ticks/submitted/status-done/focus/the celebration.
+   Sticky offsets build on --header-h.
+   ============================================================ */
+
+/* ---- page scaffold ---- */
+
+.sec-page {
+  display: grid;
+  gap: var(--space-6);
+}
+
+.sec-page--loading {
+  min-height: 40vh;
+  display: grid;
+  place-items: center;
+}
+
+.sec-link {
+  font-size: var(--text-sm);
+  color: var(--ink-2);
+  text-decoration: underline;
+}
+
+.sec-anchor {
+  /* anchored scrolling clears the sticky header */
+  scroll-margin-top: calc(var(--header-h) + var(--space-3));
+}
+
+#sec-roster,
+#sec-assessments,
+[id^="sec-assess-"],
+[id^="sec-cell-"] {
+  scroll-margin-top: calc(var(--header-h) + var(--space-3));
+}
+
+/* ---- header block ---- */
+
+.sec-header {
+  border-bottom: 1px solid var(--rule);
+  padding-bottom: var(--space-5);
+}
+
+.sec-header__main {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-5);
+}
+
+.sec-header__crumb {
+  margin-bottom: var(--space-1);
+}
+
+.sec-header__crumb--link {
+  display: inline-block;
+  color: var(--ink-3);
+  text-decoration: none;
+}
+
+.sec-header__crumb--link:hover {
+  color: var(--ink-2);
+  text-decoration: underline;
+}
+
+.sec-header__title {
+  font-size: var(--text-2xl);
+  color: var(--ink);
+}
+
+.sec-header__meta {
+  margin-top: var(--space-1);
+  font-size: var(--text-sm);
+  color: var(--ink-2);
+}
+
+.sec-header__end {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  flex-shrink: 0;
+}
+
+/* ---- layout: sticky side nav + content ---- */
+
+.sec-layout {
+  display: grid;
+  grid-template-columns: 200px minmax(0, 1fr);
+  gap: var(--space-7);
+  align-items: start;
+}
+
+.sec-content {
+  display: grid;
+  gap: var(--space-6);
+  min-width: 0;
+}
+
+/* ---- side nav ---- */
+
+.sec-sidenav {
+  position: sticky;
+  top: calc(var(--header-h) + var(--space-5));
+  display: grid;
+  gap: var(--space-5);
+  font-size: var(--text-sm);
+}
+
+.sec-sidenav__group {
+  display: grid;
+  gap: 2px;
+}
+
+.sec-sidenav__label {
+  padding-bottom: var(--space-1);
+}
+
+.sec-sidenav__item,
+.sec-sidenav__check {
+  appearance: none;
+  background: none;
+  border: none;
+  border-left: 2px solid transparent;
+  color: var(--ink-2);
+  cursor: pointer;
+  font: inherit;
+  text-align: left;
+  padding: var(--space-1) var(--space-2);
+  transition: color var(--dur-fast) var(--ease), border-color var(--dur-fast) var(--ease);
+}
+
+.sec-sidenav__item:hover,
+.sec-sidenav__check:hover {
+  color: var(--ink);
+}
+
+.sec-sidenav__item.is-active {
+  color: var(--ink);
+  border-left-color: var(--rule-strong);
+}
+
+.sec-sidenav__item--sub {
+  padding-left: var(--space-4);
+}
+
+.sec-sidenav__count {
+  display: block;
+  font-size: var(--text-xs);
+  color: var(--ink-3);
+  padding: 0 var(--space-2) var(--space-1);
+}
+
+.sec-sidenav__empty {
+  color: var(--ink-3);
+  font-size: var(--text-xs);
+  padding: 0 var(--space-2);
+}
+
+.sec-sidenav__check {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding-left: var(--space-4);
+}
+
+.sec-sidenav__checkname {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* per-assessment "n of m students graded" badge (mono via .num) */
+.sec-sidenav__checkcount {
+  margin-left: auto;
+  flex: none;
+  font-size: var(--text-xs);
+  color: var(--ink-3);
+}
+
+.sec-sidenav__tick {
+  color: var(--accent);
+  flex-shrink: 0;
+}
+
+.sec-sidenav__box {
+  width: 12px;
+  height: 12px;
+  border: 1px solid var(--rule-strong);
+  border-radius: var(--radius);
+  flex-shrink: 0;
+}
+
+/* ---- lock notice ---- */
+
+.sec-locknotice {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-4);
+  border: 1px solid var(--rule);
+  border-left: 3px solid var(--rule-strong);
+  background: var(--paper-2);
+  border-radius: var(--radius);
+  padding: var(--space-2) var(--space-3);
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  color: var(--ink-2);
+}
+
+.sec-locknotice__action {
+  flex-shrink: 0;
+}
+
+/* ---- tables (shared hairline ledger) ---- */
+
+.sec-tablewrap {
+  overflow-x: auto;
+}
+
+.sec-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--text-sm);
+}
+
+.sec-table th,
+.sec-table td {
+  border-bottom: 1px solid var(--rule);
+  padding: var(--space-2) var(--space-3);
+  text-align: left;
+  vertical-align: middle;
+}
+
+.sec-table thead th {
+  border-bottom: 1px solid var(--rule-strong);
+  color: var(--ink-3);
+  font-weight: 400;
+  white-space: nowrap;
+}
+
+.sec-table tbody tr:hover {
+  background: var(--paper-2);
+}
+
+.sec-table tfoot td {
+  border-top: 1px solid var(--rule-strong);
+  border-bottom: none;
+  background: var(--paper-2);
+}
+
+.sec-table__id {
+  white-space: nowrap;
+  color: var(--ink-2);
+  font-size: var(--text-xs);
+}
+
+.sec-table__name {
+  white-space: nowrap;
+}
+
+.sec-table__assessname {
+  display: block;
+  font-weight: 600;
+}
+
+.sec-table__assessmeta {
+  display: block;
+  font-size: var(--text-xs);
+  color: var(--ink-3);
+}
+
+.sec-table__periodgrade {
+  white-space: nowrap;
+}
+
+.sec-table__actions {
+  width: 40px;
+  text-align: right;
+}
+
+.sec-table__foot .mono-label {
+  font-size: var(--text-xs);
+}
+
+.sec-table__semestervalue {
+  display: block;
+  margin-top: 2px;
+  font-size: var(--text-base);
+}
+
+.sec-table__provisional {
+  color: var(--warn);
+  font-family: var(--font-serif);
+  font-size: var(--text-xs);
+  text-transform: lowercase;
+}
+
+.sec-panelactions {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+/* ---- grade cells + flash trace ---- */
+
+.sec-cell {
+  position: relative;
+  min-width: 76px;
+}
+
+.sec-cell__input {
+  width: 68px;
+  text-align: right;
+  font-size: var(--text-sm);
+  padding: 3px 6px;
+}
+
+/* cell highlight + floating "85 → 92" chip (flash prop).
+   Animations are scoped to no-preference so reduced motion shows the
+   chip statically (never animated away to opacity 0). */
+.sec-cell--flash {
+  background: var(--accent-soft);
+}
+
+.sec-cell__chip {
+  position: absolute;
+  right: var(--space-2);
+  bottom: calc(100% - 2px);
+  z-index: var(--z-nav);
+  background: var(--accent-soft);
+  border: 1px solid var(--accent);
+  color: var(--ink);
+  border-radius: var(--radius);
+  padding: 1px 6px;
+  font-size: var(--text-xs);
+  white-space: nowrap;
+  pointer-events: none;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .sec-cell--flash {
+    animation: sec-flash-bg var(--dur-slow) var(--ease) 1;
+  }
+
+  .sec-cell__chip {
+    animation: sec-chip-fade var(--dur-slow) var(--ease) 1 forwards;
+    animation-delay: calc(var(--dur-slow) * 1.5);
+  }
+}
+
+@keyframes sec-flash-bg {
+  from {
+    background: var(--accent-soft);
+  }
+  to {
+    background: transparent;
+  }
+}
+
+@keyframes sec-chip-fade {
+  from {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  to {
+    opacity: 0;
+    transform: translateY(-6px);
+  }
+}
+
+/* ---- assessments panel ---- */
+
+.sec-assess {
+  display: grid;
+  gap: var(--space-3);
+}
+
+.sec-assess__locknote {
+  color: var(--ink-2);
+}
+
+.sec-assess__orderlock {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+
+.sec-assess__empty {
+  color: var(--ink-3);
+  font-size: var(--text-sm);
+}
+
+.sec-assess__list {
+  list-style: none;
+  padding: 0;
+  display: grid;
+}
+
+.sec-assess__row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-2) 0;
+  border-bottom: 1px solid var(--rule);
+}
+
+.sec-assess__order {
+  color: var(--ink-3);
+  font-size: var(--text-xs);
+  width: 18px;
+  text-align: right;
+  flex-shrink: 0;
+}
+
+.sec-assess__name {
+  font-weight: 600;
+}
+
+.sec-assess__meta {
+  color: var(--ink-3);
+  font-size: var(--text-xs);
+}
+
+.sec-assess__tools {
+  margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+}
+
+.sec-assess__rename {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+}
+
+.sec-assess__error {
+  color: var(--danger);
+  font-size: var(--text-xs);
+}
+
+.sec-assess__hint {
+  font-size: var(--text-xs);
+}
+
+.sec-assess__add {
+  display: flex;
+  align-items: flex-end;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+  border-top: 1px solid var(--rule);
+  padding-top: var(--space-3);
+  /* room for the weight hint hanging below the input row */
+  padding-bottom: var(--space-4);
+}
+
+.sec-assess__add .ui-field {
+  min-width: 140px;
+  position: relative;
+}
+
+/* The "Blank = equal weight" hint hangs below its input so it doesn't make
+   the Weight field taller — all three inputs keep the same baseline. */
+.sec-assess__add .ui-field__hint {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  margin-top: 2px;
+  white-space: nowrap;
+}
+
+/* ---- submit bar (sticky bottom, z below header) ---- */
+
+.sec-submitbar {
+  position: sticky;
+  bottom: 0;
+  z-index: var(--z-nav);
+  background: var(--surface);
+  border: 1px solid var(--rule-strong);
+  border-radius: var(--radius-lg);
+  padding: var(--space-3) var(--space-4);
+}
+
+.sec-submitbar__main {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+  flex-wrap: wrap;
+}
+
+.sec-submitbar__meta {
+  font-size: var(--text-sm);
+  color: var(--ink-2);
+}
+
+.sec-submitbar__submit {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.sec-submitbar__reason {
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  color: var(--warn);
+}
+
+.sec-submitbar__note {
+  color: var(--ink-3);
+  font-size: var(--text-sm);
+}
+
+/* ---- summary ---- */
+
+.sec-summary {
+  display: grid;
+  gap: var(--space-6);
+}
+
+.sec-summary__cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: var(--space-4);
+}
+
+.sec-summary__card {
+  border: 1px solid var(--rule);
+  border-radius: var(--radius);
+  background: var(--surface);
+  padding: var(--space-4);
+  display: grid;
+  gap: var(--space-2);
+}
+
+.sec-summary__cardhead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+}
+
+.sec-summary__periodname {
+  font-weight: 600;
+}
+
+.sec-summary__grade {
+  font-size: var(--text-xl);
+}
+
+.sec-summary__meta {
+  font-size: var(--text-xs);
+}
+
+.sec-summary__table {
+  max-width: 560px;
+}
+
+.sec-final {
+  border: 1px solid var(--rule-strong);
+  border-radius: var(--radius-lg);
+  background: var(--paper-2);
+  padding: var(--space-5);
+  display: grid;
+  gap: var(--space-1);
+  justify-items: start;
+}
+
+.sec-final--complete {
+  border-color: var(--accent);
+}
+
+.sec-final__row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.sec-final__tick {
+  color: var(--accent);
+}
+
+.sec-final__value {
+  font-size: var(--text-2xl);
+  letter-spacing: 0.01em;
+}
+
+.sec-final__sub {
+  color: var(--ink-2);
+  font-size: var(--text-sm);
+}
+
+.sec-final__donelabel {
+  color: var(--accent-ink);
+}
+
+.sec-summary__editors {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  gap: var(--space-6);
+  align-items: start;
+}
+
+.sec-summary__editor {
+  display: grid;
+  gap: var(--space-3);
+  border-top: 1px solid var(--rule-strong);
+  padding-top: var(--space-3);
+}
+
+.sec-summary__editor h3 {
+  color: var(--ink-3);
+}
+
+.sec-summary__footnote {
+  font-size: var(--text-xs);
+}
+
+/* ---- weights editor ---- */
+
+.sec-weights {
+  display: grid;
+  gap: var(--space-3);
+}
+
+.sec-weights__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  gap: var(--space-3);
+}
+
+.sec-weights__sum {
+  font-size: var(--text-sm);
+}
+
+.sec-weights__ok {
+  color: var(--ok);
+}
+
+.sec-weights__bad {
+  color: var(--danger);
+}
+
+.sec-weights__error {
+  color: var(--danger);
+  font-size: var(--text-sm);
+}
+
+.sec-weights__hint {
+  font-size: var(--text-xs);
+}
+
+/* ---- scale table editor ---- */
+
+.sec-scale {
+  display: grid;
+  gap: var(--space-3);
+}
+
+.sec-scale__toprow {
+  max-width: 320px;
+}
+
+.sec-scale__tablewrap {
+  overflow-x: auto;
+}
+
+.sec-scale__cellinput {
+  width: 76px;
+  padding: 3px 6px;
+  font-size: var(--text-sm);
+}
+
+.sec-scale__sample {
+  display: inline-block;
+  margin-right: var(--space-2);
+  font-size: var(--text-xs);
+  color: var(--ink-2);
+}
+
+.sec-scale__order {
+  white-space: nowrap;
+}
+
+.sec-scale__error {
+  color: var(--danger);
+  font-size: var(--text-sm);
+}
+
+.sec-scale__actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.sec-scale__orderblock {
+  display: grid;
+  gap: var(--space-2);
+  border-top: 1px solid var(--rule);
+  padding-top: var(--space-3);
+}
+
+.sec-scale__helper {
+  font-size: var(--text-xs);
+}
+
+.sec-scale__unlocks {
+  list-style: none;
+  padding: 0;
+  display: grid;
+  gap: var(--space-1);
+}
+
+.sec-scale__unlockrow {
+  display: grid;
+  grid-template-columns: 110px 1fr auto;
+  align-items: center;
+  gap: var(--space-3);
+  border-bottom: 1px solid var(--rule);
+  padding: var(--space-1) 0;
+  font-size: var(--text-sm);
+}
+
+/* ---- history ---- */
+
+.sec-history {
+  display: grid;
+  gap: var(--space-4);
+}
+
+.sec-history__toolbar {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.sec-history__toolbar .ui-select {
+  width: auto;
+}
+
+.sec-history__count {
+  margin-left: auto;
+}
+
+.sec-history__empty {
+  color: var(--ink-3);
+}
+
+.sec-history__list {
+  list-style: none;
+  padding: 0;
+  display: grid;
+}
+
+.sec-history__row {
+  display: grid;
+  grid-template-columns: 110px 170px minmax(0, 1fr);
+  gap: var(--space-4);
+  align-items: baseline;
+  padding: var(--space-2) 0;
+  border-bottom: 1px solid var(--rule);
+  font-size: var(--text-sm);
+}
+
+.sec-history__time {
+  font-size: var(--text-xs);
+  color: var(--ink-3);
+}
+
+.sec-history__tag {
+  font-size: var(--text-xs);
+}
+
+.sec-history__trace {
+  appearance: none;
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  font: inherit;
+  color: var(--ink-2);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.sec-history__trace:hover {
+  color: var(--ink);
+}
+
+.sec-history__removed {
+  color: var(--ink-3);
+}
+
+.sec-history__detail {
+  color: var(--ink-2);
+}
+
+.sec-history__older {
+  justify-self: start;
+}
+
+/* ---- comments ---- */
+
+.sec-comments {
+  display: grid;
+  gap: var(--space-6);
+}
+
+.sec-comments__composer {
+  display: grid;
+  gap: var(--space-3);
+}
+
+.sec-comments__composerrow {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.sec-comments__composerrow .ui-select {
+  width: auto;
+}
+
+.sec-comments__error {
+  color: var(--danger);
+  font-size: var(--text-sm);
+}
+
+.sec-comments__empty {
+  color: var(--ink-3);
+}
+
+.sec-comments__list {
+  list-style: none;
+  padding: 0;
+  display: grid;
+  gap: var(--space-4);
+}
+
+.sec-comment {
+  border-left: 2px solid var(--rule);
+  padding-left: var(--space-4);
+  display: grid;
+  gap: var(--space-1);
+}
+
+.sec-comment--own {
+  border-left-color: var(--ink-2);
+  background: var(--paper-2);
+  border-radius: 0 var(--radius) var(--radius) 0;
+  padding: var(--space-2) var(--space-3) var(--space-2) var(--space-4);
+}
+
+.sec-comment__head {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+}
+
+.sec-comment__author {
+  font-weight: 600;
+}
+
+.sec-comment__time {
+  font-size: var(--text-xs);
+  color: var(--ink-3);
+}
+
+.sec-comment__body {
+  white-space: pre-line;
+}
+
+/* ---- celebration (gold permitted here, §3.6) ---- */
+
+.sec-celebration {
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-modal);
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+}
+
+.sec-celebration__backdrop {
+  position: absolute;
+  inset: 0;
+  background: var(--paper);
+  opacity: 0.88;
+}
+
+.sec-celebration__panel {
+  position: relative;
+  background: var(--surface);
+  border: 1px solid var(--accent);
+  border-radius: var(--radius-lg);
+  padding: var(--space-8) var(--space-8) var(--space-7);
+  display: grid;
+  justify-items: center;
+  gap: var(--space-3);
+  text-align: center;
+}
+
+.sec-celebration__tick {
+  color: var(--accent);
+}
+
+.sec-celebration__text {
+  font-size: var(--text-2xl);
+  color: var(--ink);
+}
+
+.sec-celebration__sub {
+  color: var(--ink-3);
+}
+
+/* ---- roster add / csv import modals ---- */
+
+.sec-rosteradd,
+.sec-csvimport {
+  display: grid;
+  gap: var(--space-4);
+}
+
+.sec-rosteradd__pair {
+  display: flex;
+  align-items: flex-end;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+}
+
+.sec-rosteradd__pair .ui-field {
+  flex: 1;
+  min-width: 160px;
+}
+
+.sec-rosteradd__batch {
+  list-style: none;
+  padding: 0;
+  display: grid;
+  gap: 2px;
+}
+
+.sec-rosteradd__batchrow {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  border: 1px solid var(--rule);
+  border-radius: var(--radius);
+  padding: var(--space-1) var(--space-2);
+  font-size: var(--text-sm);
+}
+
+.sec-rosteradd__batchrow .num {
+  margin-left: auto;
+  color: var(--ink-2);
+  font-size: var(--text-xs);
+}
+
+.sec-rosteradd__count {
+  font-size: var(--text-xs);
+}
+
+.sec-rosteradd__warn,
+.sec-csvimport__warn,
+.sec-csvimport__skipped {
+  border: 1px solid var(--warn);
+  border-radius: var(--radius);
+  padding: var(--space-2) var(--space-3);
+  display: grid;
+  gap: 2px;
+  font-size: var(--text-sm);
+}
+
+.sec-rosteradd__warn .mono-label,
+.sec-csvimport__warn .mono-label,
+.sec-csvimport__skipped .mono-label {
+  color: var(--warn);
+}
+
+.sec-rosteradd__error,
+.sec-csvimport__error {
+  border: 1px solid var(--danger);
+  color: var(--danger);
+  border-radius: var(--radius);
+  padding: var(--space-2) var(--space-3);
+  font-size: var(--text-sm);
+}
+
+.sec-rosteradd__csv,
+.sec-csvimport__source {
+  display: grid;
+  gap: var(--space-3);
+}
+
+.sec-csvimport__table .ui-select {
+  width: 100%;
+  margin-top: var(--space-1);
+}
+
+.sec-csvimport__colname {
+  display: block;
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 160px;
+}
+
+.sec-csvimport__more {
+  margin-top: var(--space-2);
+}
+
+.sec-csvimport__result {
+  border: 1px solid var(--rule-strong);
+  border-radius: var(--radius);
+  padding: var(--space-3);
+  display: grid;
+  gap: var(--space-2);
+}
+
+.sec-csvimport__result .num {
+  font-size: var(--text-lg);
+}
+
+/* ---- narrow screens: nav becomes a horizontal strip ---- */
+
+@media (max-width: 900px) {
+  .sec-layout {
+    grid-template-columns: 1fr;
+    gap: var(--space-5);
+  }
+
+  .sec-sidenav {
+    position: static;
+    grid-auto-flow: column;
+    justify-content: start;
+    overflow-x: auto;
+    padding-bottom: var(--space-2);
+    border-bottom: 1px solid var(--rule);
+  }
+
+  .sec-history__row {
+    grid-template-columns: 90px 120px minmax(0, 1fr);
+  }
+}

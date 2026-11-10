@@ -1,0 +1,431 @@
+/* ============================================================
+   professor.css — WO-4 (professor home + course page + course/
+   section CRUD modals). `.prof-` prefix only, tokens only,
+   hairlines instead of card shadows (D18).
+   ============================================================ */
+
+/* ---- shared ---- */
+
+.prof-loading {
+  min-height: 40vh;
+  display: grid;
+  place-items: center;
+}
+
+.prof-link {
+  font-family: var(--font-mono);
+  font-size: var(--text-sm);
+  color: var(--ink-2);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.prof-link:hover {
+  color: var(--ink);
+}
+
+/* ---- professor home ---- */
+
+.prof-home {
+  display: grid;
+  gap: var(--space-7);
+}
+
+.prof-hero {
+  border: 1px solid var(--rule);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+  padding: var(--space-6);
+  display: grid;
+  gap: var(--space-2);
+  justify-items: start;
+}
+
+.prof-hero__title {
+  font-family: var(--font-serif);
+  font-size: var(--text-2xl);
+  font-weight: 600;
+  line-height: var(--leading-tight);
+}
+
+.prof-hero__meta {
+  font-size: var(--text-sm);
+  color: var(--ink-2);
+}
+
+.prof-hero__actions {
+  margin-top: var(--space-3);
+}
+
+.prof-week {
+  display: grid;
+}
+
+.prof-week__row {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-4);
+  padding: var(--space-3) 0;
+  border-bottom: 1px solid var(--rule);
+  text-decoration: none;
+}
+
+.prof-week__row:last-child {
+  border-bottom: none;
+}
+
+.prof-week__course {
+  font-size: var(--text-base);
+  min-width: 0;
+}
+
+.prof-week__row:hover .prof-week__course {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.prof-week__time {
+  margin-left: auto;
+  font-size: var(--text-sm);
+  color: var(--ink-2);
+  white-space: nowrap;
+}
+
+.prof-week__empty {
+  font-size: var(--text-sm);
+  color: var(--ink-3);
+  padding: var(--space-2) 0;
+}
+
+/* ---- course grid + cards ---- */
+
+.prof-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: var(--space-5);
+  align-items: start;
+}
+
+.prof-card {
+  border: 1px solid var(--rule);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+  padding: var(--space-5);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.prof-card__head {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-3);
+}
+
+.prof-card__names {
+  flex: 1;
+  min-width: 0;
+  display: grid;
+  gap: 2px;
+}
+
+.prof-card__code {
+  font-size: var(--text-xs);
+  letter-spacing: var(--label-tracking);
+  text-transform: uppercase;
+  color: var(--ink-3);
+}
+
+.prof-card__title {
+  font-family: var(--font-serif);
+  font-size: var(--text-lg);
+  font-weight: 600;
+  line-height: var(--leading-tight);
+}
+
+.prof-card__nosections {
+  font-size: var(--text-sm);
+  color: var(--ink-3);
+  border-top: 1px solid var(--rule);
+  padding-top: var(--space-3);
+}
+
+.prof-card__sections {
+  border-top: 1px solid var(--rule);
+}
+
+.prof-card__section {
+  display: grid;
+  gap: var(--space-2);
+  padding: var(--space-3) 0;
+  border-bottom: 1px solid var(--rule);
+}
+
+.prof-card__section:last-child {
+  border-bottom: none;
+  padding-bottom: 0;
+}
+
+.prof-card__section-line {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-3);
+  min-width: 0;
+}
+
+.prof-card__section-name {
+  font-family: var(--font-serif);
+  font-size: var(--text-base);
+  font-weight: 600;
+  text-decoration: none;
+  min-width: 0;
+}
+
+.prof-card__section-name:hover {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.prof-card__section-sched {
+  font-size: var(--text-xs);
+  color: var(--ink-3);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.prof-card__section-students {
+  margin-left: auto;
+  font-size: var(--text-xs);
+  color: var(--ink-3);
+  white-space: nowrap;
+}
+
+.prof-card__section-progress {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.prof-card__section-progress .ui-segs {
+  flex: 1;
+}
+
+.prof-card__foot {
+  border-top: 1px solid var(--rule);
+  padding-top: var(--space-4);
+  margin-top: auto;
+}
+
+/* ---- course page ---- */
+
+.prof-course {
+  display: grid;
+  gap: var(--space-6);
+}
+
+.prof-course__breadcrumb {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-2);
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  letter-spacing: var(--label-tracking);
+  text-transform: uppercase;
+  color: var(--ink-3);
+}
+
+.prof-course__breadcrumb a {
+  color: var(--ink-3);
+  text-decoration: none;
+}
+
+.prof-course__breadcrumb a:hover {
+  color: var(--ink);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.prof-course__head {
+  display: flex;
+  align-items: flex-end;
+  gap: var(--space-5);
+  padding-bottom: var(--space-5);
+  border-bottom: 1px solid var(--rule);
+}
+
+.prof-course__names {
+  min-width: 0;
+  display: grid;
+  gap: var(--space-1);
+}
+
+.prof-course__title {
+  font-family: var(--font-serif);
+  font-size: var(--text-2xl);
+  font-weight: 600;
+  line-height: var(--leading-tight);
+}
+
+.prof-course__title .num {
+  font-size: var(--text-xl);
+  color: var(--ink-2);
+}
+
+.prof-course__meta {
+  font-size: var(--text-sm);
+  color: var(--ink-2);
+}
+
+.prof-course__actions {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex-shrink: 0;
+}
+
+.prof-rows {
+  display: grid;
+  gap: var(--space-3);
+}
+
+.prof-row {
+  border: 1px solid var(--rule);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+  padding: var(--space-4) var(--space-5);
+  display: grid;
+  gap: var(--space-3);
+}
+
+.prof-row__top {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-4);
+  min-width: 0;
+}
+
+.prof-row__name {
+  font-family: var(--font-serif);
+  font-size: var(--text-lg);
+  font-weight: 600;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.prof-row__name:hover {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.prof-row__sched {
+  font-size: var(--text-sm);
+  color: var(--ink-2);
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.prof-row__students {
+  font-size: var(--text-xs);
+  color: var(--ink-3);
+  white-space: nowrap;
+}
+
+.prof-row__spacer {
+  flex: 1;
+}
+
+.prof-row__open {
+  font-family: var(--font-mono);
+  font-size: var(--text-sm);
+  color: var(--ink-2);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  white-space: nowrap;
+}
+
+.prof-row__open:hover {
+  color: var(--ink);
+}
+
+.prof-row__progress {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+  flex-wrap: wrap;
+}
+
+.prof-row__progress .ui-segs {
+  flex: 1;
+  min-width: 160px;
+}
+
+.prof-row__pills {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  flex-wrap: wrap;
+}
+
+.prof-row__avg {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-2);
+  margin-left: auto;
+}
+
+.prof-row__avg-value {
+  font-size: var(--text-base);
+  color: var(--ink);
+}
+
+/* ---- confirm dialog counts ---- */
+
+.prof-counts {
+  font-size: var(--text-sm);
+  color: var(--ink);
+}
+
+.prof-delete-pending {
+  font-size: var(--text-sm);
+  color: var(--ink-3);
+}
+
+/* ---- modal forms ---- */
+
+.prof-form {
+  display: grid;
+  gap: var(--space-4);
+}
+
+.prof-form__row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-3);
+}
+
+.prof-mono-input {
+  font-family: var(--font-mono);
+  text-transform: uppercase;
+}
+
+.prof-copy {
+  border-top: 1px solid var(--rule);
+  padding-top: var(--space-4);
+  display: grid;
+  gap: var(--space-3);
+}
+
+.prof-copy__row {
+  display: grid;
+  grid-template-columns: 2fr 3fr;
+  gap: var(--space-3);
+}
+
+.prof-copy__hint {
+  font-size: var(--text-xs);
+  color: var(--ink-3);
+}

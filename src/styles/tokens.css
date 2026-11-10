@@ -1,0 +1,92 @@
+/* ============================================================
+   tokens.css — design tokens ("academic ledger").
+   Light = sage paper; dim = warm charcoal (never blue).
+   Every other WO styles against these exact names (§3.6, D18).
+   ============================================================ */
+
+:root {
+  /* type */
+  --font-serif: "Newsreader", Georgia, serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+
+  --text-xs: 12px;
+  --text-sm: 14px;
+  --text-base: 17px;
+  --text-lg: 20px;
+  --text-xl: 24px;
+  --text-2xl: 30px;
+  --leading-tight: 1.25;
+  --leading-normal: 1.55;
+  --label-tracking: 0.08em;
+
+  /* palette — light (clear sage green, high-contrast ink for readability) */
+  --paper: #e4efdf;
+  --paper-2: #d6e5cf;
+  --surface: #f3f9ef;
+  --rule: #c2d7b8;
+  --rule-strong: #a3bf98;
+  --ink: #17211a;
+  --ink-2: #35463a;
+  --ink-3: #4f6153;
+  --accent: #9a6208;        /* gold — ticks / submitted / focus only */
+  --accent-ink: #7a5206;    /* text-legible gold (on paper / accent-soft) */
+  --accent-soft: #eae3bd;   /* soft gold wash (done pill, selection) */
+  --draft: #8a6a2f;         /* hatch fill of in-progress segments */
+  --ok: #3f6d12;
+  --warn: #b45309;
+  --danger: #a3321f;
+  --focus-ring: #9a6207;
+
+  /* space */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-7: 32px;
+  --space-8: 48px;
+
+  /* shape */
+  --radius: 3px;
+  --radius-lg: 5px;
+
+  /* motion */
+  --dur-fast: 120ms;
+  --dur: 200ms;
+  --dur-slow: 400ms;
+  --ease: cubic-bezier(0.2, 0, 0, 1);
+
+  /* elevation (z only — no box-shadows anywhere) */
+  --z-nav: 10;
+  --z-header: 20;
+  --z-modal: 50;
+  --z-toast: 60;
+
+  /* layout */
+  --header-h: 56px;
+
+  color-scheme: light;
+}
+
+/* dim — warm charcoal with a faint green cast, never blue-black */
+[data-theme="dim"] {
+  --paper: #141712;
+  --paper-2: #1b1f19;
+  --surface: #20241d;
+  --rule: #333829;
+  --rule-strong: #4a5040;
+  --ink: #ece9dd;
+  --ink-2: #bcb8a6;
+  --ink-3: #96907f;
+  --accent: #d4a72c;
+  --accent-ink: #e0bc55;
+  --accent-soft: #3a2f14;
+  --draft: #a58a54;
+  --ok: #a3c05f;
+  --warn: #e39a55;
+  --danger: #e0806a;
+  --focus-ring: #d4a72c;
+
+  color-scheme: dark;
+}
