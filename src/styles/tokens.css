@@ -77,6 +77,8 @@
   --header-h: 56px;
   /* where sticky content should park under the floating header card */
   --header-offset: calc(var(--header-h) + var(--space-3));
+  /* fluid dashboard width — uses the screen, capped for ultra-wide */
+  --layout-max: 1680px;
 
   color-scheme: light;
 }

@@ -16,7 +16,7 @@
   position: sticky;
   top: var(--space-3);
   z-index: var(--z-header);
-  max-width: 1120px;
+  max-width: var(--layout-max);
   margin: var(--space-3) auto 0;
   width: calc(100% - 2 * var(--space-6));
   background: var(--surface);
@@ -116,7 +116,7 @@
 .sh-main {
   flex: 1;
   width: 100%;
-  max-width: 1120px;
+  max-width: var(--layout-max);
   margin: 0 auto;
   padding: var(--space-6) var(--space-6) var(--space-8);
 }
