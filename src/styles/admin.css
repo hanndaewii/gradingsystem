@@ -151,7 +151,7 @@
    border-collapse:separate keeps the hairline visible while stuck */
 .adm-table thead th {
   position: sticky;
-  top: var(--header-h);
+  top: var(--header-offset);
   z-index: 1;
   background: var(--surface);
   border-bottom: 1px solid var(--rule-strong);

@@ -39,7 +39,7 @@ export function PeriodTabs({ section, progress, period, onChange }: PeriodTabsPr
       items={items}
       value={period}
       onChange={(key) => onChange(key as PeriodId)}
-      variant="underline"
+      variant="segmented"
       ariaLabel="Grading periods"
     />
   );

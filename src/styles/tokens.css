@@ -1,7 +1,10 @@
 /* ============================================================
-   tokens.css — design tokens ("academic ledger").
-   Light = sage paper; dim = warm charcoal (never blue).
-   Every other WO styles against these exact names (§3.6, D18).
+   tokens.css — design tokens ("soft card ledger").
+   Light = sage-green desk with floating near-white cards and
+   soft shadows; dim = deep green-charcoal. Box edges (square
+   corners) everywhere. Gold stays reserved for ticks,
+   submitted state and focus; --brand is the deep pine green
+   used for primary buttons, active tabs and active nav items.
    ============================================================ */
 
 :root {
@@ -19,15 +22,17 @@
   --leading-normal: 1.55;
   --label-tracking: 0.08em;
 
-  /* palette — light (clear sage green, high-contrast ink for readability) */
-  --paper: #e4efdf;
-  --paper-2: #d6e5cf;
-  --surface: #f3f9ef;
-  --rule: #c2d7b8;
-  --rule-strong: #a3bf98;
+  /* palette — light (sage desk + floating near-white cards) */
+  --paper: #dfeacb;
+  --paper-2: #edf4e4;
+  --surface: #fbfdf6;
+  --rule: #c9dcbe;
+  --rule-strong: #a9c49c;
   --ink: #17211a;
   --ink-2: #35463a;
   --ink-3: #4f6153;
+  --brand: #2f5138;         /* deep pine — primary fills, active tabs/nav */
+  --brand-hover: #3a6244;
   --accent: #9a6208;        /* gold — ticks / submitted / focus only */
   --accent-ink: #7a5206;    /* text-legible gold (on paper / accent-soft) */
   --accent-soft: #eae3bd;   /* soft gold wash (done pill, selection) */
@@ -36,6 +41,11 @@
   --warn: #b45309;
   --danger: #a3321f;
   --focus-ring: #9a6207;
+
+  /* elevation — soft shadows are part of the card language now */
+  --shadow-card: 0 1px 2px rgba(23, 33, 26, 0.05), 0 12px 28px rgba(23, 33, 26, 0.09);
+  --shadow-raised: 0 1px 2px rgba(23, 33, 26, 0.1), 0 3px 7px rgba(23, 33, 26, 0.08);
+  --shadow-pop: 0 6px 16px rgba(23, 33, 26, 0.14), 0 16px 40px rgba(23, 33, 26, 0.16);
 
   /* space */
   --space-1: 4px;
@@ -47,9 +57,9 @@
   --space-7: 32px;
   --space-8: 48px;
 
-  /* shape */
-  --radius: 3px;
-  --radius-lg: 5px;
+  /* shape — box edges: square corners everywhere */
+  --radius: 0px;
+  --radius-lg: 0px;
 
   /* motion */
   --dur-fast: 120ms;
@@ -57,7 +67,7 @@
   --dur-slow: 400ms;
   --ease: cubic-bezier(0.2, 0, 0, 1);
 
-  /* elevation (z only — no box-shadows anywhere) */
+  /* elevation (z only for layers) */
   --z-nav: 10;
   --z-header: 20;
   --z-modal: 50;
@@ -65,28 +75,36 @@
 
   /* layout */
   --header-h: 56px;
+  /* where sticky content should park under the floating header card */
+  --header-offset: calc(var(--header-h) + var(--space-3));
 
   color-scheme: light;
 }
 
-/* dim — warm charcoal with a faint green cast, never blue-black */
+/* dim — deep green-charcoal, never blue-black */
 [data-theme="dim"] {
-  --paper: #141712;
-  --paper-2: #1b1f19;
-  --surface: #20241d;
-  --rule: #333829;
-  --rule-strong: #4a5040;
+  --paper: #10140f;
+  --paper-2: #1a2016;
+  --surface: #212a1f;
+  --rule: #35402f;
+  --rule-strong: #4c5a44;
   --ink: #ece9dd;
   --ink-2: #bcb8a6;
   --ink-3: #96907f;
+  --brand: #7fae70;         /* lighter pine in dim — dark ink text sits on it */
+  --brand-hover: #8fbc80;
   --accent: #d4a72c;
   --accent-ink: #e0bc55;
-  --accent-soft: #3a2f14;
+  --accent-soft: #3a3514;
   --draft: #a58a54;
   --ok: #a3c05f;
   --warn: #e39a55;
   --danger: #e0806a;
   --focus-ring: #d4a72c;
+
+  --shadow-card: 0 1px 2px rgba(0, 0, 0, 0.4), 0 12px 28px rgba(0, 0, 0, 0.38);
+  --shadow-raised: 0 1px 2px rgba(0, 0, 0, 0.45), 0 3px 7px rgba(0, 0, 0, 0.35);
+  --shadow-pop: 0 6px 16px rgba(0, 0, 0, 0.5), 0 16px 40px rgba(0, 0, 0, 0.45);
 
   color-scheme: dark;
 }

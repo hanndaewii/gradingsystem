@@ -1,10 +1,10 @@
 /* ============================================================
-   components.css — WO-1 primitive classes (.ui-*)
-   LOCKED aesthetic: hairlines instead of shadows; no box-shadow
-   anywhere; no blue primary (primary button = ink fill / paper
-   text); gold appears ONLY on TickIcon, ProgressSegments
-   submitted state, StatusPill done, the focus ring, and the
-   celebration. Radii 3px/5px. Mono small-caps labels.
+   components.css — primitive classes (.ui-*)
+   "Soft card" language: floating near-white cards with soft
+   shadows on the sage desk; box edges (square corners); deep
+   pine --brand for primary fills and active tabs; gold appears
+   ONLY on TickIcon, ProgressSegments submitted state,
+   StatusPill done, the focus ring, and the celebration.
    Domain CSS (.prof-/.sec-/.adm-/.sh-) must not redefine these.
    ============================================================ */
 
@@ -45,22 +45,24 @@
   font-size: var(--text-xs);
 }
 
-/* primary = ink fill, paper text (never blue, never gold) */
+/* primary = deep pine fill, near-white text */
 .ui-btn--primary {
-  background: var(--ink);
-  border-color: var(--ink);
-  color: var(--paper);
+  background: var(--brand);
+  border-color: var(--brand);
+  color: var(--surface);
+  box-shadow: var(--shadow-raised);
 }
 
 .ui-btn--primary:hover:not(:disabled) {
-  background: var(--ink-2);
-  border-color: var(--ink-2);
+  background: var(--brand-hover);
+  border-color: var(--brand-hover);
 }
 
 .ui-btn--secondary {
   background: var(--surface);
   border-color: var(--rule-strong);
   color: var(--ink);
+  box-shadow: var(--shadow-raised);
 }
 
 .ui-btn--secondary:hover:not(:disabled) {
@@ -82,6 +84,7 @@
   background: var(--danger);
   border-color: var(--danger);
   color: var(--paper);
+  box-shadow: var(--shadow-raised);
 }
 
 .ui-btn--danger:hover:not(:disabled) {
@@ -114,6 +117,7 @@
   padding: 2px 8px;
   border: 1px solid var(--rule-strong);
   border-radius: var(--radius);
+  background: var(--paper-2);
   font-family: var(--font-mono);
   font-size: var(--text-xs);
   letter-spacing: var(--label-tracking);
@@ -225,13 +229,14 @@
 }
 
 .ui-tabs--segmented {
-  display: inline-flex;
-  gap: 2px;
-  width: fit-content;
-  padding: 2px;
-  border: 1px solid var(--rule-strong);
+  display: flex;
+  gap: var(--space-1);
+  width: 100%;
+  padding: var(--space-1);
+  border: 1px solid var(--rule);
   border-radius: var(--radius);
-  background: var(--paper-2);
+  background: var(--surface);
+  box-shadow: var(--shadow-card);
 }
 
 .ui-tab {
@@ -271,15 +276,18 @@
 }
 
 .ui-tabs--segmented .ui-tab {
+  flex: 1 1 0;
+  justify-content: center;
   margin-bottom: 0;
-  padding: 4px 12px;
+  padding: 8px 12px;
   border-bottom: none;
-  border-radius: 2px;
+  border-radius: 0;
 }
 
 .ui-tabs--segmented .ui-tab[aria-selected="true"] {
-  background: var(--ink);
+  background: var(--brand);
   color: var(--paper);
+  box-shadow: var(--shadow-raised);
 }
 
 /* gold tick inside a period tab (allowed: TickIcon) */
@@ -329,18 +337,19 @@
   padding: 6px 10px;
   border: 1px solid var(--rule-strong);
   border-radius: var(--radius);
-  background: var(--surface);
+  background: var(--paper-2);
   color: var(--ink);
   font-family: var(--font-serif);
   font-size: var(--text-sm);
-  transition: border-color var(--dur-fast) var(--ease);
+  transition: border-color var(--dur-fast) var(--ease), background-color var(--dur-fast) var(--ease);
 }
 
 /* Border affordance only — the focus outline itself is never removed. */
 .ui-input:focus,
 .ui-select:focus,
 .ui-textarea:focus {
-  border-color: var(--ink-3);
+  border-color: var(--brand);
+  background: var(--surface);
 }
 
 .ui-input::placeholder,
@@ -377,7 +386,7 @@
   width: 15px;
   height: 15px;
   margin: 0;
-  accent-color: var(--ink);
+  accent-color: var(--brand);
   cursor: pointer;
 }
 
@@ -423,6 +432,7 @@
   background: var(--surface);
   border: 1px solid var(--rule);
   border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-card);
 }
 
 .ui-panel__head {
@@ -506,6 +516,7 @@
   background: var(--surface);
   border: 1px solid var(--rule-strong);
   border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-pop);
 }
 
 .ui-menu--start .ui-menu__list {
@@ -623,6 +634,7 @@
   background: var(--surface);
   border: 1px solid var(--rule-strong);
   border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-pop);
 }
 
 .ui-modal__panel--sm {
@@ -723,6 +735,7 @@
   border: 1px solid var(--rule-strong);
   border-left: 3px solid var(--ink-3);
   border-radius: var(--radius);
+  box-shadow: var(--shadow-pop);
 }
 
 .ui-toast--info {
