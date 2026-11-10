@@ -3,9 +3,9 @@
 // clamp to [0, maxScore], blank clears. Live Period Grade + Running Semester
 // Grade footers; `flash` drives the "85 → 92" trace highlight; readOnly (or a
 // locked period) renders plain mono text cells.
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, Fragment } from "react";
 import { Button, EmptyState, Menu, useToast } from "../../components/ui";
-import { PERIODS } from "../../types";
+import { PERIODS, PERIOD_LABELS } from "../../types";
 import type { Assessment, Grade, PeriodId, PeriodState, Section, Student } from "../../types";
 import { buildPeriodProgress, classAveragePct, isPeriodEditable, periodGrade } from "../../lib/grades";
 import type { AssessmentScore } from "../../lib/grades";
@@ -185,6 +185,19 @@ export function RosterTable({
   // Hide the ID column when every student was added without one (AUTO-####).
   const idsSynthetic = students.every((s) => /^AUTO-/i.test(s.studentNo.trim()));
 
+  // Class-record math (the Excel sheet layout): each assessment is followed
+  // by its weighted contribution. Effective weight = explicit weight, else an
+  // equal share; normalised so contributions always sum to the PG (D14).
+  const eqW = assessments.length > 0 ? 100 / assessments.length : 0;
+  const weightOf = (a: Assessment): number => (a.weight ?? eqW);
+  const sumW = assessments.reduce((acc, a) => (a.maxScore > 0 ? acc + weightOf(a) : acc), 0);
+  const normFactor = sumW > 0 ? 100 / sumW : 0;
+  const weightLabel = (a: Assessment): string => {
+    const w = weightOf(a);
+    return `${Number.isInteger(w) ? w : Number(w.toFixed(2))}%`;
+  };
+  const periodWeight = section.periodWeights[period];
+
   return (
     <div className="sec-tablewrap">
       <table className="sec-table">
@@ -193,16 +206,30 @@ export function RosterTable({
             {!idsSynthetic ? <th scope="col" className="sec-table__id mono-label">Student ID</th> : null}
             <th scope="col" className="sec-table__name mono-label">Name</th>
             {assessments.map((a) => (
-              <th key={a.id} scope="col" className="sec-table__assess">
-                <span className="sec-table__assessname">{a.name}</span>
-                <span className="sec-table__assessmeta num">
-                  max {a.maxScore}
-                  {a.weight != null ? ` · ${a.weight}%` : ""}
-                </span>
+              <th key={a.id} scope="colgroup" colSpan={2} className="sec-table__assessgroup">
+                <div className="sec-table__assesspair">
+                  <span className="sec-table__assess">
+                    <span className="sec-table__assessname">{a.name}</span>
+                    <span className="sec-table__assessmeta num">max {a.maxScore}</span>
+                  </span>
+                  <span
+                    className="sec-table__pcthead num"
+                    title={`Weight toward the ${PERIOD_LABELS[period]} grade`}
+                  >
+                    {weightLabel(a)}
+                  </span>
+                </div>
               </th>
             ))}
-            <th scope="col" className="sec-table__periodgrade mono-label">
-              Period grade
+            <th scope="col" className="sec-table__periodgrade mono-label" title="Period grade">
+              PG
+            </th>
+            <th
+              scope="col"
+              className="sec-table__periodgrade mono-label"
+              title={`Period grade × ${periodWeight}% semester weight`}
+            >
+              PG {periodWeight}%
             </th>
             {!readOnly ? <th scope="col" className="sec-table__actions" aria-label="Row actions" /> : null}
           </tr>
@@ -210,8 +237,11 @@ export function RosterTable({
         <tbody>
           {students.map((student) => {
             const perPct = periodGrade(entriesFor(student, assessments));
+            const complete =
+              assessments.length > 0 &&
+              assessments.every((a) => (gradesByCell.get(cellKey(a.id, student.id))?.score ?? null) != null);
             return (
-              <tr key={student.id}>
+              <tr key={student.id} className={cx(complete && "sec-row--complete")}>
                 {!idsSynthetic ? <td className="sec-table__id num">{student.studentNo}</td> : null}
                 <td className="sec-table__name">{student.name}</td>
                 {assessments.map((a) => {
@@ -220,43 +250,56 @@ export function RosterTable({
                   const authoritative = scoreText(g);
                   const display = drafts.get(key) ?? pending.get(key) ?? authoritative;
                   const isFlash = flashKey === key;
+                  const score = g?.score ?? null;
+                  const contrib =
+                    score == null || a.maxScore <= 0
+                      ? ""
+                      : `${((score / a.maxScore) * weightOf(a) * normFactor).toFixed(2)}%`;
                   return (
-                    <td
-                      key={a.id}
-                      id={`sec-cell-${a.id}-${student.id}`}
-                      className={cx("sec-cell", isFlash && "sec-cell--flash")}
-                    >
-                      {editable ? (
-                        <input
-                          className="ui-input sec-cell__input num"
-                          inputMode="decimal"
-                          autoComplete="off"
-                          aria-label={`${student.name} (${student.studentNo}) — ${a.name}, out of ${a.maxScore}`}
-                          value={display}
-                          onChange={(e) => setDraft(key, e.target.value)}
-                          onBlur={() => void commit(a, student)}
-                          onKeyDown={(e) => {
-                            if (e.key === "Enter") {
-                              e.preventDefault();
-                              void commit(a, student);
-                            } else if (e.key === "Escape") {
-                              e.preventDefault();
-                              revert(a, student);
-                            }
-                          }}
-                        />
-                      ) : (
-                        <span className="num">{authoritative === "" ? "—" : authoritative}</span>
-                      )}
-                      {isFlash && flash ? (
-                        <span className="sec-cell__chip num" aria-hidden="true">
-                          {flash.oldScore ?? "—"} → {flash.newScore ?? "—"}
-                        </span>
-                      ) : null}
-                    </td>
+                    <Fragment key={a.id}>
+                      <td
+                        id={`sec-cell-${a.id}-${student.id}`}
+                        className={cx("sec-cell", isFlash && "sec-cell--flash")}
+                      >
+                        {editable ? (
+                          <input
+                            className="ui-input sec-cell__input num"
+                            inputMode="decimal"
+                            autoComplete="off"
+                            aria-label={`${student.name} (${student.studentNo}) — ${a.name}, out of ${a.maxScore}`}
+                            value={display}
+                            onChange={(e) => setDraft(key, e.target.value)}
+                            onBlur={() => void commit(a, student)}
+                            onKeyDown={(e) => {
+                              if (e.key === "Enter") {
+                                e.preventDefault();
+                                void commit(a, student);
+                              } else if (e.key === "Escape") {
+                                e.preventDefault();
+                                revert(a, student);
+                              }
+                            }}
+                          />
+                        ) : (
+                          <span className="num">{authoritative === "" ? "—" : authoritative}</span>
+                        )}
+                        {isFlash && flash ? (
+                          <span className="sec-cell__chip num" aria-hidden="true">
+                            {flash.oldScore ?? "—"} → {flash.newScore ?? "—"}
+                          </span>
+                        ) : null}
+                      </td>
+                      <td className="sec-table__contrib num">{contrib}</td>
+                    </Fragment>
                   );
                 })}
                 <td className="sec-table__periodgrade num">{formatGrade(perPct, section)}</td>
+                <td
+                  className="sec-table__periodgrade num"
+                  title={`Period grade × ${periodWeight}% semester weight`}
+                >
+                  {perPct == null ? "—" : formatPercent((perPct * periodWeight) / 100)}
+                </td>
                 {!readOnly ? (
                   <td className="sec-table__actions">
                     <Menu
@@ -278,7 +321,7 @@ export function RosterTable({
         </tbody>
         <tfoot>
           <tr className="sec-table__foot">
-            <td className="sec-table__id" />
+            {!idsSynthetic ? <td className="sec-table__id" /> : null}
             <td className="sec-table__name">
               <span className="mono-label">Averages{provisional ? " · provisional" : ""}</span>
             </td>
@@ -292,18 +335,24 @@ export function RosterTable({
                 })),
               );
               return (
-                <td key={a.id} className="sec-cell num">
-                  {avg == null ? "—" : formatPercent(avg)}
-                </td>
+                <Fragment key={a.id}>
+                  <td className="sec-cell num">
+                    {avg == null ? "—" : formatPercent(avg)}
+                  </td>
+                  <td className="sec-table__contrib num" />
+                </Fragment>
               );
             })}
             <td className="sec-table__periodgrade num">{formatGrade(periodAverage, section)}</td>
+            <td className="sec-table__periodgrade num">
+              {periodAverage == null ? "—" : formatPercent((periodAverage * periodWeight) / 100)}
+            </td>
             {!readOnly ? <td className="sec-table__actions" /> : null}
           </tr>
           <tr className="sec-table__foot sec-table__foot--semester">
-            <td className="sec-table__id" />
+            {!idsSynthetic ? <td className="sec-table__id" /> : null}
             <td
-              colSpan={assessments.length + 2 + (readOnly ? 0 : 1)}
+              colSpan={1 + assessments.length * 2 + 2 + (readOnly ? 0 : 1)}
               className="sec-table__semester"
             >
               <span className="mono-label">Running semester grade</span>

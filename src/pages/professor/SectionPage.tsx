@@ -15,6 +15,7 @@ import type { Assessment, HistoryEntry, PeriodId, Section, Student } from "../..
 import { useAuth } from "../../context/AuthContext";
 import { useAsync } from "../../lib/useAsync";
 import { termLabel } from "../../lib/format";
+import { exportClassRecord } from "../../lib/classRecord";
 import { useSectionData, statesFromProgress, errMessage } from "../../components/section/useSectionData";
 import type { SectionView } from "../../components/section/useSectionData";
 import { PeriodTabs } from "../../components/section/PeriodTabs";
@@ -378,6 +379,18 @@ export default function SectionPage(): JSX.Element {
     );
   }
 
+  function handleExportClassRecord(): void {
+    if (course === null || section === null) return;
+    exportClassRecord({
+      course,
+      section,
+      period,
+      students,
+      assessments: periodAssessments,
+      grades,
+    });
+  }
+
   if (notFound) {
     return (
       <div className="sec-page">
@@ -497,22 +510,27 @@ export default function SectionPage(): JSX.Element {
                 <Panel
                   label="Roster"
                   actions={
-                    !readOnly ? (
-                      <span className="sec-panelactions">
-                        <Button size="sm" variant="secondary" onClick={() => setAddOpen(true)}>
-                          Add students
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant="secondary"
-                          onClick={() => setCsvOpen(true)}
-                          disabled={csvDisabledReason != null}
-                          title={csvDisabledReason ?? `Import scores for ${PERIOD_LABELS[period]}`}
-                        >
-                          Import CSV
-                        </Button>
-                      </span>
-                    ) : undefined
+                    <span className="sec-panelactions">
+                      <Button size="sm" variant="secondary" onClick={handleExportClassRecord}>
+                        Export .xlsx
+                      </Button>
+                      {!readOnly ? (
+                        <>
+                          <Button size="sm" variant="secondary" onClick={() => setAddOpen(true)}>
+                            Add students
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="secondary"
+                            onClick={() => setCsvOpen(true)}
+                            disabled={csvDisabledReason != null}
+                            title={csvDisabledReason ?? `Import scores for ${PERIOD_LABELS[period]}`}
+                          >
+                            Import CSV
+                          </Button>
+                        </>
+                      ) : null}
+                    </span>
                   }
                 >
                   <RosterTable

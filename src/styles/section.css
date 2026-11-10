@@ -288,6 +288,39 @@
   white-space: nowrap;
 }
 
+/* class-record layout: each assessment pairs a raw score with its weighted
+   contribution (the professor's Excel sheet), then PG and PG × weight */
+.sec-table__assesspair {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  width: 100%;
+}
+
+.sec-table__assesspair .sec-table__assess {
+  flex: 1 1 auto;
+}
+
+.sec-table__pcthead,
+.sec-table__contrib {
+  margin-left: auto;
+  flex: none;
+  min-width: 58px;
+  text-align: right;
+  font-size: var(--text-xs);
+  color: var(--ink-2);
+  white-space: nowrap;
+}
+
+.sec-table td.sec-table__contrib {
+  border-left: 1px dashed var(--rule);
+}
+
+/* fully graded rows get the sheet's green wash */
+.sec-row--complete > td {
+  background: var(--paper-2);
+}
+
 .sec-table__actions {
   width: 40px;
   text-align: right;
