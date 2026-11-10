@@ -1,8 +1,9 @@
 // ProfessorHome (WO-4) — the professor's landing page:
-//   1. Hero ("continue grading"): a draft period with the newest
-//      lastGradeUpdateAt, else the first editable non-submitted period
-//      (sections ordered by course code then section name), else an
-//      all-submitted state.
+//   1. Hero ("continue grading"): the top of a grading QUEUE — periods that
+//      actually have something to grade (students + assessments, not
+//      submitted, editable), ranked by newest draft activity, then course/
+//      section/period order. Sections with no students or no assessments are
+//      skipped; the next few candidates are listed under the hero.
 //   2. "Submitted this week" — every period submitted within the last
 //      7 days (D9) for the selected term.
 //   3. Course grid — one card per course of the selected term with
@@ -16,14 +17,27 @@ import { isPeriodEditable } from "../../lib/grades";
 import { formatDateTime, isWithinLastDays, plural, termLabel } from "../../lib/format";
 import { useAsync } from "../../lib/useAsync";
 import { PERIOD_LABELS } from "../../types";
-import type { Course, DeleteImpact, PeriodId, PeriodProgress, PeriodState, SectionOverview } from "../../types";
+import type { Course, DeleteImpact, PeriodId, PeriodProgress, PeriodState, PeriodStatus, SectionOverview } from "../../types";
 import { Button, ConfirmDialog, EmptyState, Panel, Spinner, useToast } from "../../components/ui";
 import CourseCard from "../../components/courses/CourseCard";
 import CourseFormModal from "../../components/courses/CourseFormModal";
 import SectionFormModal from "../../components/courses/SectionFormModal";
 import "../../styles/professor.css";
 
-type Hero = { kind: "grade"; sectionId: string; period: PeriodId; code: string; sectionName: string } | { kind: "done" };
+type QueueItem = {
+  sectionId: string;
+  period: PeriodId;
+  code: string;
+  sectionName: string;
+  status: PeriodStatus;
+  graded: number;
+  total: number;
+};
+
+type Hero =
+  | { kind: "grade"; item: QueueItem }
+  | { kind: "done" }
+  | { kind: "stuck" };
 
 /** Period states keyed by period — what isPeriodEditable consumes. */
 function statesOf(periods: PeriodProgress[]): Record<PeriodId, PeriodState> {
@@ -32,44 +46,41 @@ function statesOf(periods: PeriodProgress[]): Record<PeriodId, PeriodState> {
   return out;
 }
 
-/** D-hero rule: (1) newest draft by lastGradeUpdateAt; (2) else the first
- *  editable non-submitted period (rows arrive ordered by course code then
- *  section name); (3) else everything is submitted. Null = no sections. */
-function computeHero(rows: SectionOverview[]): Hero | null {
-  let best: { row: SectionOverview; period: PeriodProgress } | null = null;
+/**
+ * The grading queue, most-urgent first. A period only enters the queue when
+ * there is something to grade: the section has students (studentCount > 0),
+ * the period has assessments (totalCells > 0), it is not submitted and it is
+ * editable. Rank: drafts with recent grade activity (lastGradeUpdateAt desc),
+ * then the remaining editable periods in course/section/period order.
+ */
+function computeQueue(rows: SectionOverview[]): QueueItem[] {
+  const recent: { item: QueueItem; at: string }[] = [];
+  const rest: QueueItem[] = [];
   for (const row of rows) {
-    for (const period of row.periods) {
-      if (period.status !== "draft") continue;
-      if (best === null || (period.lastGradeUpdateAt ?? "") > (best.period.lastGradeUpdateAt ?? "")) {
-        best = { row, period };
-      }
-    }
-  }
-  if (best !== null) {
-    return {
-      kind: "grade",
-      sectionId: best.row.section.id,
-      period: best.period.period,
-      code: best.row.course.code,
-      sectionName: best.row.section.name,
-    };
-  }
-  for (const row of rows) {
+    if (row.studentCount === 0) continue; // no roster → nothing to grade
     const states = statesOf(row.periods);
     for (const period of row.periods) {
       if (period.status === "submitted") continue;
-      if (isPeriodEditable({ section: row.section, states, period: period.period })) {
-        return {
-          kind: "grade",
-          sectionId: row.section.id,
-          period: period.period,
-          code: row.course.code,
-          sectionName: row.section.name,
-        };
+      if (period.totalCells === 0) continue; // no assessments (or no students)
+      if (!isPeriodEditable({ section: row.section, states, period: period.period })) continue;
+      const item: QueueItem = {
+        sectionId: row.section.id,
+        period: period.period,
+        code: row.course.code,
+        sectionName: row.section.name,
+        status: period.status,
+        graded: period.gradedCells,
+        total: period.totalCells,
+      };
+      if (period.status === "draft" && period.lastGradeUpdateAt !== null) {
+        recent.push({ item, at: period.lastGradeUpdateAt });
+      } else {
+        rest.push(item);
       }
     }
   }
-  return rows.length > 0 ? { kind: "done" } : null;
+  recent.sort((a, b) => b.at.localeCompare(a.at));
+  return [...recent.map((r) => r.item), ...rest];
 }
 
 export default function ProfessorHome(): JSX.Element {
@@ -90,17 +101,28 @@ export default function ProfessorHome(): JSX.Element {
   const coursesData = coursesQ.data;
   const overviewData = overviewQ.data;
 
-  const hero = useMemo<Hero | null>(() => (overviewData === null ? null : computeHero(overviewData)), [overviewData]);
-  const heroKey = hero !== null && hero.kind === "grade" ? `${hero.sectionId}:${hero.period}` : "";
+  const queue = useMemo<QueueItem[]>(() => (overviewData === null ? [] : computeQueue(overviewData)), [overviewData]);
+  const hero = useMemo<Hero | null>(() => {
+    if (overviewData === null) return null;
+    if (overviewData.length === 0) return null;
+    if (queue.length > 0) return { kind: "grade", item: queue[0] };
+    // Nothing gradable: "all submitted" when every period is submitted,
+    // otherwise sections exist but have no students/assessments yet.
+    const allSubmitted = overviewData.every((row) => row.periods.every((p) => p.status === "submitted"));
+    return allSubmitted ? { kind: "done" } : { kind: "stuck" };
+  }, [overviewData, queue]);
+  const waiting = useMemo(() => queue.slice(1, 5), [queue]);
+  const extraWaiting = Math.max(0, queue.length - 5);
+  const heroKey = hero !== null && hero.kind === "grade" ? `${hero.item.sectionId}:${hero.item.period}` : "";
 
   // How many students are fully graded in the hero period (the overview
   // only carries cell counts). Re-runs whenever the overview refreshes.
   const heroDetail = useAsync(async () => {
     if (hero === null || hero.kind !== "grade") return null;
     const [students, assessments, grades] = await Promise.all([
-      api.listStudents(hero.sectionId),
-      api.listAssessments(hero.sectionId, hero.period),
-      api.listGrades(hero.sectionId),
+      api.listStudents(hero.item.sectionId),
+      api.listAssessments(hero.item.sectionId, hero.item.period),
+      api.listGrades(hero.item.sectionId),
     ]);
     const assessmentIds = assessments.map((a) => a.id);
     const idSet = new Set(assessmentIds);
@@ -209,33 +231,61 @@ export default function ProfessorHome(): JSX.Element {
     <div className="prof-home">
       {hero !== null ? (
         <section className="prof-hero">
-          <span className="prof-hero__eyebrow mono-label">{hero.kind === "done" ? "All submitted" : "Continue grading"}</span>
-          {hero.kind === "done" ? (
+          <span className="prof-hero__eyebrow mono-label">
+            {hero.kind === "grade" ? "Continue grading" : hero.kind === "done" ? "All submitted" : "Up next"}
+          </span>
+          {hero.kind === "grade" ? (
+            <>
+              <h1 className="prof-hero__title">
+                {hero.item.code} · {hero.item.sectionName}
+              </h1>
+              <p className="prof-hero__meta num">
+                {PERIOD_LABELS[hero.item.period]}
+                {heroDetail.data !== null
+                  ? ` — ${heroDetail.data.fully} of ${heroDetail.data.total} ${plural(heroDetail.data.total, "student")} graded`
+                  : ` — ${hero.item.graded} of ${hero.item.total} entries graded`}
+              </p>
+              <div className="prof-hero__actions">
+                <Button
+                  variant="primary"
+                  onClick={() => navigate(`/sections/${hero.item.sectionId}?period=${hero.item.period}`)}
+                >
+                  Continue grading
+                </Button>
+              </div>
+              {waiting.length > 0 ? (
+                <div className="prof-hero__waiting">
+                  <p className="mono-label">Also waiting</p>
+                  {waiting.map((w) => (
+                    <Link
+                      key={`${w.sectionId}:${w.period}`}
+                      className="prof-hero__waitingrow"
+                      to={`/sections/${w.sectionId}?period=${w.period}`}
+                    >
+                      <span className="prof-hero__waitingcourse">
+                        {w.code} · {w.sectionName}
+                      </span>
+                      <span className="mono-label">{PERIOD_LABELS[w.period]}</span>
+                      <span className="prof-hero__waitingmeta num">
+                        {w.status === "draft" ? "Draft" : "Not started"} · {w.graded}/{w.total}
+                      </span>
+                    </Link>
+                  ))}
+                  {extraWaiting > 0 ? <p className="prof-hero__more num">+{extraWaiting} more waiting</p> : null}
+                </div>
+              ) : null}
+            </>
+          ) : hero.kind === "done" ? (
             <>
               <h1 className="prof-hero__title">All caught up</h1>
               <p className="prof-hero__meta num">Every period for {termLabel(term)} is submitted.</p>
             </>
           ) : (
             <>
-              <h1 className="prof-hero__title">
-                {hero.code} · {hero.sectionName}
-              </h1>
-              <p className="prof-hero__meta num">
-                {PERIOD_LABELS[hero.period]}
-                {heroDetail.data !== null
-                  ? heroDetail.data.total === 0
-                    ? " — no students yet"
-                    : ` — ${heroDetail.data.fully} of ${heroDetail.data.total} ${plural(heroDetail.data.total, "student")} graded`
-                  : " — …"}
+              <h1 className="prof-hero__title">Nothing ready to grade</h1>
+              <p className="prof-hero__meta">
+                Grading opens once a section has students and assessments — add them from a course card below.
               </p>
-              <div className="prof-hero__actions">
-                <Button
-                  variant="primary"
-                  onClick={() => navigate(`/sections/${hero.sectionId}?period=${hero.period}`)}
-                >
-                  Continue grading
-                </Button>
-              </div>
             </>
           )}
         </section>

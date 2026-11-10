@@ -58,6 +58,48 @@
   margin-top: var(--space-3);
 }
 
+/* "Also waiting" — the rest of the grading queue under the hero CTA */
+.prof-hero__waiting {
+  margin-top: var(--space-4);
+  width: 100%;
+  border-top: 1px solid var(--rule);
+  padding-top: var(--space-3);
+  display: grid;
+  gap: var(--space-1);
+}
+
+.prof-hero__waitingrow {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-3);
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid transparent;
+  text-decoration: none;
+}
+
+.prof-hero__waitingrow:hover {
+  background: var(--paper-2);
+  border-color: var(--rule);
+}
+
+.prof-hero__waitingcourse {
+  font-size: var(--text-sm);
+  min-width: 0;
+}
+
+.prof-hero__waitingmeta {
+  margin-left: auto;
+  font-size: var(--text-xs);
+  color: var(--ink-2);
+  white-space: nowrap;
+}
+
+.prof-hero__more {
+  font-size: var(--text-xs);
+  color: var(--ink-3);
+  padding: 0 var(--space-3);
+}
+
 .prof-week {
   display: grid;
 }
