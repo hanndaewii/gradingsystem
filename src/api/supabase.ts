@@ -17,7 +17,7 @@
 //
 // Error mapping: 23505→DUPLICATE_CODE · 42501→FORBIDDEN · trigger message
 // "PERIOD_SUBMITTED…"→PERIOD_SUBMITTED (friendly pre-checks mirror local.ts).
-import { createClient, type PostgrestError, type SupabaseClient } from "@supabase/supabase-js";
+import { type PostgrestError, type SupabaseClient } from "@supabase/supabase-js";
 import { requireSupabase } from "./client";
 import { ApiError, PERIODS } from "../types";
 import { verifyCredential } from "./adminApi";
