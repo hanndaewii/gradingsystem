@@ -34,12 +34,12 @@ Two extra HTML entries exist for development verification (they are **kept** in 
 
 | Key | Contents |
 |---|---|
-| `faculty-portal.db:v2` | the whole demo database (one JSON document) |
+| `faculty-portal.db:v3` | the whole demo database (one JSON document) |
 | `faculty-portal.session:v1` | signed-in profile id |
 | `faculty-portal.theme:v1` | light/dim preference |
 | `faculty-portal.term:v1` | selected term preference |
 
-**Reset demo data:** profile modal â†’ "Reset demo data" (asks for confirmation, reseeds, keeps you signed in), or DevTools â†’ Application â†’ Local Storage â†’ delete `faculty-portal.db:v2` and reload (a corrupt or missing doc is reseeded automatically).
+**Reset demo data:** profile modal â†’ "Reset demo data" (asks for confirmation, reseeds, keeps you signed in), or DevTools â†’ Application â†’ Local Storage â†’ delete `faculty-portal.db:v3` and reload (a corrupt or missing doc is reseeded automatically).
 
 ## Architecture
 
@@ -111,7 +111,7 @@ Results of the Â§5 acceptance audit (WO-7). "Fixed" marks a gap closed in the 
 | Interactions | celebration chime (AudioContext born in the click handler) + longer Finals/semester variant | Pass |
 | Interactions | period-tagged comments shared by professor and admin | Pass |
 | Supabase readiness | single async api with the full Â§3.2 surface; schema.sql with cascades, indexes, RLS, submitted-trigger; localStorage stands in | Pass |
-| Robustness | corrupted/missing/legacy `faculty-portal.db:v2` â†’ reseed (48/48 runtime checks) | Pass |
+| Robustness | corrupted/missing/legacy `faculty-portal.db:v3` â†’ reseed (48/48 runtime checks) | Pass |
 | Robustness | stale session id â†’ clean logout (verified) | Pass |
 | Robustness | `npm run build` clean; `npm run preview` serves with SPA fallback; hash deep links reload | Pass |
 
@@ -164,6 +164,6 @@ Nothing outside `src/api/` imports the localStorage backend, and no page touches
 
 ## Caveats (demo-only, deliberate)
 
-- **Passwords are stored in plaintext** inside `localStorage` (`faculty-portal.db:v2`). This is acceptable only because the app is a front-end demo with pinned demo accounts; the Supabase schema deliberately has no password column (Supabase Auth owns credentials).
+- **Passwords are stored in plaintext** inside `localStorage` (`faculty-portal.db:v3`). This is acceptable only because the app is a front-end demo with pinned demo accounts; the Supabase schema deliberately has no password column (Supabase Auth owns credentials).
 - **RLS is documented, not enforced, client-side.** The policies in `supabase/schema.sql` describe the intended server-side enforcement. In the localStorage demo, role scoping is enforced only inside `src/api/local.ts` â€” there is no real security boundary.
 - All data lives in one browser profile's localStorage; there is no cross-device or multi-tab sync guarantee beyond the browser's own `storage` event behaviour (not relied upon).

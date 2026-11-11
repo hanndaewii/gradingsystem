@@ -208,7 +208,7 @@ export function ProfileModal({ open, onClose }: ProfileModalProps): JSX.Element 
               This wipes every local change â€” courses, sections, grades, history and comments â€” and
               restores the seeded demo data. This cannot be undone.
             </p>
-            <p className="sh-profile__reset-note mono-label">faculty-portal.db:v2</p>
+            <p className="sh-profile__reset-note mono-label">faculty-portal.db:v3</p>
           </>
         }
       />
