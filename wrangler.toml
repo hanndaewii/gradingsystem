@@ -3,12 +3,15 @@
 #   • Build command:        npm run build
 #   • Build output dir:     dist   (pages_build_output_dir below)
 #   • Root directory:       /  (repo root)
-#   • Deploy command:       LEAVE EMPTY in the dashboard — Pages publishes the
-#                            build output itself. If you set one, it must be
-#                            the Pages flavour:
-#                              npx wrangler pages deploy dist --project-name=gradingsystem
-#                            (plain `npx wrangler deploy` is the Workers command
-#                            and fails on a Pages project)
+#   • Deploy command:       npm run deploy
+#                            (scripts/deploy-pages.mjs → wrangler pages deploy dist
+#                             --project-name=gradingsystem). This uses the Pages
+#                            flavour; plain `npx wrangler deploy` is the Workers
+#                            command and fails on a Pages project.
+#                            IMPORTANT: delete any custom CLOUDFLARE_API_TOKEN
+#                            from the project settings — it overrides the build
+#                            environment's own scoped credential and usually
+#                            lacks "Cloudflare Pages: Edit".
 #
 # Build-time environment variables — set BOTH in Dashboard → Pages project →
 # Settings → Environment variables (Production + Preview):
