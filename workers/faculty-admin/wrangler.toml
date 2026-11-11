@@ -1,0 +1,20 @@
+# Faculty account management Worker (Cloudflare).
+#
+# The portal's admin screen calls this. The Supabase service-role key lives
+# here as a secret — never in the browser bundle.
+#
+#   cd workers/faculty-admin
+#   npx wrangler secret put SUPABASE_SECRET_KEY      # paste the secret key
+#   npx wrangler deploy
+#
+# `wrangler.toml` (vars) points at your Supabase project and lists the origins
+# allowed to call it.
+
+name = "faculty-admin"
+main = "src/index.ts"
+compatibility_date = "2024-11-01"
+
+[vars]
+SUPABASE_URL = "https://mnhtsnsuishuazmaocey.supabase.co"
+# Comma-separated list of origins allowed to call the Worker.
+ALLOWED_ORIGIN = "https://gradingsystem.hanndaaewii.workers.dev,http://localhost:5173"

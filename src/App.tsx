@@ -18,6 +18,7 @@ import ProfessorHome from "./pages/professor/ProfessorHome";
 import CoursePage from "./pages/professor/CoursePage";
 import SectionPage from "./pages/professor/SectionPage";
 import AdminHome from "./pages/admin/AdminHome";
+import FacultyPage from "./pages/admin/FacultyPage";
 
 /** Full-content spinner used while the session is restored — no login flash. */
 function FullPageSpinner(): JSX.Element {
@@ -47,6 +48,13 @@ function RequireProfessor(): JSX.Element {
   return <Outlet />;
 }
 
+/** Admins only — the faculty account desk. */
+function RequireAdmin(): JSX.Element {
+  const auth = useAuth();
+  if (auth.profile?.role !== "admin") return <Navigate to="/" replace />;
+  return <Outlet />;
+}
+
 /** `/` switches on the signed-in role (spec WO-3 step 4). */
 function RoleHome(): JSX.Element {
   const auth = useAuth();
@@ -66,6 +74,10 @@ function AppRoutes(): JSX.Element {
           </Route>
           {/* Both roles — WO-5 derives readOnly from the profile role. */}
           <Route path="/sections/:sectionId" element={<SectionPage />} />
+          {/* The department head manages faculty accounts here. */}
+          <Route element={<RequireAdmin />}>
+            <Route path="/faculty" element={<FacultyPage />} />
+          </Route>
         </Route>
         <Route path="*" element={<NotFoundPage />} />
       </Route>

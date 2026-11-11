@@ -210,6 +210,29 @@ The `gradingsystem` project is a Cloudflare **Workers** project with static asse
 
 Live: **https://gradingsystem.hanndaaewii.workers.dev**
 
+### Faculty accounts (no email codes)
+
+The department head manages accounts from **Workers & Pages → gradingsystem → /faculty** (linked as "Faculty
+accounts" on the review home):
+
+- **Add a faculty account** — name, department, email, password (or leave it blank and one is generated). The
+  password is shown **once** so it can be shared out of band; the portal never stores it.
+- **Reset a password** — one click per person, same one-time display.
+
+The calls go to the `faculty-admin` Cloudflare Worker (`workers/faculty-admin/`), which holds the Supabase
+service-role key as a **secret** — it never reaches the browser. The Worker verifies the caller's session token
+and checks `faculty_profiles.role = 'admin'` before doing anything, so a professor calling it gets a 403.
+
+```bash
+cd workers/faculty-admin
+npx wrangler secret put SUPABASE_SECRET_KEY   # the service-role key
+npx wrangler deploy
+```
+
+The emailed-code **Register** tab stays available for self-signup, but it needs custom SMTP configured
+(Supabase → Authentication → Emails → SMTP) — otherwise the built-in mailer only reaches project team members
+and rate-limits per IP.
+
 ### Database operations
 
 | Script | What it does |

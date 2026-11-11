@@ -5,6 +5,7 @@
 // No edit affordances anywhere: the admin's only writes in this app are
 // comments (on the section page) and their own profile.
 import { useEffect, useMemo, useState } from "react";
+import { Link } from "react-router-dom";
 import { api } from "../../api";
 import { termLabel } from "../../lib/format";
 import { useAsync } from "../../lib/useAsync";
@@ -73,6 +74,9 @@ export default function AdminHome(): JSX.Element {
           Department review
           <span className="adm-mast__term mono-label"> · {termLabel(term)}</span>
         </h1>
+        <Link to="/faculty" className="adm-mast__link">
+          Faculty accounts
+        </Link>
       </header>
 
       {overview.length === 0 ? (

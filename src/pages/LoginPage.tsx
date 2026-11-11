@@ -403,7 +403,7 @@ export default function LoginPage(): JSX.Element {
                   Demo backend — the code is <span className="num">{DEMO_REGISTRATION_CODE}</span>.
                 </>
               ) : (
-                "We will email you a 6-digit code. It expires in 60 minutes."
+                "We will email you a 6-digit code. It expires in 60 minutes. If no code arrives, your college mail service may be blocking it — ask the department head to add your account instead."
               )}{" "}
               Already registered?{" "}
               <button type="button" className="sh-login__link" onClick={() => switchMode("signin")}>
