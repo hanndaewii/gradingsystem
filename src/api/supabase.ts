@@ -22,12 +22,13 @@ import { requireSupabase } from "./client";
 import { ApiError, PERIODS } from "../types";
 import { verifyCredential } from "./adminApi";
 import type {
-  Api, Assessment, AttendanceRow, AttendanceStatus, Comment, Course, Grade, HistoryEntry, PeriodId,
+  Api, Assessment, AttendanceRow, AttendanceStatus, CalendarEvent, Comment, Course, Grade,
+  HistoryEntry, PeriodId,
   PeriodProgress, PeriodState, Profile, ScaleRow, Section, SectionOverview,
   Student, Term,
 } from "../types";
 import { buildPeriodProgress, classAveragePct, isPeriodEditable } from "../lib/grades";
-import { ATTENDANCE_CRITERION, attendanceScore } from "../lib/attendance";
+import { ATTENDANCE_CRITERION, attendanceTotalScore } from "../lib/attendance";
 import { clampScore, DEFAULT_SCALE_TABLE } from "../lib/format";
 
 // ── env (browser-safe publishable key; see .env / .env.example) ─────────────
@@ -66,7 +67,11 @@ interface HistoryRow {
 }
 interface CommentRow { id: string; section_id: string; period: string | null; author_id: string; body: string; at: string; author?: { name?: string | null } | null }
 interface AttendanceDbRow {
-  section_id: string; student_id: string; period: string; status: string; updated_at: string;
+  section_id: string; student_id: string; period: string; session_date: string;
+  status: string; updated_at: string;
+}
+interface CalendarEventRow {
+  id: string; section_id: string; period: string; event_date: string; kind: string; label: string;
 }
 
 // ── pure helpers (module scope) ──────────────────────────────────────────────
@@ -392,7 +397,7 @@ export function createSupabaseApi(): Api {
   const attendanceRowsFor = async (sectionId: string): Promise<AttendanceRow[]> => {
     const rows = await list<AttendanceDbRow>(
       tbl("attendance")
-        .select("section_id, student_id, period, status, updated_at")
+        .select("section_id, student_id, period, session_date, status, updated_at")
         .eq("section_id", sectionId),
       "Could not load attendance.",
     );
@@ -401,10 +406,30 @@ export function createSupabaseApi(): Api {
         sectionId: r.section_id,
         studentRowId: r.student_id,
         period: asPeriod(r.period),
+        sessionDate: r.session_date,
         status: r.status as AttendanceStatus,
         updatedAt: normTs(r.updated_at),
       }))
       .filter((r): r is AttendanceRow => r.period !== null);
+  };
+
+  const calendarEventsFor = async (sectionId: string): Promise<CalendarEvent[]> => {
+    const rows = await list<CalendarEventRow>(
+      tbl("calendar_events")
+        .select("id, section_id, period, event_date, kind, label")
+        .eq("section_id", sectionId),
+      "Could not load the calendar.",
+    );
+    return rows
+      .map((r) => ({
+        id: r.id,
+        sectionId: r.section_id,
+        period: asPeriod(r.period),
+        eventDate: r.event_date,
+        kind: (r.kind as CalendarEvent["kind"]) ?? "event",
+        label: r.label ?? "",
+      }))
+      .filter((r): r is CalendarEvent => r.period !== null);
   };
 
   const api: Api = {
@@ -476,11 +501,12 @@ export function createSupabaseApi(): Api {
 
     async listAttendance(sectionId) {
       const user = await actor();
-      await ownedSection(sectionId, user);
+      const section = await readableSection(sectionId, user);
+      if (!section) throw new ApiError("Section not found.", { code: "NOT_FOUND" });
       return attendanceRowsFor(sectionId);
     },
 
-    async setAttendance(sectionId, period, studentRowId, status) {
+    async setAttendance(sectionId, period, studentRowId, sessionDate, status) {
       const user = await actor();
       const section = await ownedSection(sectionId, user);
       const periodRows = await fetchPeriodRows(sectionId);
@@ -493,7 +519,7 @@ export function createSupabaseApi(): Api {
             .delete()
             .eq("section_id", sectionId)
             .eq("student_id", studentRowId)
-            .eq("period", period),
+            .eq("session_date", sessionDate),
           "Could not clear the attendance mark.",
         );
       } else {
@@ -503,16 +529,18 @@ export function createSupabaseApi(): Api {
               section_id: sectionId,
               student_id: studentRowId,
               period,
+              session_date: sessionDate,
               status,
               updated_at: at,
             },
-            { onConflict: "section_id,student_id,period" },
+            { onConflict: "section_id,student_id,session_date" },
           ),
           "Could not save the attendance mark.",
         );
       }
 
-      // Encode the mark into the "Attendance" criterion's score.
+      // Encode the period's attendance into the "Attendance" criterion's
+      // score: the average credit across every class date marked.
       const periodRow = periodRows.find((r) => r.period === period);
       if (periodRow) {
         const assessmentRows = await list<AssessmentRow>(
@@ -523,7 +551,18 @@ export function createSupabaseApi(): Api {
           (a) => a.name.trim().toLowerCase() === ATTENDANCE_CRITERION.toLowerCase(),
         );
         if (criterion) {
-          const score = status === null ? null : attendanceScore(status, Number(criterion.max_score));
+          const marked = await list<AttendanceDbRow>(
+            tbl("attendance")
+              .select("status")
+              .eq("section_id", sectionId)
+              .eq("student_id", studentRowId)
+              .eq("period", period),
+            "Could not load the attendance marks.",
+          );
+          const score = attendanceTotalScore(
+            marked.map((m) => m.status as AttendanceStatus),
+            Number(criterion.max_score),
+          );
           const existing = await single<GradeRow>(
             tbl("grades")
               .select("*")
@@ -566,6 +605,68 @@ export function createSupabaseApi(): Api {
       }
 
       return attendanceRowsFor(sectionId);
+    },
+
+    async listCalendarEvents(sectionId) {
+      const user = await actor();
+      const section = await readableSection(sectionId, user);
+      if (!section) throw new ApiError("Section not found.", { code: "NOT_FOUND" });
+      return calendarEventsFor(sectionId);
+    },
+
+    async clearCalendarEvent(sectionId, eventDate) {
+      const user = await actor();
+      const section = await ownedSection(sectionId, user);
+      const periodRows = await fetchPeriodRows(sectionId);
+      const existing = await single<CalendarEventRow>(
+        tbl("calendar_events")
+          .select("id, section_id, period, event_date, kind, label")
+          .eq("section_id", sectionId)
+          .eq("event_date", eventDate)
+          .maybeSingle(),
+        "Could not load the calendar entry.",
+      );
+      if (existing) {
+        assertEditable(section, asPeriod(existing.period) ?? "prelim", periodRows);
+        await exec(
+          tbl("calendar_events").delete().eq("section_id", sectionId).eq("event_date", eventDate),
+          "Could not remove the calendar entry.",
+        );
+      }
+      return calendarEventsFor(sectionId);
+    },
+
+    async setCalendarEvent(sectionId, event) {
+      const user = await actor();
+      const section = await ownedSection(sectionId, user);
+      const periodRows = await fetchPeriodRows(sectionId);
+      assertEditable(section, event.period, periodRows);
+      const at = new Date().toISOString();
+      const payload = {
+        section_id: sectionId,
+        period: event.period,
+        event_date: event.eventDate,
+        kind: event.kind,
+        label: event.label.trim(),
+        updated_at: at,
+      };
+      const existing = await single<CalendarEventRow>(
+        tbl("calendar_events")
+          .select("id, section_id, period, event_date, kind, label")
+          .eq("section_id", sectionId)
+          .eq("event_date", event.eventDate)
+          .maybeSingle(),
+        "Could not load the calendar entry.",
+      );
+      if (existing) {
+        await exec(
+          tbl("calendar_events").update(payload).eq("id", existing.id),
+          "Could not save the calendar entry.",
+        );
+      } else {
+        await exec(tbl("calendar_events").insert(payload), "Could not save the calendar entry.");
+      }
+      return calendarEventsFor(sectionId);
     },
 
     async signOut() {

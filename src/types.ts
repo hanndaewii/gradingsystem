@@ -46,13 +46,26 @@ export interface PeriodState { status: PeriodStatus; submittedAt: string | null 
 /** 'p' present, 'a' absent, 'l' late. */
 export type AttendanceStatus = "p" | "a" | "l";
 
-/** One student's attendance for one period. */
+/** One student's attendance for one class date. */
 export interface AttendanceRow {
   sectionId: string;
   studentRowId: string;
   period: PeriodId;
+  /** The class date the mark belongs to (YYYY-MM-DD). */
+  sessionDate: string;
   status: AttendanceStatus;
   updatedAt: string;
+}
+
+/** A milestone on the section calendar: classes started, exam, holiday, note. */
+export interface CalendarEvent {
+  id: string;
+  sectionId: string;
+  period: PeriodId;
+  /** YYYY-MM-DD */
+  eventDate: string;
+  kind: "start" | "exam" | "holiday" | "event";
+  label: string;
 }
 
 export interface PeriodProgress {
@@ -120,8 +133,22 @@ export interface Api {
     sectionId: string,
     period: PeriodId,
     studentRowId: string,
+    sessionDate: string,
     status: AttendanceStatus | null,
   ): Promise<AttendanceRow[]>;
+  /** Calendar milestones: when classes started, when the exam is, other notes. */
+  listCalendarEvents(sectionId: string): Promise<CalendarEvent[]>;
+  setCalendarEvent(
+    sectionId: string,
+    event: {
+      period: PeriodId;
+      eventDate: string;
+      kind: CalendarEvent["kind"];
+      label: string;
+    },
+  ): Promise<CalendarEvent[]>;
+  /** Removes a calendar milestone. */
+  clearCalendarEvent(sectionId: string, eventDate: string): Promise<CalendarEvent[]>;
   updateProfile(id: string, patch: Partial<Pick<Profile, "name" | "department" | "bio">>): Promise<Profile>;
 
   // reads

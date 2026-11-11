@@ -4,13 +4,13 @@
 // demo reseed behaviour. Nothing outside `src/api/` may import this module.
 import { ApiError, PERIODS } from "../types";
 import type {
-  Api, Assessment, Comment, Course, Grade, HistoryEntry, PeriodId,
-  PeriodProgress, PeriodState, Profile, Section, SectionOverview, Term,
+  Api, Assessment, CalendarEvent, Comment, Course, Grade,
+  HistoryEntry, PeriodId, PeriodProgress, PeriodState, Profile, Section, SectionOverview, Term,
 } from "../types";
 import { buildSeed, DEMO_REGISTRATION_CODE, TERMS } from "../data/seed";
 import type { DbShape } from "../data/seed";
 import { buildPeriodProgress, classAveragePct, isPeriodEditable } from "../lib/grades";
-import { ATTENDANCE_CRITERION, attendanceScore } from "../lib/attendance";
+import { ATTENDANCE_CRITERION, attendanceTotalScore } from "../lib/attendance";
 import { clampScore, DEFAULT_SCALE_TABLE } from "../lib/format";
 import { uid } from "../lib/id";
 
@@ -43,6 +43,7 @@ export function createLocalApi(): Api {
       Array.isArray(o.profiles) && Array.isArray(o.courses) && Array.isArray(o.sections) &&
       Array.isArray(o.assessments) && Array.isArray(o.students) && Array.isArray(o.grades) &&
       Array.isArray(o.history) && Array.isArray(o.comments) && Array.isArray(o.attendance) &&
+      Array.isArray(o.calendarEvents) &&
       o.periodStates != null && typeof o.periodStates === "object"
     );
   };
@@ -204,12 +205,11 @@ export function createLocalApi(): Api {
 
     async listAttendance(sectionId) {
       await delay(LATENCY_MS);
-      const user = requireActor();
-      ownedSection(sectionId, user);
+      if (!readableSection(sectionId)) throw new ApiError("Section not found.", { code: "NOT_FOUND" });
       return db.attendance.filter((r) => r.sectionId === sectionId).map((r) => ({ ...r }));
     },
 
-    async setAttendance(sectionId, period, studentRowId, status) {
+    async setAttendance(sectionId, period, studentRowId, sessionDate, status) {
       await delay(LATENCY_MS);
       const user = requireActor();
       ownedSection(sectionId, user);
@@ -220,24 +220,34 @@ export function createLocalApi(): Api {
         });
       }
       const idx = db.attendance.findIndex(
-        (r) => r.sectionId === sectionId && r.studentRowId === studentRowId && r.period === period,
+        (r) =>
+          r.sectionId === sectionId &&
+          r.studentRowId === studentRowId &&
+          r.sessionDate === sessionDate,
       );
       if (status === null) {
         if (idx >= 0) db.attendance.splice(idx, 1);
       } else if (idx >= 0) {
-        db.attendance[idx] = { ...db.attendance[idx], status, updatedAt: new Date().toISOString() };
+        db.attendance[idx] = {
+          ...db.attendance[idx],
+          period,
+          status,
+          updatedAt: new Date().toISOString(),
+        };
       } else {
         db.attendance.push({
           sectionId,
           studentRowId,
           period,
+          sessionDate,
           status,
           updatedAt: new Date().toISOString(),
         });
       }
       persist();
 
-      // Encode the mark into the "Attendance" criterion's score.
+      // Encode the period's attendance into the "Attendance" criterion's
+      // score: the average credit across every class date marked.
       const criterion = db.assessments.find(
         (a) =>
           a.sectionId === sectionId &&
@@ -245,10 +255,73 @@ export function createLocalApi(): Api {
           a.name.trim().toLowerCase() === ATTENDANCE_CRITERION.toLowerCase(),
       );
       if (criterion) {
-        const score = status === null ? null : attendanceScore(status, criterion.maxScore);
+        const marked = db.attendance
+          .filter(
+            (r) =>
+              r.sectionId === sectionId &&
+              r.studentRowId === studentRowId &&
+              r.period === period,
+          )
+          .map((r) => r.status);
+        const score = attendanceTotalScore(marked, criterion.maxScore);
         await api.setGrade(sectionId, criterion.id, studentRowId, score);
       }
       return db.attendance.filter((r) => r.sectionId === sectionId).map((r) => ({ ...r }));
+    },
+
+    async listCalendarEvents(sectionId) {
+      await delay(LATENCY_MS);
+      if (!readableSection(sectionId)) throw new ApiError("Section not found.", { code: "NOT_FOUND" });
+      return db.calendarEvents
+        .filter((e) => e.sectionId === sectionId)
+        .map((e) => ({ ...e }));
+    },
+
+    async clearCalendarEvent(sectionId, eventDate) {
+      await delay(LATENCY_MS);
+      const user = requireActor();
+      ownedSection(sectionId, user);
+      const idx = db.calendarEvents.findIndex(
+        (e) => e.sectionId === sectionId && e.eventDate === eventDate,
+      );
+      if (idx >= 0) {
+        const state = periodStateOf(sectionId, db.calendarEvents[idx].period);
+        if (state.status === "submitted") {
+          throw new ApiError("This period is submitted — reopen it before editing the calendar.", {
+            code: "PERIOD_SUBMITTED",
+          });
+        }
+        db.calendarEvents.splice(idx, 1);
+        persist();
+      }
+      return db.calendarEvents.filter((e) => e.sectionId === sectionId).map((e) => ({ ...e }));
+    },
+
+    async setCalendarEvent(sectionId, event) {
+      await delay(LATENCY_MS);
+      const user = requireActor();
+      ownedSection(sectionId, user);
+      const state = periodStateOf(sectionId, event.period);
+      if (state.status === "submitted") {
+        throw new ApiError("This period is submitted — reopen it before editing the calendar.", {
+          code: "PERIOD_SUBMITTED",
+        });
+      }
+      const idx = db.calendarEvents.findIndex(
+        (e) => e.sectionId === sectionId && e.eventDate === event.eventDate,
+      );
+      const row: CalendarEvent = {
+        id: idx >= 0 ? db.calendarEvents[idx].id : uid("evt"),
+        sectionId,
+        period: event.period,
+        eventDate: event.eventDate,
+        kind: event.kind,
+        label: event.label.trim(),
+      };
+      if (idx >= 0) db.calendarEvents[idx] = row;
+      else db.calendarEvents.push(row);
+      persist();
+      return db.calendarEvents.filter((e) => e.sectionId === sectionId).map((e) => ({ ...e }));
     },
 
     async signOut() {

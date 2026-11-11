@@ -1,162 +1,561 @@
-// AttendancePanel — the professor marks 'p' (present), 'a' (absent) or
-// 'l' (late) for every student in every period (Prelim → Finals). Each mark
-// is also encoded into the section's "Attendance" criterion score, so the
-// class record and the gradebook always agree.
-import { useState } from "react";
-import { PERIODS, PERIOD_LABELS } from "../../types";
-import type { AttendanceRow, AttendanceStatus, PeriodId, Student } from "../../types";
-import { ATTENDANCE_LABEL, parseAttendance } from "../../lib/attendance";
+// AttendancePanel — the professor's attendance calendar.
+//
+// One clickable header per term (Prelim → Finals). Picking a term shows that
+// term's month: a calendar of milestones (when classes started, when the
+// exam is, holidays, notes) and, below it, the attendance sheet — every
+// student against every day of the month. The professor types P (present),
+// A (absent) or L (late); each mark is also encoded into the section's
+// "Attendance" criterion score, so the class record and the gradebook always
+// agree.
+import { useEffect, useMemo, useRef, useState } from "react";
+import { PERIODS } from "../../types";
+import type { AttendanceRow, AttendanceStatus, CalendarEvent, PeriodId, Student } from "../../types";
+import { ATTENDANCE_CREDIT, ATTENDANCE_LABEL, parseAttendance } from "../../lib/attendance";
+import {
+  WEEKDAY_INITIALS, WEEKDAY_NAMES, dayNumber, daysInMonth, isoDate, longDate,
+  monthLabel, parseIsoDate, weekdayIndex,
+} from "../../lib/calendar";
 import { cx } from "./cx";
 
 export interface AttendancePanelProps {
   students: Student[];
   rows: AttendanceRow[];
+  events: CalendarEvent[];
   readOnly: boolean;
   /** Writes one mark; the parent reloads the list afterwards. */
-  onSet(period: PeriodId, studentRowId: string, status: AttendanceStatus | null): Promise<void>;
-  /** Marks a whole period present in one go. */
-  onSetMany(period: PeriodId, entries: { studentRowId: string; status: AttendanceStatus }[]): Promise<void>;
+  onSet(
+    period: PeriodId,
+    studentRowId: string,
+    sessionDate: string,
+    status: AttendanceStatus | null,
+  ): Promise<void>;
+  /** Marks a whole class present in one go. */
+  onSetMany(
+    period: PeriodId,
+    sessionDate: string,
+    entries: { studentRowId: string; status: AttendanceStatus }[],
+  ): Promise<void>;
+  /** Saves a calendar milestone (classes started / exam / holiday / note). */
+  onSetEvent(event: {
+    period: PeriodId;
+    eventDate: string;
+    kind: CalendarEvent["kind"];
+    label: string;
+  }): Promise<void>;
+  /** Removes a calendar milestone. */
+  onClearEvent(eventDate: string): Promise<void>;
 }
 
-const cellId = (period: PeriodId, studentRowId: string): string => `sec-att-${period}-${studentRowId}`;
+/** The term headers — the wording used in the class record. */
+const TERM_LABELS: Record<PeriodId, string> = {
+  prelim: "Prelim",
+  midterm: "Midterm",
+  semifinals: "Pre-Finals",
+  finals: "Finals",
+};
+
+const EVENT_KINDS: Array<{ kind: CalendarEvent["kind"]; label: string }> = [
+  { kind: "start", label: "Classes started" },
+  { kind: "exam", label: "Exam" },
+  { kind: "holiday", label: "No class" },
+  { kind: "event", label: "Note" },
+];
+
+const cellId = (studentRowId: string, date: string): string =>
+  `sec-att-${studentRowId}-${date}`;
+
+const markKey = (studentRowId: string, date: string): string => `${studentRowId}|${date}`;
 
 export function AttendancePanel({
   students,
   rows,
+  events,
   readOnly,
   onSet,
   onSetMany,
+  onSetEvent,
+  onClearEvent,
 }: AttendancePanelProps): JSX.Element {
-  const [busy, setBusy] = useState(false);
+  const today = isoDate(new Date());
+  const [period, setPeriod] = useState<PeriodId>("prelim");
+  const [month, setMonth] = useState(() => {
+    const now = new Date();
+    return { year: now.getFullYear(), month: now.getMonth() };
+  });
+  const [includeSunday, setIncludeSunday] = useState(false);
+  /** Local marks — the sheet shows these immediately, before the save lands. */
+  const [marks, setMarks] = useState<Record<string, AttendanceStatus | null>>({});
+  /** Cells with a save in flight (per cell — never a global lock). */
+  const [pending, setPending] = useState<Record<string, boolean>>({});
+  const [eventDay, setEventDay] = useState<string | null>(null);
+  const [eventKind, setEventKind] = useState<CalendarEvent["kind"]>("start");
+  const [eventLabel, setEventLabel] = useState("");
+  const [savingEvent, setSavingEvent] = useState(false);
+  const [bulkBusy, setBulkBusy] = useState(false);
+  const [focusDay, setFocusDay] = useState<string | null>(null);
 
-  const statusFor = (period: PeriodId, studentRowId: string): AttendanceStatus | null => {
-    const row = rows.find(
-      (r) => r.period === period && r.studentRowId === studentRowId,
-    );
-    return row ? row.status : null;
+  // The latest rows/events, readable from the term-jump effect without
+  // re-running it whenever the server answers.
+  const latest = useRef({ rows, events });
+  latest.current = { rows, events };
+
+  const rowMap = useMemo(() => {
+    const map = new Map<string, AttendanceStatus>();
+    for (const r of rows) map.set(markKey(r.studentRowId, r.sessionDate), r.status);
+    return map;
+  }, [rows]);
+
+  const eventMap = useMemo(() => {
+    const map = new Map<string, CalendarEvent>();
+    for (const e of events) map.set(`${e.period}|${e.eventDate}`, e);
+    return map;
+  }, [events]);
+
+  const markOf = (studentRowId: string, date: string): AttendanceStatus | null => {
+    const key = markKey(studentRowId, date);
+    if (key in marks) return marks[key];
+    return rowMap.get(key) ?? null;
   };
 
-  const countsFor = (period: PeriodId): { p: number; a: number; l: number } => {
-    let p = 0;
-    let a = 0;
-    let l = 0;
-    for (const row of rows) {
-      if (row.period !== period) continue;
-      if (row.status === "p") p += 1;
-      else if (row.status === "a") a += 1;
-      else if (row.status === "l") l += 1;
-    }
-    return { p, a, l };
-  };
+  const monthDays = useMemo(() => daysInMonth(month.year, month.month), [month]);
+  const visibleDays = useMemo(
+    () => (includeSunday ? monthDays : monthDays.filter((d) => weekdayIndex(d) !== 6)),
+    [monthDays, includeSunday],
+  );
 
-  function focusNext(period: PeriodId, studentRowId: string): void {
+  // Picking a term jumps to that term's month — the month holding its first
+  // milestone, or its most recent attendance, else today.
+  useEffect(() => {
+    const { rows: allRows, events: allEvents } = latest.current;
+    const ev = allEvents.filter((e) => e.period === period).map((e) => e.eventDate).sort()[0];
+    const row = allRows
+      .filter((r) => r.period === period)
+      .map((r) => r.sessionDate)
+      .sort()
+      .pop();
+    const target = ev ?? row;
+    if (!target) return;
+    const d = parseIsoDate(target);
+    setMonth({ year: d.getFullYear(), month: d.getMonth() });
+  }, [period]);
+
+  // Selecting a day loads its milestone into the editor.
+  useEffect(() => {
+    if (!eventDay) return;
+    const existing = eventMap.get(`${period}|${eventDay}`);
+    setEventKind(existing?.kind ?? "start");
+    setEventLabel(existing?.label ?? "");
+  }, [eventDay, period, eventMap]);
+
+  function shiftMonth(delta: number): void {
+    setMonth((m) => {
+      const next = new Date(m.year, m.month + delta, 1);
+      return { year: next.getFullYear(), month: next.getMonth() };
+    });
+  }
+
+  function focusCell(studentRowId: string, date: string): void {
+    const el = document.getElementById(cellId(studentRowId, date)) as HTMLInputElement | null;
+    if (!el) return;
+    el.focus();
+    el.select();
+  }
+
+  /** After a mark lands, move to the next student in the same day column. */
+  function advance(date: string, studentRowId: string): void {
     const index = students.findIndex((s) => s.id === studentRowId);
     const next = students[index + 1];
-    if (!next) return;
-    document.getElementById(cellId(period, next.id))?.focus();
+    if (next) {
+      focusCell(next.id, date);
+      return;
+    }
+    // Last student of the day → the first student of the next day.
+    const dayIndex = visibleDays.indexOf(date);
+    const nextDay = visibleDays[dayIndex + 1];
+    if (nextDay && students[0]) focusCell(students[0].id, nextDay);
   }
 
   async function handleType(
-    period: PeriodId,
     studentRowId: string,
+    date: string,
     raw: string,
   ): Promise<void> {
-    const parsed = parseAttendance(raw);
-    setBusy(true);
+    const key = markKey(studentRowId, date);
+    const trimmed = raw.trim();
+
+    // An empty box clears the mark.
+    if (trimmed === "") {
+      if (marks[key] === undefined && !rowMap.has(key)) return;
+      setMarks((m) => ({ ...m, [key]: null }));
+      setPending((p) => ({ ...p, [key]: true }));
+      try {
+        await onSet(period, studentRowId, date, null);
+      } catch {
+        setMarks((m) => {
+          const next = { ...m };
+          delete next[key];
+          return next;
+        });
+      } finally {
+        setPending((p) => {
+          const next = { ...p };
+          delete next[key];
+          return next;
+        });
+      }
+      return;
+    }
+
+    const parsed = parseAttendance(trimmed);
+    if (parsed === null) {
+      // Not P/A/L — put the previous mark back.
+      setMarks((m) => ({ ...m, [key]: markOf(studentRowId, date) }));
+      return;
+    }
+    setMarks((m) => ({ ...m, [key]: parsed }));
+    setPending((p) => ({ ...p, [key]: true }));
+    // The cursor moves straight away — the professor keeps typing while the
+    // save travels to the server.
+    advance(date, studentRowId);
     try {
-      await onSet(period, studentRowId, parsed);
-      if (parsed !== null) focusNext(period, studentRowId);
+      await onSet(period, studentRowId, date, parsed);
+    } catch {
+      setMarks((m) => {
+        const next = { ...m };
+        delete next[key];
+        return next;
+      });
     } finally {
-      setBusy(false);
+      setPending((p) => {
+        const next = { ...p };
+        delete next[key];
+        return next;
+      });
     }
   }
 
-  async function markAllPresent(period: PeriodId): Promise<void> {
-    setBusy(true);
+  async function markDayPresent(date: string): Promise<void> {
+    if (students.length === 0) return;
+    setBulkBusy(true);
     try {
       const entries = students
-        .filter((s) => statusFor(period, s.id) !== "p")
+        .filter((s) => markOf(s.id, date) !== "p")
         .map((s) => ({ studentRowId: s.id, status: "p" as AttendanceStatus }));
-      if (entries.length > 0) await onSetMany(period, entries);
+      if (entries.length > 0) await onSetMany(period, date, entries);
+      for (const e of entries) setMarks((m) => ({ ...m, [markKey(e.studentRowId, date)]: "p" }));
     } finally {
-      setBusy(false);
+      setBulkBusy(false);
     }
   }
+
+  async function saveEvent(): Promise<void> {
+    if (!eventDay) return;
+    setSavingEvent(true);
+    try {
+      await onSetEvent({ period, eventDate: eventDay, kind: eventKind, label: eventLabel });
+    } finally {
+      setSavingEvent(false);
+    }
+  }
+
+  async function clearEvent(): Promise<void> {
+    if (!eventDay) return;
+    setSavingEvent(true);
+    try {
+      await onClearEvent(eventDay);
+      setEventLabel("");
+    } finally {
+      setSavingEvent(false);
+    }
+  }
+
+  // ── totals for the visible month ──────────────────────────────────────────
+  const totals = useMemo(() => {
+    let p = 0;
+    let a = 0;
+    let l = 0;
+    for (const day of visibleDays) {
+      for (const student of students) {
+        const status = markOf(student.id, day);
+        if (status === "p") p += 1;
+        else if (status === "a") a += 1;
+        else if (status === "l") l += 1;
+      }
+    }
+    return { p, a, l };
+  }, [visibleDays, students, marks, rowMap]);
+
+  const rateFor = (student: Student): number | null => {
+    let sum = 0;
+    let n = 0;
+    for (const day of visibleDays) {
+      const status = markOf(student.id, day);
+      if (!status) continue;
+      sum += ATTENDANCE_CREDIT[status];
+      n += 1;
+    }
+    if (n === 0) return null;
+    return Math.round((sum / n) * 100);
+  };
+
+  // ── the month grid ───────────────────────────────────────────────────────
+  const gridCells = useMemo(() => {
+    const lead = weekdayIndex(monthDays[0] ?? isoDate(new Date()));
+    const cells: (string | null)[] = [];
+    for (let i = 0; i < lead; i += 1) cells.push(null);
+    cells.push(...monthDays);
+    while (cells.length % 7 !== 0) cells.push(null);
+    return cells;
+  }, [monthDays]);
+
+  const selectedEvent = eventDay ? eventMap.get(`${period}|${eventDay}`) : undefined;
 
   return (
     <div className="sec-att">
-      <p className="sec-att__hint mono-label">
-        Type P (present) · A (absent) · L (late) — each mark updates the Attendance criterion
-      </p>
-
-      <div className="sec-tablewrap">
-        <table className="sec-table sec-att__table">
-          <thead>
-            <tr>
-              <th scope="col" className="sec-table__name mono-label">
-                Student
-              </th>
-              {PERIODS.map((period) => {
-                const counts = countsFor(period);
-                return (
-                  <th key={period} scope="col" className="sec-att__period">
-                    <span className="sec-att__periodname">{PERIOD_LABELS[period]}</span>
-                    <span className="sec-att__counts num">
-                      {counts.p}P · {counts.a}A · {counts.l}L
-                    </span>
-                    {!readOnly ? (
-                      <button
-                        type="button"
-                        className="sec-att__all"
-                        disabled={busy}
-                        onClick={() => void markAllPresent(period)}
-                      >
-                        All present
-                      </button>
-                    ) : null}
-                  </th>
-                );
-              })}
-            </tr>
-          </thead>
-          <tbody>
-            {students.map((student) => (
-              <tr key={student.id}>
-                <td className="sec-table__name">{student.name}</td>
-                {PERIODS.map((period) => {
-                  const status = statusFor(period, student.id);
-                  return (
-                    <td key={period} className="sec-att__cell">
-                      <input
-                        id={cellId(period, student.id)}
-                        className={cx("sec-att__input", status && `is-${status}`)}
-                        defaultValue={status ?? ""}
-                        key={`${period}-${student.id}`}
-                        maxLength={1}
-                        disabled={readOnly || busy}
-                        autoComplete="off"
-                        inputMode="text"
-                        aria-label={`${student.name} — ${PERIOD_LABELS[period]} attendance`}
-                        title={status ? ATTENDANCE_LABEL[status] : "Not marked"}
-                        onChange={(e) => void handleType(period, student.id, e.target.value)}
-                        onKeyDown={(e) => {
-                          if (e.key === "Enter") {
-                            e.preventDefault();
-                            focusNext(period, student.id);
-                          }
-                        }}
-                      />
-                    </td>
-                  );
-                })}
-              </tr>
-            ))}
-          </tbody>
-        </table>
+      {/* ── term headers ─────────────────────────────────────────────── */}
+      <div className="sec-att__terms" role="group" aria-label="Term">
+        {PERIODS.map((p) => (
+          <button
+            key={p}
+            type="button"
+            className={cx("sec-att__term", period === p && "is-active")}
+            aria-pressed={period === p}
+            onClick={() => setPeriod(p)}
+          >
+            {TERM_LABELS[p]}
+          </button>
+        ))}
       </div>
+
+      {readOnly ? (
+        <p className="sec-att__notice">
+          You are signed in as the department head — attendance is read-only. Sign out and
+          sign in with your <strong>Professor</strong> password to mark attendance.
+        </p>
+      ) : null}
+
+      {/* ── month bar ────────────────────────────────────────────────── */}
+      <div className="sec-att__bar">
+        <button
+          type="button"
+          className="sec-att__nav"
+          aria-label="Previous month"
+          onClick={() => shiftMonth(-1)}
+        >
+          ‹
+        </button>
+        <span className="sec-att__month">{monthLabel(month.year, month.month)}</span>
+        <button
+          type="button"
+          className="sec-att__nav"
+          aria-label="Next month"
+          onClick={() => shiftMonth(1)}
+        >
+          ›
+        </button>
+        <button
+          type="button"
+          className="sec-att__link"
+          onClick={() => {
+            const now = new Date();
+            setMonth({ year: now.getFullYear(), month: now.getMonth() });
+          }}
+        >
+          Today
+        </button>
+        <label className="sec-att__toggle">
+          <input
+            type="checkbox"
+            checked={includeSunday}
+            onChange={(e) => setIncludeSunday(e.target.checked)}
+          />
+          Include Sundays
+        </label>
+      </div>
+
+      {/* ── milestone calendar ───────────────────────────────────────── */}
+      <div className="sec-cal">
+        <div className="sec-cal__weekdays" aria-hidden="true">
+          {WEEKDAY_NAMES.map((name, i) => (
+            <span key={name} className="sec-cal__weekday" title={name}>
+              {WEEKDAY_INITIALS[i]}
+            </span>
+          ))}
+        </div>
+        <div className="sec-cal__grid">
+          {gridCells.map((day, i) => {
+            if (!day) return <span key={`pad-${i}`} className="sec-cal__cell is-empty" />;
+            const ev = eventMap.get(`${period}|${day}`);
+            const isToday = day === today;
+            return (
+              <button
+                key={day}
+                type="button"
+                className={cx(
+                  "sec-cal__cell",
+                  isToday && "is-today",
+                  eventDay === day && "is-selected",
+                  ev && `has-${ev.kind}`,
+                )}
+                onClick={() => setEventDay(day === eventDay ? null : day)}
+                aria-label={`${longDate(day)}${ev ? ` — ${ev.label || ev.kind}` : ""}`}
+              >
+                <span className="sec-cal__num">{dayNumber(day)}</span>
+                {ev ? <span className="sec-cal__tag">{ev.label || EVENT_KINDS.find((k) => k.kind === ev.kind)?.label}</span> : null}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* ── milestone editor ─────────────────────────────────────────── */}
+      {eventDay ? (
+        <div className="sec-cal__editor">
+          <div className="sec-cal__editorhead">
+            <strong className="mono-label">{longDate(eventDay)}</strong>
+            {selectedEvent ? (
+              <button type="button" className="sec-att__link" onClick={() => void clearEvent()}>
+                Remove
+              </button>
+            ) : null}
+          </div>
+          <div className="sec-cal__kinds">
+            {EVENT_KINDS.map((k) => (
+              <button
+                key={k.kind}
+                type="button"
+                className={cx("sec-cal__kind", eventKind === k.kind && "is-active")}
+                aria-pressed={eventKind === k.kind}
+                onClick={() => setEventKind(k.kind)}
+              >
+                {k.label}
+              </button>
+            ))}
+          </div>
+          <div className="sec-cal__editorrow">
+            <input
+              className="sec-cal__label"
+              value={eventLabel}
+              placeholder="Note (optional) — e.g. Classes started, Prelim exam"
+              maxLength={80}
+              onChange={(e) => setEventLabel(e.target.value)}
+              aria-label="Event note"
+            />
+            <button
+              type="button"
+              className="sec-cal__save"
+              disabled={savingEvent}
+              onClick={() => void saveEvent()}
+            >
+              {savingEvent ? "Saving…" : "Save"}
+            </button>
+          </div>
+        </div>
+      ) : null}
+
+      {/* ── the attendance sheet ─────────────────────────────────────── */}
+      <p className="sec-att__hint mono-label">
+        Type P (present) · A (absent) · L (late) — every mark updates the Attendance criterion
+      </p>
 
       {students.length === 0 ? (
         <p className="sec-att__none">Add students to the roster first, then mark their attendance.</p>
+      ) : (
+        <div className="sec-tablewrap">
+          <table className="sec-table sec-att__table">
+            <thead>
+              <tr>
+                <th scope="col" className="sec-table__name mono-label">
+                  Student
+                </th>
+                {visibleDays.map((day) => {
+                  const ev = eventMap.get(`${period}|${day}`);
+                  return (
+                    <th
+                      key={day}
+                      scope="col"
+                      className={cx(
+                        "sec-att__day",
+                        focusDay === day && "is-focus",
+                        ev && `has-${ev.kind}`,
+                      )}
+                    >
+                      <button
+                        type="button"
+                        className="sec-att__daybtn"
+                        title={ev ? `${ev.label || ev.kind} — click to mark the whole day present` : "Mark the whole day present"}
+                        onClick={() => {
+                          setFocusDay(day);
+                          void markDayPresent(day);
+                        }}
+                      >
+                        <span className="sec-att__dow">{WEEKDAY_INITIALS[weekdayIndex(day)]}</span>
+                        <span className="sec-att__dom">{dayNumber(day)}</span>
+                      </button>
+                    </th>
+                  );
+                })}
+                <th scope="col" className="sec-att__rate mono-label">
+                  Rate
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              {students.map((student) => {
+                const rate = rateFor(student);
+                return (
+                  <tr key={student.id}>
+                    <td className="sec-table__name">{student.name}</td>
+                    {visibleDays.map((day) => {
+                      const status = markOf(student.id, day);
+                      const key = markKey(student.id, day);
+                      const isPending = pending[key] === true;
+                      return (
+                        <td
+                          key={day}
+                          className={cx(
+                            "sec-att__cell",
+                            focusDay === day && "is-focus",
+                            isPending && "is-pending",
+                          )}
+                        >
+                          <input
+                            id={cellId(student.id, day)}
+                            className={cx("sec-att__input", status && `is-${status}`)}
+                            value={status ?? ""}
+                            maxLength={1}
+                            disabled={readOnly}
+                            autoComplete="off"
+                            spellCheck={false}
+                            aria-label={`${student.name} — ${longDate(day)}`}
+                            title={status ? ATTENDANCE_LABEL[status] : "Not marked"}
+                            onFocus={(e) => e.currentTarget.select()}
+                            onChange={(e) => void handleType(student.id, day, e.target.value)}
+                            onKeyDown={(e) => {
+                              if (e.key === "Enter") {
+                                e.preventDefault();
+                                advance(day, student.id);
+                              }
+                            }}
+                          />
+                        </td>
+                      );
+                    })}
+                    <td className="sec-att__rate num">{rate === null ? "—" : `${rate}%`}</td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      {students.length > 0 ? (
+        <p className="sec-att__totals mono-label">
+          {monthLabel(month.year, month.month)} · {TERM_LABELS[period]} — {totals.p} present ·{" "}
+          {totals.a} absent · {totals.l} late
+          {bulkBusy ? " · saving…" : ""}
+        </p>
       ) : null}
     </div>
   );

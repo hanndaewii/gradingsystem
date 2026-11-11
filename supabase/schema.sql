@@ -56,17 +56,34 @@ create table if not exists public.faculty_credentials (
 );
 
 -- ── faculty.attendance ──────────────────────────────────────────────────────
--- One row per (student, period): 'p' present, 'a' absent, 'l' late. The
--- attendance status is the source of truth; it is also encoded into the
--- "Attendance" criterion's score (see src/lib/attendance.ts).
-create table if not exists public.faculty_attendance (
+-- One row per student per class date: 'p' present, 'a' absent, 'l' late.
+-- The mark is the source of truth; it is also encoded into the "Attendance"
+-- criterion's score (see src/lib/attendance.ts).
+drop table if exists public.faculty_attendance;
+create table public.faculty_attendance (
+  id           uuid primary key default gen_random_uuid(),
+  section_id   uuid not null references public.faculty_sections (id) on delete cascade,
+  student_id   uuid not null references public.faculty_students (id) on delete cascade,
+  period       text not null check (period in ('prelim', 'midterm', 'semifinals', 'finals')),
+  session_date date not null,             -- the class date the mark belongs to
+  status       text not null check (status in ('p', 'a', 'l')),
+  updated_at   timestamptz not null default now(),
+  unique (section_id, student_id, session_date)
+);
+
+-- ── faculty.calendar_events ────────────────────────────────────────────────
+-- Milestones on the calendar: when classes started, when the exam is, and any
+-- other note for that day.
+drop table if exists public.faculty_calendar_events;
+create table public.faculty_calendar_events (
   id         uuid primary key default gen_random_uuid(),
   section_id uuid not null references public.faculty_sections (id) on delete cascade,
-  student_id uuid not null references public.faculty_students (id) on delete cascade,
   period     text not null check (period in ('prelim', 'midterm', 'semifinals', 'finals')),
-  status     text not null check (status in ('p', 'a', 'l')),
+  event_date date not null,
+  kind       text not null default 'event' check (kind in ('start', 'exam', 'holiday', 'event')),
+  label      text not null default '',
   updated_at timestamptz not null default now(),
-  unique (section_id, student_id, period)
+  unique (section_id, period, event_date)
 );
 
 create table if not exists public.faculty_terms (
@@ -180,7 +197,8 @@ create index if not exists idx_sections_course      on public.faculty_sections (
 create index if not exists idx_periods_section      on public.faculty_periods (section_id);
 create index if not exists idx_assessments_section  on public.faculty_assessments (section_id, period_id);
 create index if not exists idx_students_section     on public.faculty_students (section_id);
-create index if not exists idx_attendance_section  on public.faculty_attendance (section_id, period);
+create index if not exists idx_attendance_section  on public.faculty_attendance (section_id, period, session_date);
+create index if not exists idx_calendar_section   on public.faculty_calendar_events (section_id, event_date);
 create index if not exists idx_grades_section       on public.faculty_grades (section_id);
 create index if not exists idx_grades_cell          on public.faculty_grades (assessment_id, student_id);
 create index if not exists idx_history_section      on public.faculty_grade_history (section_id, at desc);
@@ -216,6 +234,7 @@ alter table public.faculty_periods       enable row level security;
 alter table public.faculty_assessments   enable row level security;
 alter table public.faculty_students      enable row level security;
 alter table public.faculty_attendance   enable row level security;
+alter table public.faculty_calendar_events enable row level security;
 alter table public.faculty_grades        enable row level security;
 alter table public.faculty_grade_history enable row level security;
 alter table public.faculty_comments      enable row level security;
@@ -318,6 +337,16 @@ create policy "attendance_professor_all" on public.faculty_attendance
   with check (exists (select 1 from public.faculty_courses c join public.faculty_sections s on s.course_id = c.id
                  where s.id = section_id and c.professor_id = auth.uid()));
 create policy "attendance_admin_read" on public.faculty_attendance
+  for select to authenticated using (public.faculty_current_role_is_admin());
+
+-- calendar events: owned like the rest of the section.
+create policy "calendar_events_professor_all" on public.faculty_calendar_events
+  for all to authenticated
+  using (exists (select 1 from public.faculty_courses c join public.faculty_sections s on s.course_id = c.id
+                 where s.id = section_id and c.professor_id = auth.uid()))
+  with check (exists (select 1 from public.faculty_courses c join public.faculty_sections s on s.course_id = c.id
+                 where s.id = section_id and c.professor_id = auth.uid()));
+create policy "calendar_events_admin_read" on public.faculty_calendar_events
   for select to authenticated using (public.faculty_current_role_is_admin());
 
 -- grades: professors read/write their own sections' cells; admins read only.

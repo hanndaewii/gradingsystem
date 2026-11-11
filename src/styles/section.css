@@ -1421,63 +1421,387 @@
   margin-bottom: var(--space-2);
 }
 
-/* ---- attendance (p / a / l per student per period) ---- */
+/* ---- attendance: term headers, month calendar, day-by-day sheet ---- */
 
 .sec-att {
   display: grid;
+  gap: var(--space-4);
+}
+
+/* -- term headers (Prelim → Finals) -- */
+
+.sec-att__terms {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.sec-att__term {
+  appearance: none;
+  border: 1px solid var(--rule-strong);
+  background: var(--surface);
+  color: var(--ink);
+  font-family: var(--font-serif);
+  font-size: var(--text-base);
+  font-weight: 600;
+  padding: var(--space-2) var(--space-5);
+  border-radius: var(--radius);
+  cursor: pointer;
+}
+
+.sec-att__term:hover {
+  border-color: var(--brand);
+  color: var(--brand);
+}
+
+.sec-att__term.is-active {
+  background: var(--brand);
+  border-color: var(--brand);
+  color: #ffffff;
+}
+
+.sec-att__notice {
+  margin: 0;
+  padding: var(--space-3) var(--space-4);
+  border: 1px solid var(--rule-strong);
+  border-left: 4px solid var(--brand);
+  background: var(--accent-soft);
+  color: var(--ink-2);
+  font-size: var(--text-sm);
+  border-radius: var(--radius);
+}
+
+/* -- month bar -- */
+
+.sec-att__bar {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
   gap: var(--space-3);
 }
 
-.sec-att__hint {
-  margin: 0;
+.sec-att__nav {
+  appearance: none;
+  width: 34px;
+  height: 34px;
+  border: 1px solid var(--rule-strong);
+  background: var(--surface);
+  color: var(--ink);
+  font-size: var(--text-lg);
+  line-height: 1;
+  border-radius: var(--radius);
+  cursor: pointer;
 }
 
-.sec-att__period {
-  text-align: center;
-  vertical-align: top;
+.sec-att__nav:hover {
+  border-color: var(--brand);
+  color: var(--brand);
 }
 
-.sec-att__periodname {
-  display: block;
-  font-size: var(--text-sm);
+.sec-att__month {
+  font-size: var(--text-lg);
   font-weight: 700;
+  min-width: 190px;
 }
 
-.sec-att__counts {
-  display: block;
-  font-size: var(--text-xs);
-  color: var(--ink-3);
-}
-
-.sec-att__all {
+.sec-att__link {
   appearance: none;
   border: none;
   background: none;
   padding: 0;
   font-family: var(--font-serif);
-  font-size: var(--text-xs);
+  font-size: var(--text-sm);
   color: var(--brand);
   text-decoration: underline;
   text-underline-offset: 3px;
   cursor: pointer;
 }
 
-.sec-att__all:disabled {
-  opacity: 0.55;
+.sec-att__toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: var(--text-sm);
+  color: var(--ink-3);
+  margin-left: auto;
+}
+
+/* -- the milestone calendar -- */
+
+.sec-cal {
+  border: 1px solid var(--rule);
+  border-radius: var(--radius);
+  padding: var(--space-3);
+  background: var(--surface);
+  max-width: 760px;
+}
+
+.sec-cal__weekdays,
+.sec-cal__grid {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: var(--space-1);
+}
+
+.sec-cal__weekday {
+  text-align: center;
+  font-size: var(--text-xs);
+  font-weight: 700;
+  color: var(--ink-3);
+  padding-bottom: var(--space-1);
+}
+
+.sec-cal__cell {
+  appearance: none;
+  border: 1px solid transparent;
+  background: var(--paper-2);
+  color: var(--ink);
+  font-family: var(--font-serif);
+  min-height: 38px;
+  padding: var(--space-1);
+  border-radius: var(--radius);
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  text-align: left;
+}
+
+.sec-cal__cell.is-empty {
+  background: none;
+  border-color: transparent;
+  cursor: default;
+}
+
+.sec-cal__cell:hover {
+  border-color: var(--brand);
+}
+
+.sec-cal__cell.is-today {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: -2px;
+}
+
+.sec-cal__cell.is-selected {
+  border-color: var(--brand);
+  background: var(--accent-soft);
+}
+
+.sec-cal__num {
+  font-size: var(--text-sm);
+  font-weight: 700;
+}
+
+.sec-cal__tag {
+  font-size: 11px;
+  line-height: 1.2;
+  color: var(--ink-3);
+}
+
+.sec-cal__cell.has-start {
+  background: var(--accent-soft);
+}
+
+.sec-cal__cell.has-start .sec-cal__num {
+  color: var(--accent-ink);
+}
+
+.sec-cal__cell.has-exam {
+  background: #fdf3e3;
+}
+
+.sec-cal__cell.has-exam .sec-cal__num {
+  color: var(--warn);
+}
+
+.sec-cal__cell.has-holiday {
+  background: #fbeae6;
+}
+
+.sec-cal__cell.has-holiday .sec-cal__num {
+  color: var(--danger);
+}
+
+/* -- the milestone editor -- */
+
+.sec-cal__editor {
+  border: 1px solid var(--rule-strong);
+  border-radius: var(--radius);
+  padding: var(--space-3);
+  display: grid;
+  gap: var(--space-2);
+  background: var(--surface);
+  max-width: 760px;
+}
+
+.sec-cal__editorhead {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+
+.sec-cal__kinds {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.sec-cal__kind {
+  appearance: none;
+  border: 1px solid var(--rule-strong);
+  background: var(--surface);
+  color: var(--ink);
+  font-family: var(--font-serif);
+  font-size: var(--text-sm);
+  padding: var(--space-1) var(--space-3);
+  border-radius: var(--radius);
+  cursor: pointer;
+}
+
+.sec-cal__kind.is-active {
+  background: var(--brand);
+  border-color: var(--brand);
+  color: #ffffff;
+}
+
+.sec-cal__editorrow {
+  display: flex;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+}
+
+.sec-cal__label {
+  flex: 1 1 260px;
+  font-family: var(--font-serif);
+  font-size: var(--text-base);
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--rule-strong);
+  border-radius: var(--radius);
+  background: var(--surface);
+  color: var(--ink);
+}
+
+.sec-cal__save {
+  appearance: none;
+  border: 1px solid var(--brand);
+  background: var(--brand);
+  color: #ffffff;
+  font-family: var(--font-serif);
+  font-size: var(--text-base);
+  font-weight: 600;
+  padding: var(--space-2) var(--space-5);
+  border-radius: var(--radius);
+  cursor: pointer;
+}
+
+.sec-cal__save:disabled {
+  opacity: 0.6;
   cursor: not-allowed;
+}
+
+/* -- the attendance sheet -- */
+
+.sec-att__hint {
+  margin: 0;
+}
+
+.sec-att__table {
+  font-size: var(--text-sm);
+}
+
+.sec-att__table th.sec-table__name,
+.sec-att__table td.sec-table__name {
+  position: sticky;
+  left: 0;
+  z-index: 1;
+  background: var(--surface);
+  border-right: 1px solid var(--rule);
+  font-size: var(--text-base);
+}
+
+.sec-att__table tbody tr:hover td.sec-table__name {
+  background: var(--paper-2);
+}
+
+.sec-att__day {
+  text-align: center;
+  vertical-align: bottom;
+  padding: var(--space-1) !important;
+}
+
+.sec-att__daybtn {
+  appearance: none;
+  border: none;
+  background: none;
+  padding: 2px 4px;
+  font-family: var(--font-serif);
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1px;
+  border-radius: var(--radius);
+  color: inherit;
+}
+
+.sec-att__daybtn:hover {
+  background: var(--accent-soft);
+}
+
+.sec-att__dow {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--ink-3);
+  text-transform: uppercase;
+}
+
+.sec-att__dom {
+  font-size: var(--text-sm);
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.sec-att__day.has-exam .sec-att__dow,
+.sec-att__day.has-exam .sec-att__dom {
+  color: var(--warn);
+}
+
+.sec-att__day.has-holiday .sec-att__dow,
+.sec-att__day.has-holiday .sec-att__dom {
+  color: var(--danger);
+}
+
+.sec-att__day.has-start .sec-att__dow,
+.sec-att__day.has-start .sec-att__dom {
+  color: var(--accent-ink);
+}
+
+.sec-att__day.is-focus {
+  background: var(--accent-soft);
 }
 
 .sec-att__cell {
   text-align: center;
+  padding: var(--space-1) !important;
+}
+
+.sec-att__cell.is-focus {
+  background: var(--accent-soft);
+}
+
+.sec-att__cell.is-pending {
+  opacity: 0.55;
 }
 
 .sec-att__input {
-  width: 46px;
+  width: 40px;
   max-width: 100%;
-  padding: 5px 0;
+  padding: var(--space-1) 0;
   text-align: center;
-  font-family: var(--font-mono);
-  font-size: var(--text-sm);
+  font-family: var(--font-serif);
+  font-size: var(--text-base);
   font-weight: 700;
   text-transform: uppercase;
   border: 1px solid var(--rule-strong);
@@ -1507,6 +1831,22 @@
   border-color: var(--warn);
   background: #fdf3e3;
   color: var(--warn);
+}
+
+.sec-att__input:disabled {
+  background: var(--paper-2);
+  color: var(--ink-3);
+  cursor: not-allowed;
+}
+
+.sec-att__rate {
+  text-align: center;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.sec-att__totals {
+  margin: 0;
 }
 
 .sec-att__none {

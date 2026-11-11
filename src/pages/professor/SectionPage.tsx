@@ -4,7 +4,7 @@
 // History / Discussion views wired to the section components. All mutations
 // run here (toasts + optimistic applies + reload) except the Summary editors,
 // which call api and report back via onSectionChange.
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import {
   Button, ConfirmDialog, EmptyState, Menu, Panel, Spinner, StatusPill, useToast,
@@ -12,7 +12,7 @@ import {
 import { api } from "../../api";
 import { PERIODS, PERIOD_LABELS } from "../../types";
 import type {
-  Assessment, AttendanceStatus, HistoryEntry, PeriodId, Section, Student,
+  Assessment, AttendanceStatus, CalendarEvent, HistoryEntry, PeriodId, Section, Student,
 } from "../../types";
 import { useAuth } from "../../context/AuthContext";
 import { useAsync } from "../../lib/useAsync";
@@ -76,6 +76,11 @@ export default function SectionPage(): JSX.Element {
   // Attendance is only read when the view is open.
   const attendanceQ = useAsync(
     async () => (view === "attendance" ? api.listAttendance(sectionId) : []),
+    [sectionId, view],
+  );
+  // The calendar of milestones (classes started, exam, no class, notes).
+  const eventsQ = useAsync(
+    async () => (view === "attendance" ? api.listCalendarEvents(sectionId) : []),
     [sectionId, view],
   );
   const period = parsePeriod(searchParams.get("period")) ?? defaultPeriod(progress);
@@ -322,18 +327,35 @@ export default function SectionPage(): JSX.Element {
   );
 
   // ── attendance ────────────────────────────────────────────────────────────
+  // Attendance writes are queued one at a time: each save re-averages the
+  // Attendance score from every mark in the period, so two writes racing
+  // would leave the score stale.
+  const attendanceQueue = useRef<Promise<unknown>>(Promise.resolve());
+
+  const enqueueAttendance = useCallback(
+    (task: () => Promise<unknown>): Promise<unknown> => {
+      const run = attendanceQueue.current.then(task, task);
+      attendanceQueue.current = run.catch(() => undefined);
+      return run;
+    },
+    [],
+  );
+
+  // A single mark saves quietly — the sheet shows it at once. Only failures
+  // raise a toast, so marking a whole class does not bury the screen.
   const handleSetAttendance = useCallback(
-    async (period: PeriodId, studentRowId: string, status: AttendanceStatus | null) => {
+    async (
+      period: PeriodId,
+      studentRowId: string,
+      sessionDate: string,
+      status: AttendanceStatus | null,
+    ) => {
       try {
-        await api.setAttendance(sectionId, period, studentRowId, status);
-        toast.push({
-          tone: "success",
-          title:
-            status === null
-              ? "Attendance cleared"
-              : `Attendance saved (${status.toUpperCase()})`,
-        });
+        await enqueueAttendance(() =>
+          api.setAttendance(sectionId, period, studentRowId, sessionDate, status),
+        );
         attendanceQ.reload();
+        reload(); // the Attendance criterion score changed in the gradebook
       } catch (err: unknown) {
         toast.push({
           tone: "danger",
@@ -343,17 +365,23 @@ export default function SectionPage(): JSX.Element {
         throw err;
       }
     },
-    [sectionId, toast, attendanceQ],
+    [sectionId, toast, attendanceQ, reload, enqueueAttendance],
   );
 
   const handleSetAttendanceMany = useCallback(
-    async (period: PeriodId, entries: { studentRowId: string; status: AttendanceStatus }[]) => {
+    async (
+      period: PeriodId,
+      sessionDate: string,
+      entries: { studentRowId: string; status: AttendanceStatus }[],
+    ) => {
       try {
-        await Promise.all(
-          entries.map((e) => api.setAttendance(sectionId, period, e.studentRowId, e.status)),
-        );
-        toast.push({ tone: "success", title: `${entries.length} students marked present` });
+        await enqueueAttendance(async () => {
+          for (const e of entries) {
+            await api.setAttendance(sectionId, period, e.studentRowId, sessionDate, e.status);
+          }
+        });
         attendanceQ.reload();
+        reload();
       } catch (err: unknown) {
         toast.push({
           tone: "danger",
@@ -363,7 +391,46 @@ export default function SectionPage(): JSX.Element {
         throw err;
       }
     },
-    [sectionId, toast, attendanceQ],
+    [sectionId, toast, attendanceQ, reload, enqueueAttendance],
+  );
+
+  const handleSetEvent = useCallback(
+    async (event: {
+      period: PeriodId;
+      eventDate: string;
+      kind: CalendarEvent["kind"];
+      label: string;
+    }) => {
+      try {
+        await api.setCalendarEvent(sectionId, event);
+        eventsQ.reload();
+      } catch (err: unknown) {
+        toast.push({
+          tone: "danger",
+          title: "Could not save the calendar entry",
+          description: errMessage(err),
+        });
+        throw err;
+      }
+    },
+    [sectionId, toast, eventsQ],
+  );
+
+  const handleClearEvent = useCallback(
+    async (eventDate: string) => {
+      try {
+        await api.clearCalendarEvent(sectionId, eventDate);
+        eventsQ.reload();
+      } catch (err: unknown) {
+        toast.push({
+          tone: "danger",
+          title: "Could not remove the calendar entry",
+          description: errMessage(err),
+        });
+        throw err;
+      }
+    },
+    [sectionId, toast, eventsQ],
   );
 
   // ── roster/CSV modals ──────────────────────────────────────────────────────
@@ -666,9 +733,12 @@ export default function SectionPage(): JSX.Element {
             <AttendancePanel
               students={students}
               rows={attendanceQ.data ?? []}
+              events={eventsQ.data ?? []}
               readOnly={readOnly}
               onSet={handleSetAttendance}
               onSetMany={handleSetAttendanceMany}
+              onSetEvent={handleSetEvent}
+              onClearEvent={handleClearEvent}
             />
           ) : null}
 

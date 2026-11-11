@@ -1,5 +1,5 @@
-// End-to-end test of the attendance flow against the live database:
-// mark p / a / l and check the Attendance criterion's score follows.
+// End-to-end test of the attendance calendar flow against the live database:
+// per-day marks, the aggregated Attendance score, and calendar milestones.
 //   node --env-file=.env scripts/test-attendance.mjs
 import { execFileSync } from "node:child_process";
 import { mkdtempSync } from "node:fs";
@@ -29,7 +29,11 @@ execFileSync(
 );
 const { createSupabaseApi } = require(bundle);
 const api = createSupabaseApi();
-const ok = (c, m) => console.log(`${c ? "PASS" : "FAIL"}  ${m}`);
+let failures = 0;
+const ok = (c, m) => {
+  if (!c) failures += 1;
+  console.log(`${c ? "PASS" : "FAIL"}  ${m}`);
+};
 
 const profile = await api.signInWithRole(process.env.HEAD_EMAIL, "Doleo dolorem", "professor");
 const term = { academicYear: "2025-2026", semester: 1 };
@@ -37,7 +41,7 @@ const courses = await api.listCourses(term);
 const course = courses[0];
 const sections = await api.listSections(course.id);
 const section = sections[0];
-console.log(`section: ${course.code} · ${section.name}`);
+console.log(`section: ${course.code} · ${section.name}\n`);
 
 const students = await api.listStudents(section.id);
 const student = students[0];
@@ -52,41 +56,100 @@ const scoreOf = async () => {
   return g ? g.score : null;
 };
 
-// present → full credit
-await api.setAttendance(section.id, "prelim", student.id, "p");
+const D1 = "2026-09-01";
+const D2 = "2026-09-02";
+const D3 = "2026-09-03";
+
+// ── one mark per class date ────────────────────────────────────────────────
+await api.setAttendance(section.id, "prelim", student.id, D1, "p");
 let rows = await api.listAttendance(section.id);
 ok(
-  rows.some((r) => r.studentRowId === student.id && r.period === "prelim" && r.status === "p"),
-  "mark 'p' → stored",
+  rows.some((r) => r.studentRowId === student.id && r.sessionDate === D1 && r.status === "p"),
+  "mark 'p' on a class date → stored",
 );
-ok((await scoreOf()) === 100, `mark 'p' → Attendance score ${await scoreOf()} (max ${criterion.maxScore})`);
+ok((await scoreOf()) === 100, `one present day → Attendance score ${await scoreOf()} (max ${criterion.maxScore})`);
 
-// late → 75%
-await api.setAttendance(section.id, "prelim", student.id, "l");
-ok((await scoreOf()) === 75, `mark 'l' → Attendance score ${await scoreOf()}`);
+// a second date is a separate row, and the score averages both
+await api.setAttendance(section.id, "prelim", student.id, D2, "l");
+rows = await api.listAttendance(section.id);
+const mine = rows.filter((r) => r.studentRowId === student.id);
+ok(mine.length === 2, `two class dates → two marks (${mine.length})`);
+ok((await scoreOf()) === 87.5, `present + late → Attendance score ${await scoreOf()} (expected 87.5)`);
 
-// absent → 0
-await api.setAttendance(section.id, "prelim", student.id, "a");
-ok((await scoreOf()) === 0, `mark 'a' → Attendance score ${await scoreOf()}`);
+// a third date, absent
+await api.setAttendance(section.id, "prelim", student.id, D3, "a");
+ok((await scoreOf()) === 58.33, `present + late + absent → Attendance score ${await scoreOf()} (expected 58.33)`);
 
 // other periods are independent
 rows = await api.listAttendance(section.id);
 ok(
-  rows.filter((r) => r.studentRowId === student.id).length === 1,
-  "the mark applies to one period only",
+  rows.filter((r) => r.studentRowId === student.id && r.period === "prelim").length === 3,
+  "the marks belong to one period only",
 );
 
-// clearing removes the mark and the score
-await api.setAttendance(section.id, "prelim", student.id, null);
+// changing a date replaces its mark instead of adding a row
+await api.setAttendance(section.id, "prelim", student.id, D3, "p");
 rows = await api.listAttendance(section.id);
 ok(
-  !rows.some((r) => r.studentRowId === student.id && r.period === "prelim"),
+  rows.filter((r) => r.studentRowId === student.id && r.period === "prelim").length === 3,
+  "re-marking a date replaces it (no duplicate row)",
+);
+ok((await scoreOf()) === 91.67, `present + late + present → Attendance score ${await scoreOf()} (expected 91.67)`);
+
+// clearing removes the mark and re-averages the score
+await api.setAttendance(section.id, "prelim", student.id, D3, null);
+rows = await api.listAttendance(section.id);
+ok(
+  !rows.some((r) => r.studentRowId === student.id && r.sessionDate === D3),
   "clearing removes the mark",
 );
-ok((await scoreOf()) === null, `clearing clears the Attendance score (${await scoreOf()})`);
+ok((await scoreOf()) === 87.5, `clearing re-averages the score (${await scoreOf()})`);
 
-// leave the sheet as we found it
-await api.signOut();
-await api.signInWithRole(process.env.HEAD_EMAIL, "Tetraval!080125", "admin");
-console.log("\nattendance flow verified");
-process.exit(0);
+// ── calendar milestones ────────────────────────────────────────────────────
+await api.setCalendarEvent(section.id, {
+  period: "prelim",
+  eventDate: D1,
+  kind: "start",
+  label: "Classes started",
+});
+let events = await api.listCalendarEvents(section.id);
+ok(
+  events.some((e) => e.eventDate === D1 && e.kind === "start" && e.label === "Classes started"),
+  "a milestone ('classes started') is saved",
+);
+
+await api.setCalendarEvent(section.id, {
+  period: "prelim",
+  eventDate: D2,
+  kind: "exam",
+  label: "Prelim exam",
+});
+events = await api.listCalendarEvents(section.id);
+ok(
+  events.some((e) => e.eventDate === D2 && e.kind === "exam"),
+  "a second milestone ('exam') is saved",
+);
+ok(events.length === 2, `two milestones on the calendar (${events.length})`);
+
+await api.clearCalendarEvent(section.id, D2);
+events = await api.listCalendarEvents(section.id);
+ok(
+  !events.some((e) => e.eventDate === D2),
+  "a milestone can be removed",
+);
+
+// ── leave the sheet as we found it ─────────────────────────────────────────
+await api.setAttendance(section.id, "prelim", student.id, D1, null);
+await api.setAttendance(section.id, "prelim", student.id, D2, null);
+await api.clearCalendarEvent(section.id, D1);
+rows = await api.listAttendance(section.id);
+events = await api.listCalendarEvents(section.id);
+ok(
+  !rows.some((r) => r.studentRowId === student.id),
+  "test marks cleaned up",
+);
+ok(events.length === 0, "test milestones cleaned up");
+ok((await scoreOf()) === null, `the Attendance score is cleared again (${await scoreOf()})`);
+
+console.log(failures === 0 ? "\nattendance calendar verified" : `\n${failures} CHECK(S) FAILED`);
+process.exit(failures === 0 ? 0 : 1);

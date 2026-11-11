@@ -31,6 +31,20 @@ export function attendanceScore(status: AttendanceStatus, maxScore: number): num
   return Math.round(maxScore * ATTENDANCE_CREDIT[status] * 100) / 100;
 }
 
+/**
+ * The Attendance criterion's score for a whole period: the average credit the
+ * student earned across every class date marked in that period. No marks yet
+ * means no score (null), so an unmarked student never silently scores zero.
+ */
+export function attendanceTotalScore(
+  statuses: AttendanceStatus[],
+  maxScore: number,
+): number | null {
+  if (statuses.length === 0) return null;
+  const total = statuses.reduce((sum, s) => sum + ATTENDANCE_CREDIT[s], 0);
+  return Math.round((total / statuses.length) * maxScore * 100) / 100;
+}
+
 /** Accepts p / a / l (or the full words) — anything else is null. */
 export function parseAttendance(input: string): AttendanceStatus | null {
   const v = input.trim().toLowerCase();

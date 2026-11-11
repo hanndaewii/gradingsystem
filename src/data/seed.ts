@@ -4,8 +4,8 @@
 // design; all other timestamps are fixed ISO strings.
 import { PERIODS } from "../types";
 import type {
-  Assessment, AttendanceRow, Comment, Course, DisplayScale, Grade, HistoryEntry, PeriodId,
-  PeriodState, Profile, Role, Section, Student, Term,
+  Assessment, AttendanceRow, CalendarEvent, Comment, Course, DisplayScale, Grade, HistoryEntry,
+  PeriodId, PeriodState, Profile, Role, Section, Student, Term,
 } from "../types";
 import { DEFAULT_SCALE_TABLE, daysAgoISO, todayISO } from "../lib/format";
 
@@ -20,6 +20,7 @@ export interface DbShape {
   history: HistoryEntry[];
   comments: Comment[];
   attendance: AttendanceRow[];
+  calendarEvents: CalendarEvent[];
 }
 
 /** D8 — pinned demo accounts (WO-3 quick-fill chips import this). */
@@ -444,5 +445,6 @@ export function buildSeed(): DbShape {
   return {
     profiles, courses, sections, assessments, students, grades, periodStates, history, comments,
     attendance: [] as AttendanceRow[],
+    calendarEvents: [] as CalendarEvent[],
   };
 }
