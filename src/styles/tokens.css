@@ -1,53 +1,51 @@
 /* ============================================================
-   tokens.css — design tokens ("editorial ledger").
-   Flat print-inspired system: sage paper, hairline rules, no
-   cards or shadows, square corners. Bricolage Grotesque for
-   display type, Hanken Grotesk for UI/body, IBM Plex Mono for
-   numerals. Green is the working colour (ticks, active states,
-   brand fills); dim = deep green-black with mint accents.
+   tokens.css — design tokens ("calm green").
+   Plain and simple for easy reading: one font family (Hanken
+   Grotesk), a pale green page with white panels, soft 1px
+   borders, gentle green accents, familiar boxed inputs and
+   conventional tabs. Dim mode = soft dark green.
    ============================================================ */
 
 :root {
-  /* type — the mockup is all Bricolage (display) + Hanken (everything else);
-     tabular figures keep data columns aligned without a separate mono face */
-  --font-display: "Bricolage Grotesque", "Hanken Grotesk", sans-serif;
+  /* type — a single family keeps the page calm */
+  --font-display: "Hanken Grotesk", system-ui, sans-serif;
   --font-serif: "Hanken Grotesk", system-ui, sans-serif;
   --font-mono: "Hanken Grotesk", system-ui, sans-serif;
 
   --text-xs: 13px;
   --text-sm: 15px;
-  --text-base: 18px;
-  --text-lg: 21px;
-  --text-xl: 25px;
-  --text-2xl: 32px;
-  --leading-tight: 1.25;
+  --text-base: 17px;
+  --text-lg: 20px;
+  --text-xl: 23px;
+  --text-2xl: 28px;
+  --leading-tight: 1.3;
   --leading-normal: 1.55;
-  --label-tracking: 0.08em;
+  --label-tracking: 0.02em;
 
-  /* palette — light (sage paper, editorial ink) */
-  --paper: #e8f5e1;
-  --paper-2: #d7ecd0;       /* wash: hovers, footers, status bar */
-  --surface: #eef8e7;       /* modals, menus, toasts */
-  --rule: #b9d8b2;
-  --rule-strong: #1b3a26;   /* strong rules read as ink, like print */
-  --ink: #1b3a26;
-  --ink-2: #2f4f3a;
-  --ink-3: #40604a;
-  --brand: #2a7a45;         /* solid fills: primary buttons, active tabs */
-  --brand-hover: #236b3c;
-  --accent: #2f8f50;        /* pen green — ticks / submitted / focus */
-  --accent-ink: #1b6b3f;
-  --accent-soft: #d7ecd0;
-  --draft: #6b8a72;         /* hatch fill of in-progress segments */
-  --ok: #2a7a45;
-  --warn: #9a4a00;
-  --danger: #a03b2a;
-  --focus-ring: #2f8f50;
+  /* palette — light (pale green page, white panels) */
+  --paper: #f4f9f0;
+  --paper-2: #e8f2e0;
+  --surface: #ffffff;
+  --rule: #d9e5d1;
+  --rule-strong: #b7c9ad;
+  --ink: #1f2b22;
+  --ink-2: #44553f;
+  --ink-3: #63755f;
+  --brand: #3a7d54;         /* calm green — primary buttons, active states */
+  --brand-hover: #336e4a;
+  --accent: #3a7d54;        /* green — ticks / submitted / focus */
+  --accent-ink: #2f6644;
+  --accent-soft: #e3f0dc;
+  --draft: #94a898;         /* hatch fill of in-progress segments */
+  --ok: #3a7d54;
+  --warn: #a06a25;
+  --danger: #b35040;
+  --focus-ring: #3a7d54;
 
-  /* elevation — flat: no shadows anywhere */
-  --shadow-card: none;
+  /* elevation — barely-there, just enough to separate floats */
+  --shadow-card: 0 1px 2px rgba(31, 43, 34, 0.04);
   --shadow-raised: none;
-  --shadow-pop: none;
+  --shadow-pop: 0 8px 24px rgba(31, 43, 34, 0.14);
 
   /* space */
   --space-1: 4px;
@@ -59,9 +57,9 @@
   --space-7: 32px;
   --space-8: 48px;
 
-  /* shape — box edges */
-  --radius: 2px;
-  --radius-lg: 2px;
+  /* shape — gently rounded, nothing sharp or bubbly */
+  --radius: 6px;
+  --radius-lg: 8px;
 
   /* motion */
   --dur-fast: 120ms;
@@ -69,7 +67,7 @@
   --dur-slow: 400ms;
   --ease: cubic-bezier(0.2, 0, 0, 1);
 
-  /* elevation (z only for layers) */
+  /* layers */
   --z-nav: 10;
   --z-header: 20;
   --z-modal: 50;
@@ -77,34 +75,35 @@
 
   /* layout */
   --header-h: 60px;
-  /* sticky content parks directly under the flat top bar */
   --header-offset: var(--header-h);
-  /* fluid dashboard width — uses the screen, capped for ultra-wide */
   --layout-max: 1680px;
 
   color-scheme: light;
 }
 
-/* dim — deep green-black with mint accents */
+/* dim — soft dark green */
 [data-theme="dim"] {
-  --paper: #0c1a12;
-  --paper-2: #13261b;
-  --surface: #102016;
-  --rule: #24402e;
-  --rule-strong: #3a5c44;
-  --ink: #e2f1e5;
-  --ink-2: #c2d8c8;
-  --ink-3: #96b19f;
-  --brand: #5fd18a;
-  --brand-hover: #74dd9c;
-  --accent: #5fd18a;
-  --accent-ink: #7ce0a2;
-  --accent-soft: #14301f;
-  --draft: #96b19f;
-  --ok: #5fd18a;
-  --warn: #ffbf66;
-  --danger: #ff8d75;
-  --focus-ring: #5fd18a;
+  --paper: #141a15;
+  --paper-2: #1d2620;
+  --surface: #1a231c;
+  --rule: #2c382e;
+  --rule-strong: #435648;
+  --ink: #e6ece7;
+  --ink-2: #b5c2b8;
+  --ink-3: #8ba093;
+  --brand: #7ab88f;
+  --brand-hover: #8ac29e;
+  --accent: #7ab88f;
+  --accent-ink: #93c9a6;
+  --accent-soft: #24382b;
+  --draft: #8ba093;
+  --ok: #7ab88f;
+  --warn: #d9a253;
+  --danger: #e08a78;
+  --focus-ring: #7ab88f;
+
+  --shadow-card: 0 1px 2px rgba(0, 0, 0, 0.3);
+  --shadow-pop: 0 8px 24px rgba(0, 0, 0, 0.4);
 
   color-scheme: dark;
 }

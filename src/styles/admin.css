@@ -271,7 +271,7 @@
   color: var(--ink-2);
 }
 
-/* ---- editorial overrides (flat print style) ---- */
+/* ---- plain overrides (calm green, easy to read) ---- */
 
 .adm-mast {
   border-bottom: none;
@@ -279,20 +279,21 @@
 }
 
 .adm-mast__title {
-  font-family: var(--font-display);
-  font-weight: 800;
-  font-size: clamp(38px, 5vw, 64px);
-  line-height: 0.95;
-  letter-spacing: -0.035em;
+  font-family: var(--font-serif);
+  font-weight: 700;
+  font-size: var(--text-2xl);
+  line-height: 1.15;
+  letter-spacing: -0.01em;
 }
 
 .adm-stats__value {
-  font-family: var(--font-display);
-  font-weight: 800;
+  font-family: var(--font-serif);
+  font-weight: 700;
+  font-size: var(--text-xl);
 }
 
 .adm-table thead th {
-  background: var(--paper);
+  background: var(--surface);
   font-weight: 600;
 }
 

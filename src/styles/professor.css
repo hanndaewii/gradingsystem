@@ -475,7 +475,7 @@
   color: var(--ink-3);
 }
 
-/* ---- editorial overrides (flat print style) ---- */
+/* ---- plain overrides (calm green, easy to read) ---- */
 
 .prof-hero {
   border: none;
@@ -485,11 +485,11 @@
 }
 
 .prof-hero__title {
-  font-family: var(--font-display);
-  font-weight: 800;
-  font-size: clamp(40px, 6vw, 72px);
-  line-height: 0.95;
-  letter-spacing: -0.035em;
+  font-family: var(--font-serif);
+  font-weight: 700;
+  font-size: var(--text-2xl);
+  line-height: 1.15;
+  letter-spacing: -0.01em;
 }
 
 .prof-hero__meta {
@@ -497,44 +497,44 @@
 }
 
 .prof-card {
-  border: none;
-  border-top: 2px solid var(--rule-strong);
-  border-radius: 0;
-  background: transparent;
+  border: 1px solid var(--rule);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
   box-shadow: none;
-  padding: var(--space-4) 0 0;
+  padding: var(--space-4);
 }
 
 .prof-card__title {
-  font-family: var(--font-display);
-  font-weight: 700;
-  letter-spacing: -0.02em;
+  font-family: var(--font-serif);
+  font-weight: 600;
+  font-size: var(--text-lg);
+  letter-spacing: 0;
 }
 
 .prof-row {
-  border: none;
-  border-bottom: 1px solid var(--rule);
-  border-radius: 0;
-  background: transparent;
+  border: 1px solid var(--rule);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
   box-shadow: none;
-  padding: var(--space-4) 0;
+  padding: var(--space-4);
 }
 
 .prof-row__name {
-  font-family: var(--font-display);
-  font-weight: 700;
+  font-family: var(--font-serif);
+  font-weight: 600;
+  font-size: var(--text-base);
 }
 
 .prof-course__head {
-  border-bottom: 2px solid var(--rule-strong);
+  border-bottom: 1px solid var(--rule);
 }
 
 .prof-course__title {
-  font-family: var(--font-display);
-  font-weight: 800;
-  font-size: clamp(40px, 6vw, 72px);
-  line-height: 0.95;
-  letter-spacing: -0.035em;
+  font-family: var(--font-serif);
+  font-weight: 700;
+  font-size: var(--text-2xl);
+  line-height: 1.15;
+  letter-spacing: -0.01em;
 }
 
 .prof-course__breadcrumb {

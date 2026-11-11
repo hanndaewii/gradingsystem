@@ -17,7 +17,7 @@
   top: 0;
   z-index: var(--z-header);
   width: 100%;
-  background: var(--paper);
+  background: var(--surface);
   border-bottom: 1px solid var(--rule);
 }
 
@@ -57,10 +57,10 @@
 }
 
 .sh-brand__title {
-  font-family: var(--font-display);
-  font-size: 18px;
-  font-weight: 700;
-  letter-spacing: -0.01em;
+  font-family: var(--font-serif);
+  font-size: 16px;
+  font-weight: 600;
+  letter-spacing: 0;
   line-height: var(--leading-tight);
   color: var(--ink);
   white-space: nowrap;
@@ -152,11 +152,11 @@
 }
 
 .sh-login__title {
-  font-family: var(--font-display);
-  font-size: clamp(34px, 5vw, 52px);
-  font-weight: 800;
-  letter-spacing: -0.03em;
-  line-height: 0.98;
+  font-family: var(--font-serif);
+  font-size: var(--text-2xl);
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  line-height: 1.15;
 }
 
 .sh-login__sub {
@@ -206,17 +206,15 @@
   text-align: left;
   font: inherit;
   color: var(--ink);
-  background: transparent;
-  border: none;
-  border-left: 3px solid transparent;
-  border-radius: 0;
-  padding: var(--space-2) var(--space-2) var(--space-2) var(--space-3);
+  background: var(--surface);
+  border: 1px solid var(--rule);
+  border-radius: var(--radius);
+  padding: var(--space-2) var(--space-3);
   cursor: pointer;
 }
 
 .sh-chip:hover {
-  color: var(--ink);
-  border-left-color: var(--accent);
+  background: var(--paper-2);
 }
 
 .sh-chip__name {
