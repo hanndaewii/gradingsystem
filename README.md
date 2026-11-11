@@ -233,6 +233,22 @@ The emailed-code **Register** tab stays available for self-signup, but it needs 
 (Supabase → Authentication → Emails → SMTP) — otherwise the built-in mailer only reaches project team members
 and rate-limits per IP.
 
+### One email, two roles (role-scoped sign-in)
+
+The login screen has a **Professor / Department head** picker. The same email can hold a password for each role:
+
+- The `faculty_credentials` table stores one salted-SHA-256 hash per **(email, role)** pair.
+- The `faculty-admin` Worker verifies the hash for the role that was picked, ensures the auth user exists,
+  sets that profile row's role to match the session (so row-level security matches), and mints a one-time
+  token the app exchanges for a real Supabase session.
+- The department head can set either password for anyone from **Faculty accounts** → *Professor password* /
+  *Head password* (a person's row can carry both).
+
+```bash
+node --env-file=.env scripts/set-credentials.mjs <email> <headPassword> <professorPassword>
+node --env-file=.env scripts/test-role-signin.mjs     # verifies both roles end to end
+```
+
 ### Database operations
 
 | Script | What it does |
