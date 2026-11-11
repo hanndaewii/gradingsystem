@@ -561,6 +561,7 @@ export default function SectionPage(): JSX.Element {
         period,
         students,
         assessments: periodAssessments,
+        assessmentsByPeriod,
         grades,
       });
     } catch (err) {
