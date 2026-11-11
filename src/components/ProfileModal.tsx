@@ -4,7 +4,7 @@
 // reset behind a ConfirmDialog (D4/D20). Mounted only by the Header.
 import { useEffect, useState } from "react";
 import type { FormEvent } from "react";
-import { api } from "../api";
+import { api, API_MODE } from "../api";
 import { Button, ConfirmDialog, Field, Input, Modal, StatusPill, Textarea, useToast } from "./ui";
 import { useAuth } from "../context/AuthContext";
 
@@ -26,6 +26,10 @@ export function ProfileModal({ open, onClose }: ProfileModalProps): JSX.Element 
   const [saving, setSaving] = useState(false);
   const [confirmReset, setConfirmReset] = useState(false);
   const [resetting, setResetting] = useState(false);
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [passErrors, setPassErrors] = useState<{ password?: string; confirm?: string }>({});
+  const [changingPass, setChangingPass] = useState(false);
 
   const profile = auth.profile;
 
@@ -106,9 +110,13 @@ export function ProfileModal({ open, onClose }: ProfileModalProps): JSX.Element 
         footer={
           editing ? undefined : (
             <div className="sh-footer-spread">
-              <Button variant="ghost" disabled={resetting} onClick={() => setConfirmReset(true)}>
-                Reset demo data
-              </Button>
+              {API_MODE === "demo" ? (
+                <Button variant="ghost" disabled={resetting} onClick={() => setConfirmReset(true)}>
+                  Reset demo data
+                </Button>
+              ) : (
+                <span />
+              )}
               <div className="sh-footer-spread__group">
                 <Button variant="secondary" onClick={startEdit}>
                   Edit
@@ -185,9 +193,66 @@ export function ProfileModal({ open, onClose }: ProfileModalProps): JSX.Element 
             <div className="sh-profile__row">
               <span className="mono-label">Bio</span>
               <span className="serif-prose sh-profile__bio">
-                {profile.bio === "" ? <span className="sh-profile__empty">â€”</span> : profile.bio}
+                {profile.bio === "" ? <span className="sh-profile__empty">—</span> : profile.bio}
               </span>
             </div>
+
+            <form
+              className="sh-profile__passform"
+              onSubmit={(e) => {
+                e.preventDefault();
+                const next: { password?: string; confirm?: string } = {};
+                if (newPassword.length < 8) next.password = "Use at least 8 characters.";
+                if (newPassword !== confirmPassword) next.confirm = "The two passwords do not match.";
+                setPassErrors(next);
+                if (next.password !== undefined || next.confirm !== undefined) return;
+                setChangingPass(true);
+                api
+                  .setPassword(newPassword)
+                  .then(() => {
+                    toast.push({ title: "Password updated", tone: "success" });
+                    setNewPassword("");
+                    setConfirmPassword("");
+                    setChangingPass(false);
+                  })
+                  .catch((err: unknown) => {
+                    setChangingPass(false);
+                    toast.push({
+                      title: "Could not change the password",
+                      description: err instanceof Error ? err.message : "Please try again.",
+                      tone: "danger",
+                    });
+                  });
+              }}
+              noValidate
+            >
+              <p className="mono-label">Change password</p>
+              <div className="sh-profile__passrow">
+                <Field label="New password" htmlFor="sh-profile-pass" error={passErrors.password ?? null}>
+                  <Input
+                    id="sh-profile-pass"
+                    type="password"
+                    autoComplete="new-password"
+                    value={newPassword}
+                    invalid={passErrors.password != null}
+                    onChange={(e) => setNewPassword(e.target.value)}
+                  />
+                </Field>
+                <Field label="Confirm" htmlFor="sh-profile-pass2" error={passErrors.confirm ?? null}>
+                  <Input
+                    id="sh-profile-pass2"
+                    type="password"
+                    autoComplete="new-password"
+                    value={confirmPassword}
+                    invalid={passErrors.confirm != null}
+                    onChange={(e) => setConfirmPassword(e.target.value)}
+                  />
+                </Field>
+                <Button type="submit" variant="secondary" loading={changingPass} disabled={changingPass}>
+                  Update
+                </Button>
+              </div>
+            </form>
           </div>
         )}
       </Modal>

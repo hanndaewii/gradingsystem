@@ -308,6 +308,27 @@
   margin-top: var(--space-3);
 }
 
+.sh-profile__passform {
+  margin-top: var(--space-5);
+  padding-top: var(--space-4);
+  border-top: 1px solid var(--rule);
+  display: grid;
+  gap: var(--space-2);
+}
+
+.sh-profile__passrow {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto;
+  gap: var(--space-3);
+  align-items: end;
+}
+
+@media (max-width: 640px) {
+  .sh-profile__passrow {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
 /* Modal footers that need a left + right group (ui-modal__footer is
    justify-content: flex-end; this spreads across the full width). */
 .sh-footer-spread {

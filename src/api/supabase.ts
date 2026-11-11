@@ -422,7 +422,7 @@ export function createSupabaseApi(): Api {
         const rateLimited = error.message.toLowerCase().includes("rate");
         throw new ApiError(
           rateLimited
-            ? "You have reached the limit for email codes on this address. Supabase allows only a few per hour — wait a little, or ask the department head to raise the limit."
+            ? "Email codes are unavailable right now — your college's mail service can only send a few codes per hour. The department head can add your account for you instead (no code needed)."
             : "We could not send the code. Please try again in a moment.",
           { code: "BAD_CREDENTIALS", field: "email" },
         );

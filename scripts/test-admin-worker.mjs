@@ -1,24 +1,23 @@
-// End-to-end test of the faculty-admin Worker: sign in as the head, list
-// faculty, create an account, reset a password, then clean up.
+// Live test of the faculty-admin Worker: sign in as the head, list faculty,
+// create an account, reset a password, check that a professor is blocked —
+// then clean up.
 //   node --env-file=.env scripts/test-admin-worker.mjs
 import { createClient } from "@supabase/supabase-js";
+import { createTempUser, headCredentials, removeTempUser } from "./test-fixtures.mjs";
 
 const WORKER = "https://faculty-admin.hanndaaewii.workers.dev";
 const ok = (c, m) => console.log(`${c ? "PASS" : "FAIL"}  ${m}`);
 
+const head = headCredentials();
 const client = createClient(process.env.SUPABASE_URL, process.env.VITE_SUPABASE_ANON_KEY, {
   auth: { persistSession: false, autoRefreshToken: false },
 });
-const { data, error } = await client.auth.signInWithPassword({
-  email: "admin@northstate.edu",
-  password: "demo1234",
-});
+const { data, error } = await client.auth.signInWithPassword(head);
 if (error || !data.session) {
   console.log("could not sign in as the head:", error?.message);
   process.exit(1);
 }
-const token = data.session.access_token;
-const headers = { Authorization: `Bearer ${token}`, "Content-Type": "application/json" };
+const headers = { Authorization: `Bearer ${data.session.access_token}`, "Content-Type": "application/json" };
 
 // 1. list
 const listRes = await fetch(`${WORKER}/teachers`, { headers });
@@ -30,10 +29,11 @@ const anon = await fetch(`${WORKER}/teachers`);
 ok(anon.status === 401, `GET /teachers without a token → ${anon.status}`);
 
 // 3. a professor must not be allowed
-const prof = createClient(process.env.SUPABASE_URL, process.env.VITE_SUPABASE_ANON_KEY, {
+const prof = await createTempUser("professor", "rls");
+const profClient = createClient(process.env.SUPABASE_URL, process.env.VITE_SUPABASE_ANON_KEY, {
   auth: { persistSession: false, autoRefreshToken: false },
 });
-const pSign = await prof.auth.signInWithPassword({ email: "acruz@northstate.edu", password: "demo1234" });
+const pSign = await profClient.auth.signInWithPassword({ email: prof.email, password: prof.password });
 if (pSign.data?.session) {
   const profRes = await fetch(`${WORKER}/teachers`, {
     headers: { Authorization: `Bearer ${pSign.data.session.access_token}` },
@@ -42,7 +42,7 @@ if (pSign.data?.session) {
 }
 
 // 4. create a throwaway teacher
-const email = `smoke.${Date.now()}@college.edu`;
+const email = `smoke.${Date.now()}@test.local`;
 const createRes = await fetch(`${WORKER}/teachers`, {
   method: "POST",
   headers,
@@ -78,3 +78,4 @@ if (victim) {
   await admin.from("faculty_profiles").delete().eq("id", victim.id);
 }
 ok(victim != null, "cleanup → the test account was removed");
+await removeTempUser(prof.id);
