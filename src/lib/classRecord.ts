@@ -85,12 +85,12 @@ export function exportClassRecord(input: {
 
   const rows: (string | number)[][] = [];
   rows.push([
+    "GRADING CRITERIA",
+    "",
+    "",
     `${course.code} · ${course.title} — ${section.name}`,
     "",
-    `${PERIOD_LABELS[period]} class record`,
-    "",
-    "",
-    `Period weight: ${semWeight}%`,
+    `${PERIOD_LABELS[period]} · period weight ${semWeight}%`,
   ]);
   rows.push([]);
 
@@ -110,33 +110,30 @@ export function exportClassRecord(input: {
       if (col.kind === "raw") {
         row.push(scoreOf(col.assessment, s) ?? "");
       } else if (col.kind === "weight") {
+        // The sheet always shows a value — missing scores count 0 (D14).
         const a = col.assessment;
-        const score = scoreOf(a, s);
-        row.push(
-          score == null || a.maxScore <= 0 ? "" : r2((score / a.maxScore) * weightOf(a) * norm),
-        );
+        const score = scoreOf(a, s) ?? 0;
+        row.push(a.maxScore <= 0 ? 0 : r2((score / a.maxScore) * weightOf(a) * norm));
       } else {
         // Total = weighted average of the members; group weight column =
         // Σ member contributions (they always sum to the PG with the rest).
-        const total = periodGrade(entriesFor(col.members, s));
+        const total = periodGrade(entriesFor(col.members, s)) ?? 0;
         if (col.kind === "grouptotal") {
-          row.push(total == null ? "" : r2(total));
+          row.push(r2(total));
         } else {
           let contrib = 0;
-          let any = false;
           for (const m of col.members) {
-            const score = scoreOf(m, s);
-            if (score == null || m.maxScore <= 0) continue;
+            const score = scoreOf(m, s) ?? 0;
+            if (m.maxScore <= 0) continue;
             contrib += (score / m.maxScore) * weightOf(m) * norm;
-            any = true;
           }
-          row.push(any ? r2(contrib) : "");
+          row.push(r2(contrib));
         }
       }
     }
     const pg = periodGrade(entriesFor(assessments, s));
-    row.push(pg == null ? "" : r2(pg));
-    row.push(pg == null ? "" : r2((pg * semWeight) / 100));
+    row.push(pg == null ? 0 : Math.round(pg));
+    row.push(pg == null ? 0 : r2((pg * semWeight) / 100));
     rows.push(row);
   }
 
@@ -161,15 +158,34 @@ export function exportClassRecord(input: {
     .map((s) => periodGrade(entriesFor(assessments, s)))
     .filter((v): v is number => v != null);
   const pgAvg = pgs.length > 0 ? pgs.reduce((acc, v) => acc + v, 0) / pgs.length : null;
-  avgRow.push(pgAvg == null ? "" : r2(pgAvg));
-  avgRow.push(pgAvg == null ? "" : r2((pgAvg * semWeight) / 100));
+  avgRow.push(pgAvg == null ? 0 : Math.round(pgAvg));
+  avgRow.push(pgAvg == null ? 0 : r2((pgAvg * semWeight) / 100));
   rows.push(avgRow);
 
   const ws = XLSX.utils.aoa_to_sheet(rows);
+  // Number formats matching the sheet: contributions "0.00%", Total "0.00",
+  // PG a whole number, PG w% "0.00%".
+  const colFmt: (string | undefined)[] = [undefined];
+  for (const col of cols) {
+    if (col.kind === "weight" || col.kind === "groupweight") colFmt.push('0.00"%"');
+    else if (col.kind === "grouptotal") colFmt.push("0.00");
+    else colFmt.push(undefined);
+  }
+  colFmt.push("0");
+  colFmt.push('0.00"%"');
+  for (let r = 2; r < rows.length; r++) {
+    for (let c = 1; c < colFmt.length; c++) {
+      const f = colFmt[c];
+      if (!f) continue;
+      const cell = ws[XLSX.utils.encode_cell({ r, c })];
+      if (cell != null && cell.t === "n") cell.z = f;
+    }
+  }
   ws["!cols"] = [
     { wch: 30 },
     ...Array.from({ length: cols.length + 2 }, () => ({ wch: 11 })),
   ];
+  ws["!merges"] = [{ s: { r: 0, c: 0 }, e: { r: 0, c: cols.length + 2 } }];
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, ws, `${PERIOD_LABELS[period]} record`);
   const base = `${course.code}-${section.name}-${PERIOD_LABELS[period]}-class-record`

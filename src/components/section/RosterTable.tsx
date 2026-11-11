@@ -307,7 +307,7 @@ export function RosterTable({
                             }}
                           />
                         ) : (
-                          <span className="num">{authoritative === "" ? "—" : authoritative}</span>
+                          <span className="num">{authoritative}</span>
                         )}
                         {isFlash && flash ? (
                           <span className="sec-cell__chip num" aria-hidden="true">
@@ -319,45 +319,46 @@ export function RosterTable({
                   }
                   if (col.kind === "weight") {
                     const a = col.assessment;
-                    const score = gradesByCell.get(cellKey(a.id, student.id))?.score ?? null;
-                    const contrib =
-                      score == null || a.maxScore <= 0
-                        ? ""
-                        : `${((score / a.maxScore) * weightOf(a) * normFactor).toFixed(2)}%`;
+                    // The sheet always shows a value — missing scores count 0 (D14).
+                    const score = gradesByCell.get(cellKey(a.id, student.id))?.score ?? 0;
+                    const pct = a.maxScore <= 0 ? 0 : (score / a.maxScore) * weightOf(a) * normFactor;
                     return (
                       <td key={col.key} className="sec-table__contrib num">
-                        {contrib}
+                        {`${pct.toFixed(2)}%`}
                       </td>
                     );
                   }
                   if (col.kind === "grouptotal") {
-                    const total = periodGrade(entriesFor(student, col.members));
+                    const total = periodGrade(entriesFor(student, col.members)) ?? 0;
                     return (
                       <td key={col.key} className="sec-table__total num">
-                        {total == null ? "" : String(Number(total.toFixed(2)))}
+                        {String(Number(total.toFixed(2)))}
                       </td>
                     );
                   }
                   let sum = 0;
-                  let any = false;
                   for (const m of col.members) {
-                    const score = gradesByCell.get(cellKey(m.id, student.id))?.score ?? null;
-                    if (score == null || m.maxScore <= 0) continue;
+                    const score = gradesByCell.get(cellKey(m.id, student.id))?.score ?? 0;
+                    if (m.maxScore <= 0) continue;
                     sum += (score / m.maxScore) * weightOf(m) * normFactor;
-                    any = true;
                   }
                   return (
                     <td key={col.key} className="sec-table__contrib num">
-                      {any ? `${sum.toFixed(2)}%` : ""}
+                      {`${sum.toFixed(2)}%`}
                     </td>
                   );
                 })}
-                <td className="sec-table__periodgrade num">{formatGrade(perPct, section)}</td>
                 <td
                   className="sec-table__periodgrade num"
-                  title={`Period grade × ${periodWeight}% semester weight`}
+                  title={perPct == null ? "Period grade" : `Exact period grade: ${perPct.toFixed(2)}%`}
                 >
-                  {perPct == null ? "—" : formatPercent((perPct * periodWeight) / 100)}
+                  {perPct == null ? 0 : Math.round(perPct)}
+                </td>
+                <td
+                  className="sec-table__periodgrade num"
+                  title={`Unrounded period grade × ${periodWeight}% semester weight`}
+                >
+                  {`${(((perPct ?? 0) * periodWeight) / 100).toFixed(2)}%`}
                 </td>
                 {!readOnly ? (
                   <td className="sec-table__actions">
@@ -414,9 +415,11 @@ export function RosterTable({
               }
               return <td key={col.key} className="sec-table__contrib num" />;
             })}
-            <td className="sec-table__periodgrade num">{formatGrade(periodAverage, section)}</td>
             <td className="sec-table__periodgrade num">
-              {periodAverage == null ? "—" : formatPercent((periodAverage * periodWeight) / 100)}
+              {periodAverage == null ? 0 : Math.round(periodAverage)}
+            </td>
+            <td className="sec-table__periodgrade num">
+              {`${(((periodAverage ?? 0) * periodWeight) / 100).toFixed(2)}%`}
             </td>
             {!readOnly ? <td className="sec-table__actions" /> : null}
           </tr>

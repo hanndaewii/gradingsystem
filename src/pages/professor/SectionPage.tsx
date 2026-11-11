@@ -508,7 +508,7 @@ export default function SectionPage(): JSX.Element {
 
               <div id="sec-roster" className="sec-anchor">
                 <Panel
-                  label="Roster"
+                  label={`Grading criteria · ${PERIOD_LABELS[period]}`}
                   actions={
                     <span className="sec-panelactions">
                       <Button size="sm" variant="secondary" onClick={handleExportClassRecord}>
