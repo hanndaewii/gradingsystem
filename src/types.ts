@@ -88,6 +88,10 @@ export class ApiError extends Error {
 export interface Api {
   // auth / session
   signIn(email: string, password: string): Promise<Profile>;              // ApiError BAD_CREDENTIALS
+  /** Role-scoped sign-in: the same email can hold a professor password and a
+   *  department-head password; the role chosen here is the one that applies
+   *  for this session. */
+  signInWithRole(email: string, password: string, role: "professor" | "admin"): Promise<Profile>;
   signOut(): Promise<void>;
   getSession(): Promise<Profile | null>;
   // Registration by emailed code: request a one-time code, then exchange it

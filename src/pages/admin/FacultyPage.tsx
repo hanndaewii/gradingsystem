@@ -5,7 +5,7 @@
 // rate limits: the head controls who gets in. The generated password is shown
 // once so it can be shared out of band.
 import { useCallback, useEffect, useState } from "react";
-import { createTeacher, listFaculty, resetPassword } from "../../api/adminApi";
+import { createTeacher, listFaculty, resetPassword, setCredential } from "../../api/adminApi";
 import type { FacultyMember } from "../../api/adminApi";
 import { Button, Field, Input, Panel, Spinner, useToast } from "../../components/ui";
 import "../../styles/admin.css";
@@ -17,6 +17,8 @@ export default function FacultyPage(): JSX.Element {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [issued, setIssued] = useState<{ email: string; password: string } | null>(null);
+  const [editing, setEditing] = useState<{ email: string; role: "professor" | "admin" } | null>(null);
+  const [newPass, setNewPass] = useState("");
 
   const [name, setName] = useState("");
   const [department, setDepartment] = useState("");
@@ -144,17 +146,105 @@ export default function FacultyPage(): JSX.Element {
             <p className="adm-none">No faculty accounts yet.</p>
           ) : (
             <ul className="adm-faclist">
-              {members.map((m) => (
-                <li key={m.id} className="adm-faclist__row">
-                  <span className="adm-faclist__name">{m.name}</span>
-                  <span className="adm-faclist__email num">{m.email}</span>
-                  <span className="adm-faclist__dept">{m.department}</span>
-                  <span className={`adm-faclist__role adm-faclist__role--${m.role}`}>{m.role}</span>
-                  <Button size="sm" variant="ghost" disabled={busy} onClick={() => void handleReset(m)}>
-                    Reset password
-                  </Button>
-                </li>
-              ))}
+              {members.map((m) => {
+                const isEditing = editing !== null && editing.email === m.email;
+                return (
+                  <li key={m.id} className="adm-faclist__row">
+                    <span className="adm-faclist__name">{m.name}</span>
+                    <span className="adm-faclist__email num">{m.email}</span>
+                    <span className="adm-faclist__dept">{m.department}</span>
+                    <span className={`adm-faclist__role adm-faclist__role--${m.role}`}>{m.role}</span>
+                    {isEditing ? (
+                      <span className="adm-faclist__set">
+                        <Input
+                          className="num"
+                          type="password"
+                          autoComplete="new-password"
+                          placeholder="new password"
+                          value={newPass}
+                          onChange={(e) => setNewPass(e.target.value)}
+                        />
+                        <Button
+                          size="sm"
+                          variant="primary"
+                          disabled={busy}
+                          onClick={() => {
+                            setBusy(true);
+                            setCredential({
+                              email: m.email,
+                              role: editing.role,
+                              password: newPass.trim() || undefined,
+                              name: m.name,
+                              department: m.department,
+                            })
+                              .then((res) => {
+                                setBusy(false);
+                                setEditing(null);
+                                setNewPass("");
+                                setIssued({ email: res.email, password: res.password });
+                                toast.push({
+                                  title: `${res.role === "admin" ? "Head" : "Professor"} password set for ${res.email}`,
+                                  tone: "success",
+                                });
+                                load();
+                              })
+                              .catch((err: unknown) => {
+                                setBusy(false);
+                                const message = err instanceof Error ? err.message : "Could not set that password.";
+                                setError(message);
+                                toast.push({
+                                  title: "Could not set the password",
+                                  description: message,
+                                  tone: "danger",
+                                });
+                              });
+                          }}
+                        >
+                          Save
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          onClick={() => {
+                            setEditing(null);
+                            setNewPass("");
+                          }}
+                        >
+                          Cancel
+                        </Button>
+                      </span>
+                    ) : (
+                      <span className="adm-faclist__set">
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          disabled={busy}
+                          onClick={() => {
+                            setEditing({ email: m.email, role: "professor" });
+                            setNewPass("");
+                          }}
+                        >
+                          Professor password
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          disabled={busy}
+                          onClick={() => {
+                            setEditing({ email: m.email, role: "admin" });
+                            setNewPass("");
+                          }}
+                        >
+                          Head password
+                        </Button>
+                        <Button size="sm" variant="ghost" disabled={busy} onClick={() => void handleReset(m)}>
+                          Reset
+                        </Button>
+                      </span>
+                    )}
+                  </li>
+                );
+              })}
             </ul>
           )}
         </Panel>

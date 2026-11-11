@@ -187,6 +187,20 @@ export function createLocalApi(): Api {
       persist();
     },
 
+    async signInWithRole(email, password, role) {
+      await delay(LATENCY_MS);
+      const normalized = email.trim().toLowerCase();
+      const profile = db.profiles.find((p) => p.email.toLowerCase() === normalized);
+      if (!profile || profile.password !== password) {
+        throw new ApiError("Email or password is incorrect.", { code: "BAD_CREDENTIALS" });
+      }
+      // The demo backend keeps one role per account; the head may also teach.
+      void role;
+      sessionId = profile.id;
+      writeSessionId(sessionId);
+      return profile;
+    },
+
     async signOut() {
       await delay(LATENCY_MS);
       sessionId = null;

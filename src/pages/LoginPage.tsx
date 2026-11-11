@@ -25,6 +25,7 @@ export default function LoginPage(): JSX.Element {
   const [searchParams] = useSearchParams();
   const [mode, setMode] = useState<Mode>("signin");
   const [regStep, setRegStep] = useState<RegStep>("details");
+  const [role, setRole] = useState<"professor" | "admin">("professor");
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -102,7 +103,7 @@ export default function LoginPage(): JSX.Element {
 
       setSubmitting(true);
       auth
-        .signIn(trimmed, password)
+        .signIn(trimmed, password, role)
         .then(() => {
           navigate(next, { replace: true });
         })
@@ -237,6 +238,29 @@ export default function LoginPage(): JSX.Element {
             Register
           </button>
         </div>
+
+        {mode === "signin" ? (
+          <div className="sh-login__roles" role="radiogroup" aria-label="Signing in as">
+            <button
+              type="button"
+              role="radio"
+              aria-checked={role === "professor"}
+              className={`sh-login__role${role === "professor" ? " is-active" : ""}`}
+              onClick={() => setRole("professor")}
+            >
+              Professor
+            </button>
+            <button
+              type="button"
+              role="radio"
+              aria-checked={role === "admin"}
+              className={`sh-login__role${role === "admin" ? " is-active" : ""}`}
+              onClick={() => setRole("admin")}
+            >
+              Department head
+            </button>
+          </div>
+        ) : null}
 
         <form className="sh-login__form" onSubmit={handleSubmit} noValidate>
           {mode === "register" && regStep === "details" ? (

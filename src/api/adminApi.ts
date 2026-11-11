@@ -69,3 +69,40 @@ export async function resetPassword(input: {
     body: JSON.stringify(input),
   });
 }
+
+/** Sets a role-scoped password (an email can hold one per role). */
+export async function setCredential(input: {
+  email: string;
+  role: "professor" | "admin";
+  password?: string;
+  name?: string;
+  department?: string;
+}): Promise<{ email: string; role: string; password: string }> {
+  return call<{ email: string; role: string; password: string }>("/credentials", {
+    method: "POST",
+    body: JSON.stringify(input),
+  });
+}
+
+/** Verifies a role-scoped credential and returns a one-time session token. */
+export async function verifyCredential(input: {
+  email: string;
+  password: string;
+  role: "professor" | "admin";
+}): Promise<{ token_hash: string; email: string; role: string }> {
+  const res = await fetch(`${ADMIN_API}/signin`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(input),
+  });
+  const body = (await res.json().catch(() => ({}))) as {
+    token_hash?: string;
+    email?: string;
+    role?: string;
+    error?: string;
+  };
+  if (!res.ok || !body.token_hash) {
+    throw new Error(body.error ?? "The faculty service did not respond.");
+  }
+  return { token_hash: body.token_hash, email: body.email ?? input.email, role: body.role ?? input.role };
+}

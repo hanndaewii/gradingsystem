@@ -215,6 +215,35 @@
   padding: var(--space-3);
 }
 
+/* role picker — one email can sign in as a professor or as the head */
+.sh-login__roles {
+  display: flex;
+  gap: var(--space-4);
+  margin: calc(-1 * var(--space-2)) 0 var(--space-5);
+}
+
+.sh-login__role {
+  appearance: none;
+  border: none;
+  background: none;
+  padding: 0 0 4px;
+  color: var(--ink-3);
+  font-family: var(--font-serif);
+  font-size: var(--text-sm);
+  font-weight: 600;
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+}
+
+.sh-login__role.is-active {
+  color: var(--ink);
+  border-bottom-color: var(--brand);
+}
+
+.sh-login__role:hover {
+  color: var(--ink);
+}
+
 .sh-login__hint {
   font-size: var(--text-sm);
   color: var(--ink-3);

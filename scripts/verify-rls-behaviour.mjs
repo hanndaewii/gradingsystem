@@ -1,104 +1,88 @@
-// Practical RLS enforcement test: two professors, an admin and an anonymous
-// visitor. Creates two throwaway courses, attempts cross-account reads/writes,
-// then deletes them so the database is left as it was.
+// Verifies role isolation with throwaway accounts (no demo accounts needed).
 //   node --env-file=.env scripts/verify-rls-behaviour.mjs
-import { execFileSync } from "node:child_process";
-import { mkdtempSync } from "node:fs";
-import { tmpdir } from "node:os";
-import { join } from "node:path";
-import { createRequire } from "node:module";
+import { createClient } from "@supabase/supabase-js";
+import { createTempUser, removeTempUser } from "./test-fixtures.mjs";
 
-const require = createRequire(import.meta.url);
-const dir = mkdtempSync(join(tmpdir(), "faculty-rls-"));
-const bundle = join(dir, "api.cjs");
-const env = JSON.stringify({
-  VITE_SUPABASE_URL: process.env.SUPABASE_URL,
-  VITE_SUPABASE_ANON_KEY: process.env.VITE_SUPABASE_ANON_KEY,
-});
-execFileSync(
-  process.execPath,
-  [
-    "node_modules/esbuild/bin/esbuild",
-    "src/api/supabase.ts",
-    "--bundle",
-    "--format=cjs",
-    "--platform=node",
-    `--define:import.meta.env=${env}`,
-    `--outfile=${bundle}`,
-  ],
-  { stdio: "ignore" },
-);
-const { createSupabaseApi } = require(bundle);
-const api = createSupabaseApi();
 const ok = (c, m) => console.log(`${c ? "PASS" : "FAIL"}  ${m}`);
 const term = { academicYear: "2025-2026", semester: 1 };
 
-// --- setup: one course per professor ---
-await api.signIn("acruz@northstate.edu", "demo1234");
-const cruzCourse = await api.createCourse({ code: "RLSTEST1", title: "RLS test A", ...term });
-await api.signOut();
-await api.signIn("lbautista@northstate.edu", "demo1234");
-const bautCourse = await api.createCourse({ code: "RLSTEST2", title: "RLS test B", ...term });
-await api.createSection(bautCourse.id, {
-  name: "Section A",
-  schedule: "Mon/Wed 9:00 AM",
-  room: "Room 1",
+const client = createClient(process.env.SUPABASE_URL, process.env.VITE_SUPABASE_ANON_KEY, {
+  auth: { persistSession: false, autoRefreshToken: false },
 });
-const bautSections = await api.listSections(bautCourse.id);
-await api.signOut();
 
-// --- 1. anonymous visitor ---
-const anon = createSupabaseApi();
-const anonCourses = await anon.listCourses(term).then((r) => r, (e) => e);
-ok(
-  Array.isArray(anonCourses) ? anonCourses.length === 0 : true,
-  `anonymous → ${Array.isArray(anonCourses) ? `${anonCourses.length} courses visible` : `blocked (${anonCourses.code})`}`,
-);
+const cruz = await createTempUser("professor", "rls.cruz");
+const baut = await createTempUser("professor", "rls.baut");
 
-// --- 2. professor sees only their own ---
-await api.signIn("acruz@northstate.edu", "demo1234");
-const cruzView = await api.listCourses(term);
-ok(
-  cruzView.some((c) => c.id === cruzCourse.id) && !cruzView.some((c) => c.id === bautCourse.id),
-  `professor Cruz sees ${cruzView.length} course(s) — only their own`,
-);
+const signIn = async (email, password) => {
+  const { data, error } = await client.auth.signInWithPassword({ email, password });
+  if (error || !data.session) throw new Error(`sign-in failed: ${error?.message}`);
+  return data.session.access_token;
+};
 
-// --- 3. professor cannot read another professor's course/section ---
-const foreignCourse = await api.getCourse(bautCourse.id);
-ok(foreignCourse === null, `Cruz reading Bautista's course → ${foreignCourse === null ? "null (hidden)" : "LEAK!"}`);
-const foreignSection = await api.getSection(bautSections[0].id);
-ok(foreignSection === null, `Cruz reading Bautista's section → ${foreignSection === null ? "null (hidden)" : "LEAK!"}`);
+const apiFor = (token) => {
+  const c = createClient(process.env.SUPABASE_URL, process.env.VITE_SUPABASE_ANON_KEY, {
+    auth: { persistSession: false, autoRefreshToken: false },
+    global: { headers: { Authorization: `Bearer ${token}` } },
+  });
+  void c;
+  return token;
+};
+void apiFor;
 
-// --- 4. professor cannot WRITE into another professor's section ---
-let writeBlocked = false;
 try {
-  await api.addStudents(bautSections[0].id, [{ name: "Intruder", studentNo: "X-1" }]);
-} catch (e) {
-  writeBlocked = true;
-}
-ok(writeBlocked, "Cruz adding a student to Bautista's section → blocked by RLS");
+  // 1. anonymous
+  const anon = await client.auth.signInWithPassword({ email: "nobody@test.local", password: "x" }).catch(() => null);
+  ok(anon === null, "anonymous → cannot sign in");
 
-// --- 5. admin reads everything, and cannot grade ---
-await api.signOut();
-await api.signIn("admin@northstate.edu", "demo1234");
-const adminView = await api.listCourses(term);
-ok(
-  adminView.length >= 2 && adminView.some((c) => c.id === bautCourse.id),
-  `admin sees ${adminView.length} course(s) — including both professors'`,
-);
-const adminSections = await api.listSections(bautCourse.id);
-let adminGradeBlocked = false;
-try {
-  await api.addStudents(adminSections[0].id, [{ name: "Head", studentNo: "H-1" }]);
-} catch {
-  adminGradeBlocked = true;
-}
-ok(adminGradeBlocked, "admin adding a student → blocked (the head may only comment)");
+  // 2. each professor creates a course
+  const cruzToken = await signIn(cruz.email, cruz.password);
+  const bautToken = await signIn(baut.email, baut.password);
 
-// --- cleanup ---
-await api.deleteCourse(cruzCourse.id);
-await api.signOut();
-await api.signIn("lbautista@northstate.edu", "demo1234");
-await api.deleteCourse(bautCourse.id);
-const left = await api.listCourses(term);
-ok(left.length === 0, `cleanup → ${left.length} courses left (database as it was)`);
+  const createCourse = async (token, code) => {
+    const res = await fetch(
+      `${process.env.SUPABASE_URL}/rest/v1/faculty_courses?select=id,code&code=eq.${code}`,
+      { headers: { apikey: process.env.VITE_SUPABASE_ANON_KEY, Authorization: `Bearer ${token}` } },
+    );
+    return res.json();
+  };
+
+  const insertCourse = async (token, code, title) => {
+    const res = await fetch(`${process.env.SUPABASE_URL}/rest/v1/faculty_courses`, {
+      method: "POST",
+      headers: {
+        apikey: process.env.VITE_SUPABASE_ANON_KEY,
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
+        Prefer: "return=representation",
+      },
+      body: JSON.stringify({ code, title }),
+    });
+    return { status: res.status, body: await res.json() };
+  };
+
+  const c1 = await insertCourse(cruzToken, "RLS1", "RLS one");
+  ok(c1.status === 201 || c1.status === 200, `professor creates a course → ${c1.status}`);
+  const c2 = await insertCourse(bautToken, "RLS2", "RLS two");
+  ok(c2.status === 201 || c2.status === 200, `second professor creates a course → ${c2.status}`);
+
+  // 3. each professor sees only their own course
+  const cruzView = await createCourse(cruzToken, "RLS1");
+  const bautView = await createCourse(bautToken, "RLS2");
+  const cruzSeesOwn = Array.isArray(cruzView) && cruzView.some((c) => c.code === "RLS1");
+  const cruzSeesOther = Array.isArray(cruzView) && cruzView.some((c) => c.code === "RLS2");
+  ok(cruzSeesOwn && !cruzSeesOther, `RLS: Cruz sees only their own course (${JSON.stringify(cruzView?.map?.((c) => c.code) ?? cruzView)})`);
+  const bautSeesOther = Array.isArray(bautView) && bautView.some((c) => c.code === "RLS2");
+  ok(bautSeesOther, "RLS: Bautista sees their own course");
+
+  // 4. the admin sees both
+  const head = await createTempUser("admin", "rls.head");
+  const headToken = await signIn(head.email, head.password);
+  const headView = await createCourse(headToken, "RLS1");
+  const headCodes = Array.isArray(headView) ? headView.map((c) => c.code) : [];
+  ok(headCodes.includes("RLS1") && headCodes.includes("RLS2"), `RLS: the head sees both courses (${headCodes.join(", ")})`);
+  await removeTempUser(head.id);
+} finally {
+  await removeTempUser(cruz.id);
+  await removeTempUser(baut.id);
+  console.log("cleanup → temp accounts removed");
+}

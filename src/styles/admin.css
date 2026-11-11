@@ -391,6 +391,17 @@
   color: var(--brand);
 }
 
+.adm-faclist__set {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+}
+
+.adm-faclist__set input {
+  min-width: 180px;
+}
+
 .adm-none {
   font-size: var(--text-sm);
   color: var(--ink-3);

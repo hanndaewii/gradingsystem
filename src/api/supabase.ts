@@ -19,6 +19,7 @@
 // "PERIOD_SUBMITTED…"→PERIOD_SUBMITTED (friendly pre-checks mirror local.ts).
 import { createClient, type PostgrestError, type SupabaseClient } from "@supabase/supabase-js";
 import { ApiError, PERIODS } from "../types";
+import { verifyCredential } from "./adminApi";
 import type {
   Api, Assessment, Comment, Course, Grade, HistoryEntry, PeriodId,
   PeriodProgress, PeriodState, Profile, ScaleRow, Section, SectionOverview,
@@ -393,6 +394,36 @@ export function createSupabaseApi(): Api {
       const row = await fetchProfileRow(uid);
       if (!row) {
         throw new ApiError("No profile for this account. Ask the department head to provision your faculty profile.", { code: "FORBIDDEN" });
+      }
+      return mapProfile(row);
+    },
+
+    /** Role-scoped sign-in — the email may hold a professor password and a
+     *  department-head password; the Worker verifies the one for the role
+     *  chosen on the login screen and mints the session. */
+    async signInWithRole(email, password, role) {
+      try {
+        const { token_hash } = await verifyCredential({ email: email.trim(), password, role });
+        const { error: otpError } = await supabase.auth.verifyOtp({
+          token_hash,
+          type: "magiclink",
+        });
+        if (otpError) throw new ApiError("Email or password is incorrect.", { code: "BAD_CREDENTIALS" });
+      } catch (err) {
+        if (err instanceof ApiError) throw err;
+        // The faculty service is unreachable — fall back to the plain
+        // Supabase password sign-in (the auth password is kept in step).
+        return api.signIn(email, password);
+      }
+      const { data: userData } = await supabase.auth.getUser();
+      const uid = userData.user?.id;
+      if (!uid) throw new ApiError("Email or password is incorrect.", { code: "BAD_CREDENTIALS" });
+      const row = await fetchProfileRow(uid);
+      if (!row) {
+        throw new ApiError(
+          "Your account has no faculty profile yet — ask the department head to add you.",
+          { code: "FORBIDDEN" },
+        );
       }
       return mapProfile(row);
     },
