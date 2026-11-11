@@ -94,6 +94,9 @@ export interface Api {
   // for a session (and, on the Supabase backend, a professor profile row).
   requestRegistrationCode(email: string): Promise<void>;
   completeRegistration(input: { email: string; code: string; name: string; department: string }): Promise<Profile>;
+  /** Sets a password for the signed-in user (right after registration, so the
+   *  professor signs in with email + password from then on). */
+  setPassword(password: string): Promise<void>;
   updateProfile(id: string, patch: Partial<Pick<Profile, "name" | "department" | "bio">>): Promise<Profile>;
 
   // reads

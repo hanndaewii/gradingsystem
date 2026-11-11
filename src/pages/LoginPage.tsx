@@ -1,11 +1,10 @@
-// LoginPage (WO-3) — centered paper card. Inline role="alert" form error
-// (BAD_CREDENTIALS → a plain honest message), field-level validation and
-// `?next=` honouring. A live session redirects to `/`.
+// LoginPage — the portal's front door.
 //
 // Two modes:
-//   • Sign in   — email + password (Supabase Auth).
-//   • Register  — the professor's name, department and email; we email them a
-//     one-time code, which is exchanged for a session and a faculty profile.
+//   • Sign in    — email + password (Supabase Auth).
+//   • Register   — name + department + email → we email a one-time code →
+//                   they set their own password → done. After that they sign
+//                   in with email + password like everyone else.
 import { useEffect, useState } from "react";
 import type { FormEvent } from "react";
 import { Navigate, useNavigate, useSearchParams } from "react-router-dom";
@@ -18,22 +17,31 @@ import { DEMO_REGISTRATION_CODE } from "../data/seed";
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 type Mode = "signin" | "register";
+type RegStep = "details" | "code" | "password";
 
 export default function LoginPage(): JSX.Element {
   const auth = useAuth();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const [mode, setMode] = useState<Mode>("signin");
+  const [regStep, setRegStep] = useState<RegStep>("details");
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
   const [name, setName] = useState("");
   const [department, setDepartment] = useState("");
   const [code, setCode] = useState("");
-  const [codeSent, setCodeSent] = useState(false);
   const [resending, setResending] = useState(false);
   const [cooldown, setCooldown] = useState(0);
-  const [fieldErrors, setFieldErrors] = useState<{ email?: string; password?: string; name?: string; department?: string; code?: string }>({});
+  const [fieldErrors, setFieldErrors] = useState<{
+    email?: string;
+    password?: string;
+    name?: string;
+    department?: string;
+    code?: string;
+    confirm?: string;
+  }>({});
   const [formError, setFormError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
@@ -68,15 +76,22 @@ export default function LoginPage(): JSX.Element {
 
   function switchMode(target: Mode): void {
     setMode(target);
+    setRegStep("details");
     resetMessages();
-    setCodeSent(false);
     setCode("");
+  }
+
+  function enterPortal(): void {
+    navigate(next, { replace: true });
+    window.location.reload();
   }
 
   function handleSubmit(e: FormEvent<HTMLFormElement>): void {
     e.preventDefault();
-    const errors: { email?: string; password?: string; name?: string; department?: string; code?: string } = {};
+    const errors: { email?: string; password?: string; name?: string; department?: string; code?: string; confirm?: string } = {};
     const trimmed = email.trim();
+
+    // ── sign in ────────────────────────────────────────────────────────────
     if (mode === "signin") {
       if (trimmed === "") errors.email = "Email is required.";
       else if (!EMAIL_RE.test(trimmed)) errors.email = "Enter a valid email address.";
@@ -102,8 +117,8 @@ export default function LoginPage(): JSX.Element {
       return;
     }
 
-    // ── registration ────────────────────────────────────────────────────────
-    if (!codeSent) {
+    // ── registration · step 1: details → email a code ──────────────────────
+    if (regStep === "details") {
       if (name.trim() === "") errors.name = "Your name is required.";
       if (department.trim() === "") errors.department = "Your department is required.";
       if (trimmed === "") errors.email = "Email is required.";
@@ -117,11 +132,9 @@ export default function LoginPage(): JSX.Element {
         .requestRegistrationCode(trimmed)
         .then(() => {
           setSubmitting(false);
-          setCodeSent(true);
+          setRegStep("code");
           setCooldown(60);
-          setNotice(
-            `We sent a 6-digit code to ${trimmed}. Enter it below to finish setting up your account.`,
-          );
+          setNotice(`We sent a 6-digit code to ${trimmed}. Enter it below to finish setting up your account.`);
         })
         .catch((err: unknown) => {
           setSubmitting(false);
@@ -130,46 +143,78 @@ export default function LoginPage(): JSX.Element {
       return;
     }
 
-    // ── verify the emailed code ─────────────────────────────────────────────
-    if (code.trim() === "") errors.code = "Enter the code we emailed you.";
+    // ── registration · step 2: verify the emailed code ─────────────────────
+    if (regStep === "code") {
+      if (code.trim() === "") errors.code = "Enter the code we emailed you.";
+      setFieldErrors(errors);
+      setFormError(null);
+      if (errors.code !== undefined) return;
+
+      setSubmitting(true);
+      api
+        .completeRegistration({
+          email: trimmed,
+          code: code.trim(),
+          name: name.trim(),
+          department: department.trim(),
+        })
+        .then(() => {
+          setSubmitting(false);
+          setRegStep("password");
+          setNotice("Code accepted. Now choose a password for your account.");
+        })
+        .catch((err: unknown) => {
+          setSubmitting(false);
+          if (err instanceof ApiError && err.field === "code") {
+            setFieldErrors({ code: err.message });
+          } else {
+            setFormError(err instanceof Error ? err.message : "That code is not valid or has expired.");
+          }
+        });
+      return;
+    }
+
+    // ── registration · step 3: set a password (one time only) ──────────────
+    if (password.length < 8) errors.password = "Use at least 8 characters.";
+    if (password !== confirmPassword) errors.confirm = "The two passwords do not match.";
     setFieldErrors(errors);
     setFormError(null);
-    if (errors.code !== undefined) return;
+    if (Object.keys(errors).length > 0) return;
 
     setSubmitting(true);
     api
-      .completeRegistration({
-        email: trimmed,
-        code: code.trim(),
-        name: name.trim(),
-        department: department.trim(),
-      })
+      .setPassword(password)
       .then(() => {
-        // The backend has established the session (Supabase Auth stores it);
-        // reloading lets the auth context pick it up and enter the portal.
-        navigate(next, { replace: true });
-        window.location.reload();
+        setSubmitting(false);
+        enterPortal();
       })
       .catch((err: unknown) => {
         setSubmitting(false);
-        if (err instanceof ApiError && err.field === "code") {
-          setFieldErrors({ code: err.message });
+        if (err instanceof ApiError && err.field === "password") {
+          setFieldErrors({ password: err.message });
         } else {
-          setFormError(err instanceof Error ? err.message : "That code is not valid or has expired.");
+          setFormError(err instanceof Error ? err.message : "Could not set your password.");
         }
       });
   }
+
+  const heading =
+    mode === "signin" ? "Sign in" : regStep === "details" ? "Register" : regStep === "code" ? "Verify your email" : "Choose a password";
+  const subline =
+    mode === "signin"
+      ? "Use your university account to submit and review grades."
+      : regStep === "details"
+        ? "Create a faculty account — we email you a one-time code to verify your address."
+        : regStep === "code"
+          ? "Enter the 6-digit code we sent to your email."
+          : "One last step — pick a password you will use from now on.";
 
   return (
     <div className="sh-login">
       <div className="sh-login__card">
         <header className="sh-login__head">
-          <h1 className="sh-login__title">{mode === "signin" ? "Sign in" : "Register"}</h1>
-          <p className="sh-login__sub">
-            {mode === "signin"
-              ? "Use your university account to submit and review grades."
-              : "Create a faculty account — we email you a one-time code to verify your address."}
-          </p>
+          <h1 className="sh-login__title">{heading}</h1>
+          <p className="sh-login__sub">{subline}</p>
         </header>
 
         <div className="sh-login__modes" role="tablist" aria-label="Sign in or register">
@@ -194,7 +239,7 @@ export default function LoginPage(): JSX.Element {
         </div>
 
         <form className="sh-login__form" onSubmit={handleSubmit} noValidate>
-          {mode === "register" && !codeSent ? (
+          {mode === "register" && regStep === "details" ? (
             <>
               <Field label="Full name" htmlFor="sh-reg-name" error={fieldErrors.name ?? null}>
                 <Input
@@ -226,7 +271,7 @@ export default function LoginPage(): JSX.Element {
               placeholder="you@college.edu"
               value={email}
               invalid={fieldErrors.email != null}
-              disabled={mode === "register" && codeSent}
+              disabled={mode === "register" && regStep !== "details"}
               onChange={(e) => setEmail(e.target.value)}
             />
           </Field>
@@ -244,7 +289,7 @@ export default function LoginPage(): JSX.Element {
             </Field>
           ) : null}
 
-          {mode === "register" && codeSent ? (
+          {mode === "register" && regStep === "code" ? (
             <Field label="6-digit code" htmlFor="sh-reg-code" error={fieldErrors.code ?? null}>
               <Input
                 id="sh-reg-code"
@@ -258,6 +303,31 @@ export default function LoginPage(): JSX.Element {
                 onChange={(e) => setCode(e.target.value.replace(/\D/g, ""))}
               />
             </Field>
+          ) : null}
+
+          {mode === "register" && regStep === "password" ? (
+            <>
+              <Field label="New password" htmlFor="sh-reg-pass" error={fieldErrors.password ?? null}>
+                <Input
+                  id="sh-reg-pass"
+                  type="password"
+                  autoComplete="new-password"
+                  value={password}
+                  invalid={fieldErrors.password != null}
+                  onChange={(e) => setPassword(e.target.value)}
+                />
+              </Field>
+              <Field label="Confirm password" htmlFor="sh-reg-pass2" error={fieldErrors.confirm ?? null}>
+                <Input
+                  id="sh-reg-pass2"
+                  type="password"
+                  autoComplete="new-password"
+                  value={confirmPassword}
+                  invalid={fieldErrors.confirm != null}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                />
+              </Field>
+            </>
           ) : null}
 
           {notice !== null ? (
@@ -279,18 +349,20 @@ export default function LoginPage(): JSX.Element {
           <Button type="submit" variant="primary" loading={submitting} disabled={submitting}>
             {mode === "signin"
               ? "Sign in"
-              : codeSent
-                ? "Verify code and finish"
-                : "Email me a code"}
+              : regStep === "details"
+                ? "Email me a code"
+                : regStep === "code"
+                  ? "Verify code"
+                  : "Create my account"}
           </Button>
 
-          {mode === "register" && codeSent ? (
+          {mode === "register" && regStep === "code" ? (
             <div className="sh-login__actions">
               <button
                 type="button"
                 className="sh-login__link"
                 onClick={() => {
-                  setCodeSent(false);
+                  setRegStep("details");
                   setCode("");
                   resetMessages();
                 }}
@@ -324,7 +396,7 @@ export default function LoginPage(): JSX.Element {
             </div>
           ) : null}
 
-          {mode === "register" && !codeSent ? (
+          {mode === "register" && regStep === "details" ? (
             <p className="sh-login__hint">
               {API_MODE === "demo" ? (
                 <>

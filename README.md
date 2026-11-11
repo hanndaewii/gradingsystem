@@ -210,6 +210,25 @@ The `gradingsystem` project is a Cloudflare **Workers** project with static asse
 
 Live: **https://gradingsystem.hanndaaewii.workers.dev**
 
+### Database operations
+
+| Script | What it does |
+|---|---|
+| `node --env-file=.env scripts/db-stats.mjs` | Database size, per-table rows/sizes, index footprint, audit-trail growth |
+| `node --env-file=.env scripts/prune-history.mjs --days 730` | Trims `faculty_grade_history` + `faculty_comments` older than N days (`--dry-run` to preview) |
+| `node --env-file=.env scripts/apply-schema.mjs` | Re-applies `supabase/schema.sql` (idempotent — safe to re-run) |
+| `node --env-file=.env scripts/seed-supabase.mjs` | Loads the demo dataset (`--force` re-seeds) |
+| `node --env-file=.env scripts/clear-demo-data.mjs` | Wipes the demo dataset (`--users` also removes the logins) |
+
+Query performance: every read uses `count: "estimated"` (supabase-js otherwise runs an extra exact `COUNT` per
+request), the grade query selects only the six columns it maps, and the hot filter paths are indexed
+(`courses(professor_id, term_id)`, `sections(course_id)`, `periods(section_id)`, `assessments(section_id, period_id)`,
+`students(section_id)`, `grades(section_id)` and `grades(assessment_id, student_id)`).
+
+Only two tables grow with usage — `faculty_grade_history` (one row per grade change) and `faculty_comments`.
+Everything else is bounded by courses/sections/students, so the audit trail is the only thing worth pruning
+(and only after a couple of academic years).
+
 ### Faculty registration (emailed code)
 
 The login screen has a **Register** tab. The professor enters their name, department and email; the app calls

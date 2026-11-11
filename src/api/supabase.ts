@@ -253,7 +253,7 @@ export function createSupabaseApi(): Api {
 
   // ── auth / scoping helpers ────────────────────────────────────────────────
   const fetchProfileRow = (id: string): Promise<ProfileRow | null> =>
-    single<ProfileRow>(tbl("profiles").select("*").eq("id", id).maybeSingle(), "Could not load the profile.");
+    single<ProfileRow>(tbl("profiles").select("*", { count: "estimated" }).eq("id", id).maybeSingle(), "Could not load the profile.");
 
   const actor = async (): Promise<Profile> => {
     const { data } = await supabase.auth.getSession();
@@ -269,23 +269,23 @@ export function createSupabaseApi(): Api {
   const canRead = (course: CourseRow, user: Profile): boolean => user.role === "admin" || isOwner(course, user);
 
   const fetchCourseRow = (id: string): Promise<CourseRow | null> =>
-    single<CourseRow>(tbl("courses").select("*").eq("id", id).maybeSingle(), "Could not load the course.");
+    single<CourseRow>(tbl("courses").select("*", { count: "estimated" }).eq("id", id).maybeSingle(), "Could not load the course.");
 
   const fetchSectionRow = (id: string): Promise<SectionRow | null> =>
-    single<SectionRow>(tbl("sections").select("*").eq("id", id).maybeSingle(), "Could not load the section.");
+    single<SectionRow>(tbl("sections").select("*", { count: "estimated" }).eq("id", id).maybeSingle(), "Could not load the section.");
 
   const fetchPeriodRows = (sectionId: string): Promise<PeriodRow[]> =>
     list<PeriodRow>(
-      tbl("periods").select("id, period, status, submitted_at").eq("section_id", sectionId),
+      tbl("periods").select("id, period, status, submitted_at", { count: "estimated" }).eq("section_id", sectionId),
       "Could not load the period states.",
     );
 
   const fetchTermRow = (id: string): Promise<TermRow | null> =>
-    single<TermRow>(tbl("terms").select("*").eq("id", id).maybeSingle(), "Could not load the term.");
+    single<TermRow>(tbl("terms").select("*", { count: "estimated" }).eq("id", id).maybeSingle(), "Could not load the term.");
 
   const resolveTermRow = (academicYear: string, semester: 1 | 2): Promise<TermRow | null> =>
     single<TermRow>(
-      tbl("terms").select("*").eq("academic_year", academicYear).eq("semester", semester).maybeSingle(),
+      tbl("terms").select("*", { count: "estimated" }).eq("academic_year", academicYear).eq("semester", semester).maybeSingle(),
       "Could not load the term.",
     );
 
@@ -396,6 +396,14 @@ export function createSupabaseApi(): Api {
       return mapProfile(row);
     },
 
+    async setPassword(password) {
+      if (!password || password.length < 8) {
+        throw new ApiError("Use a password of at least 8 characters.", { field: "password" });
+      }
+      const { error } = await supabase.auth.updateUser({ password });
+      if (error) throw new ApiError(error.message || "Could not set your password.", { field: "password" });
+    },
+
     async signOut() {
       await supabase.auth.signOut();
     },
@@ -504,7 +512,7 @@ export function createSupabaseApi(): Api {
         academicYear: termRow.academic_year, semester: termRow.semester === 2 ? 2 : 1,
       };
       const rows = await list<CourseRow>(
-        tbl("courses").select("*").eq("term_id", termRow.id).order("code"),
+        tbl("courses").select("*", { count: "estimated" }).eq("term_id", termRow.id).order("code"),
         "Could not load courses.",
       );
       return rows.map((r) => mapCourseRow(r, termInfo));
@@ -522,7 +530,7 @@ export function createSupabaseApi(): Api {
       const course = await fetchCourseRow(courseId);
       if (!course || !canRead(course, user)) return [];
       const rows = await list<SectionRow>(
-        tbl("sections").select("*").eq("course_id", courseId).order("name"),
+        tbl("sections").select("*", { count: "estimated" }).eq("course_id", courseId).order("name"),
         "Could not load sections.",
       );
       return rows.map(mapSection);
@@ -537,12 +545,12 @@ export function createSupabaseApi(): Api {
       const user = await actor();
       if (!(await readableSection(sectionId, user))) return [];
       const periodRow = await single<{ id: string }>(
-        tbl("periods").select("id").eq("section_id", sectionId).eq("period", period).maybeSingle(),
+        tbl("periods").select("id", { count: "estimated" }).eq("section_id", sectionId).eq("period", period).maybeSingle(),
         "Could not load the period.",
       );
       if (!periodRow) return [];
       const rows = await list<AssessmentRow>(
-        tbl("assessments").select("*").eq("section_id", sectionId).eq("period_id", periodRow.id).order("order"),
+        tbl("assessments").select("*", { count: "estimated" }).eq("section_id", sectionId).eq("period_id", periodRow.id).order("order"),
         "Could not load assessments.",
       );
       return rows.map((r) => mapAssessment(r, period));
@@ -552,7 +560,7 @@ export function createSupabaseApi(): Api {
       const user = await actor();
       if (!(await readableSection(sectionId, user))) return [];
       const rows = await list<StudentRow>(
-        tbl("students").select("*").eq("section_id", sectionId).order("name"),
+        tbl("students").select("*", { count: "estimated" }).eq("section_id", sectionId).order("name"),
         "Could not load students.",
       );
       return rows.map(mapStudent);
@@ -561,14 +569,14 @@ export function createSupabaseApi(): Api {
     async listGrades(sectionId) {
       const user = await actor();
       if (!(await readableSection(sectionId, user))) return [];
-      const rows = await list<GradeRow>(tbl("grades").select("*").eq("section_id", sectionId), "Could not load grades.");
+      const rows = await list<GradeRow>(tbl("grades").select("*", { count: "estimated" }).eq("section_id", sectionId), "Could not load grades.");
       return rows.map(mapGrade);
     },
 
     async listHistory(sectionId, limit) {
       const user = await actor();
       if (!(await readableSection(sectionId, user))) return [];
-      let req = tbl("grade_history").select("*").eq("section_id", sectionId).order("at", { ascending: false });
+      let req = tbl("grade_history").select("*", { count: "estimated" }).eq("section_id", sectionId).order("at", { ascending: false });
       if (limit != null) req = req.limit(limit);
       const rows = await list<HistoryRow>(req, "Could not load history.");
       return rows.map(mapHistory);
@@ -578,7 +586,7 @@ export function createSupabaseApi(): Api {
       const user = await actor();
       if (!(await readableSection(sectionId, user))) return [];
       const rows = await list<CommentRow>(
-        tbl("comments").select("id, section_id, period, author_id, body, at, author:faculty_profiles(name)")
+        tbl("comments").select("id, section_id, period, author_id, body, at, author:faculty_profiles(name)", { count: "estimated" })
           .eq("section_id", sectionId).order("at", { ascending: false }),
         "Could not load comments.",
       );
@@ -593,9 +601,9 @@ export function createSupabaseApi(): Api {
       const section = await readableSection(sectionId, user);
       if (!section) return [];
       const [students, assessmentRows, grades, periodRows] = await Promise.all([
-        list<StudentRow>(tbl("students").select("*").eq("section_id", sectionId), "Could not load students."),
-        list<AssessmentRow>(tbl("assessments").select("*").eq("section_id", sectionId), "Could not load assessments."),
-        list<GradeRow>(tbl("grades").select("*").eq("section_id", sectionId), "Could not load grades."),
+        list<StudentRow>(tbl("students").select("*", { count: "estimated" }).eq("section_id", sectionId), "Could not load students."),
+        list<AssessmentRow>(tbl("assessments").select("*", { count: "estimated" }).eq("section_id", sectionId), "Could not load assessments."),
+        list<GradeRow>(tbl("grades").select("*", { count: "estimated" }).eq("section_id", sectionId), "Could not load grades."),
         fetchPeriodRows(sectionId),
       ]);
       return buildProgress(students.map(mapStudent), assessmentRows, grades.map(mapGrade), periodRows);
@@ -609,17 +617,17 @@ export function createSupabaseApi(): Api {
         academicYear: termRow.academic_year, semester: termRow.semester === 2 ? 2 : 1,
       };
       const courseRows = await list<CourseRow>(
-        tbl("courses").select("*").eq("term_id", termRow.id).order("code"),
+        tbl("courses").select("*", { count: "estimated" }).eq("term_id", termRow.id).order("code"),
         "Could not load courses.",
       );
       if (courseRows.length === 0) return [];
       const profIds = [...new Set(courseRows.map((c) => c.professor_id))];
       const profileRows = await list<{ id: string; name: string }>(
-        tbl("profiles").select("id, name").in("id", profIds), "Could not load profiles.",
+        tbl("profiles").select("id, name", { count: "estimated" }).in("id", profIds), "Could not load profiles.",
       );
       const nameById = new Map(profileRows.map((p) => [p.id, p.name]));
       const sectionRows = await list<SectionRow>(
-        tbl("sections").select("*").in("course_id", courseRows.map((c) => c.id)).order("name"),
+        tbl("sections").select("*", { count: "estimated" }).in("course_id", courseRows.map((c) => c.id)).order("name"),
         "Could not load sections.",
       );
       const sectionIds = sectionRows.map((s) => s.id);
@@ -629,11 +637,11 @@ export function createSupabaseApi(): Api {
       let periodRowsBySection = new Map<string, PeriodRow[]>();
       if (sectionIds.length > 0) {
         const [studentRows, assessmentRows, gradeRows, periodRows] = await Promise.all([
-          list<StudentRow>(tbl("students").select("*").in("section_id", sectionIds), "Could not load students."),
-          list<AssessmentRow>(tbl("assessments").select("*").in("section_id", sectionIds), "Could not load assessments."),
-          list<GradeRow>(tbl("grades").select("*").in("section_id", sectionIds), "Could not load grades."),
+          list<StudentRow>(tbl("students").select("*", { count: "estimated" }).in("section_id", sectionIds), "Could not load students."),
+          list<AssessmentRow>(tbl("assessments").select("*", { count: "estimated" }).in("section_id", sectionIds), "Could not load assessments."),
+          list<GradeRow>(tbl("grades").select("*", { count: "estimated" }).in("section_id", sectionIds), "Could not load grades."),
           list<PeriodRow>(
-            tbl("periods").select("id, section_id, period, status, submitted_at").in("section_id", sectionIds),
+            tbl("periods").select("id, section_id, period, status, submitted_at", { count: "estimated" }).in("section_id", sectionIds),
             "Could not load period states.",
           ),
         ]);
@@ -683,7 +691,7 @@ export function createSupabaseApi(): Api {
       let sectionIds: string[];
       if (kind === "course") {
         sectionIds = (
-          await list<{ id: string }>(tbl("sections").select("id").eq("course_id", id), "Could not load sections.")
+          await list<{ id: string }>(tbl("sections").select("id", { count: "estimated" }).eq("course_id", id), "Could not load sections.")
         ).map((s) => s.id);
         if (sectionIds.length === 0) return { sections: 0, students: 0, grades: 0 };
       } else {
@@ -692,16 +700,16 @@ export function createSupabaseApi(): Api {
         sectionIds = [id];
       }
       const studentRows = await list<{ id: string }>(
-        tbl("students").select("id").in("section_id", sectionIds), "Could not load students.",
+        tbl("students").select("id", { count: "estimated" }).in("section_id", sectionIds), "Could not load students.",
       );
       const studentRowIds = studentRows.map((s) => s.id);
       const gradeRows = await list<{ id: string }>(
-        tbl("grades").select("id").in("section_id", sectionIds), "Could not load grades.",
+        tbl("grades").select("id", { count: "estimated" }).in("section_id", sectionIds), "Could not load grades.",
       );
       const gradeIds = new Set(gradeRows.map((g) => g.id));
       if (studentRowIds.length > 0) {
         const extra = await list<{ id: string }>(
-          tbl("grades").select("id").in("student_id", studentRowIds), "Could not load grades.",
+          tbl("grades").select("id", { count: "estimated" }).in("student_id", studentRowIds), "Could not load grades.",
         );
         for (const g of extra) gradeIds.add(g.id);
       }
@@ -817,7 +825,7 @@ export function createSupabaseApi(): Api {
           return row ? row.id : null;
         };
         const srcAssessmentRows = await list<AssessmentRow>(
-          tbl("assessments").select("*").eq("section_id", source.id),
+          tbl("assessments").select("*", { count: "estimated" }).eq("section_id", source.id),
           "Could not load the source assessments.",
         );
         const copyAssessments = srcAssessmentRows.flatMap((r): Record<string, unknown>[] => {
@@ -1013,13 +1021,13 @@ export function createSupabaseApi(): Api {
       const user = await actor();
       const section = await ownedSection(sectionId, user);
       const aRow = await single<AssessmentRow>(
-        tbl("assessments").select("id, section_id, period_id, name, max_score, weight, group_key, \"order\"")
+        tbl("assessments").select("id, section_id, period_id, name, max_score, weight, group_key, \"order\"", { count: "estimated" })
           .eq("id", assessmentId).eq("section_id", sectionId).maybeSingle(),
         "Could not load the assessment.",
       );
       if (!aRow) throw new ApiError("Assessment not found.", { code: "NOT_FOUND" });
       const student = await single<StudentRow>(
-        tbl("students").select("id").eq("id", studentRowId).eq("section_id", sectionId).maybeSingle(),
+        tbl("students").select("id", { count: "estimated" }).eq("id", studentRowId).eq("section_id", sectionId).maybeSingle(),
         "Could not load the student.",
       );
       if (!student) throw new ApiError("Student not found.", { code: "NOT_FOUND" });
@@ -1033,7 +1041,7 @@ export function createSupabaseApi(): Api {
       }
       const normalized = score == null ? null : clampScore(score, num(aRow.max_score));
       const existing = await single<GradeRow>(
-        tbl("grades").select("*").eq("assessment_id", assessmentId).eq("student_id", studentRowId).maybeSingle(),
+        tbl("grades").select("*", { count: "estimated" }).eq("assessment_id", assessmentId).eq("student_id", studentRowId).maybeSingle(),
         "Could not load the grade.",
       );
       const at = new Date().toISOString();
@@ -1072,16 +1080,16 @@ export function createSupabaseApi(): Api {
       const periodRow = periodRows.find((r) => asPeriod(r.period) === period);
       if (!periodRow) throw new ApiError("Period not found.", { code: "NOT_FOUND" });
       const assessmentRows = await list<AssessmentRow>(
-        tbl("assessments").select("*").eq("section_id", sectionId).eq("period_id", periodRow.id),
+        tbl("assessments").select("*", { count: "estimated" }).eq("section_id", sectionId).eq("period_id", periodRow.id),
         "Could not load assessments.",
       );
       const assessments = new Map(assessmentRows.map((r) => [r.id, r]));
       const studentRows = await list<StudentRow>(
-        tbl("students").select("*").eq("section_id", sectionId), "Could not load students.",
+        tbl("students").select("*", { count: "estimated" }).eq("section_id", sectionId), "Could not load students.",
       );
       const byStudentNo = new Map(studentRows.map((s) => [s.student_no.trim().toLowerCase(), s]));
       const byName = new Map(studentRows.map((s) => [s.name.trim().toLowerCase(), s]));
-      const gradeRows = await list<GradeRow>(tbl("grades").select("*").eq("section_id", sectionId), "Could not load grades.");
+      const gradeRows = await list<GradeRow>(tbl("grades").select("*", { count: "estimated" }).eq("section_id", sectionId), "Could not load grades.");
       const gradeByCell = new Map(gradeRows.map((g) => [`${g.assessment_id}:${g.student_id}`, g]));
       const at = new Date().toISOString();
       const skippedKeys: string[] = [];
@@ -1139,8 +1147,8 @@ export function createSupabaseApi(): Api {
           tbl("assessments").select("id").eq("section_id", sectionId).eq("period_id", periodRow.id),
           "Could not load assessments.",
         ),
-        list<StudentRow>(tbl("students").select("id").eq("section_id", sectionId), "Could not load students."),
-        list<GradeRow>(tbl("grades").select("assessment_id, student_id, score").eq("section_id", sectionId), "Could not load grades."),
+        list<StudentRow>(tbl("students").select("id", { count: "estimated" }).eq("section_id", sectionId), "Could not load students."),
+        list<GradeRow>(tbl("grades").select("assessment_id, student_id, score", { count: "estimated" }).eq("section_id", sectionId), "Could not load grades."),
       ]);
       if (assessmentRows.length === 0 || studentRows.length === 0) {
         throw new ApiError("Add at least one assessment and one student before submitting.", { code: "INCOMPLETE" });

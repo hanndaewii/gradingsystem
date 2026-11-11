@@ -176,6 +176,16 @@ export function createLocalApi(): Api {
       return profile;
     },
 
+    async setPassword(password) {
+      await delay(LATENCY_MS);
+      const user = requireActor();
+      if (password.length < 8) {
+        throw new ApiError("Use a password of at least 8 characters.", { field: "password" });
+      }
+      user.password = password;
+      persist();
+    },
+
     async signOut() {
       await delay(LATENCY_MS);
       sessionId = null;
