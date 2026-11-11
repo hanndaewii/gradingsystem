@@ -1,6 +1,6 @@
 // Excel export of one period's class record, mirroring the professor's sheet:
 //   GRADING CRITERIA
-//   NAME | A | 10% | R-1 | R-2 | R-3 | Total | 30% | Q-1 | 10% | … | PG | PG 30%
+//   NAME | Attendance | 10% | R-1 | R-2 | R-3 | Total | 30% | Q-1 | 10% | … | PG | PG 30%
 // Values are computed here (not formulas) so the file always agrees with the
 // app. Written with ExcelJS (actively maintained) and lazy-loaded so the
 // spreadsheet library never lands in the main bundle.

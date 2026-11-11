@@ -69,7 +69,7 @@ const LAST_NAMES = [
 // professor's Excel sheet: A | R-1 R-2 R-3 (one Total group) | Q-1 | Q-2 |
 // Exam, weights 10/30/10/10/40, all max 100.
 const SHEET_DEFS: { name: string; maxScore: number; weight: number; group: string | null }[] = [
-  { name: "A", maxScore: 100, weight: 10, group: null },
+  { name: "Attendance", maxScore: 100, weight: 10, group: null },
   { name: "R-1", maxScore: 100, weight: 10, group: "recitation" },
   { name: "R-2", maxScore: 100, weight: 10, group: "recitation" },
   { name: "R-3", maxScore: 100, weight: 10, group: "recitation" },
