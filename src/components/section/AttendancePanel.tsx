@@ -101,6 +101,8 @@ export function AttendancePanel({
     return { year: now.getFullYear(), month: now.getMonth() };
   });
   const [includeSunday, setIncludeSunday] = useState(false);
+  const [activeWeek, setActiveWeek] = useState<number | "all">(1);
+  const tableWrapRef = useRef<HTMLDivElement>(null);
   /** Local marks — the sheet shows these immediately, before the save lands. */
   const [marks, setMarks] = useState<Record<string, AttendanceStatus | null>>({});
   /** Cells with a save in flight (per cell — never a global lock). */
@@ -140,6 +142,34 @@ export function AttendancePanel({
     () => (includeSunday ? monthDays : monthDays.filter((d) => weekdayIndex(d) !== 6)),
     [monthDays, includeSunday],
   );
+
+  const totalDaysInMonth = monthDays.length;
+  const maxWeeks = Math.ceil(totalDaysInMonth / 7);
+
+  const displayedDays = useMemo(() => {
+    if (activeWeek === "all") return visibleDays;
+    const startDay = (activeWeek - 1) * 7 + 1;
+    const endDay = activeWeek * 7;
+    return visibleDays.filter((d) => {
+      const num = parseIsoDate(d).getDate();
+      return num >= startDay && num <= endDay;
+    });
+  }, [activeWeek, visibleDays]);
+
+  const weekOptions = useMemo(() => {
+    const opts: Array<{ key: number | "all"; label: string }> = [];
+    for (let w = 1; w <= maxWeeks; w += 1) {
+      const s = (w - 1) * 7 + 1;
+      const e = Math.min(w * 7, totalDaysInMonth);
+      opts.push({ key: w, label: `Week ${w} (${s}–${e})` });
+    }
+    opts.push({ key: "all", label: "All days" });
+    return opts;
+  }, [maxWeeks, totalDaysInMonth]);
+
+  const scrollTable = (offset: number): void => {
+    tableWrapRef.current?.scrollBy({ left: offset, behavior: "smooth" });
+  };
 
   // Picking a term jumps to that term's month — the month holding its first
   // milestone, or its most recent attendance, else today.
@@ -188,8 +218,8 @@ export function AttendancePanel({
       return;
     }
     // Last student of the day → the first student of the next day.
-    const dayIndex = visibleDays.indexOf(date);
-    const nextDay = visibleDays[dayIndex + 1];
+    const dayIndex = displayedDays.indexOf(date);
+    const nextDay = displayedDays[dayIndex + 1];
     if (nextDay && students[0]) focusCell(students[0].id, nextDay);
   }
 
@@ -389,6 +419,11 @@ export function AttendancePanel({
           onClick={() => {
             const now = new Date();
             setMonth({ year: now.getFullYear(), month: now.getMonth() });
+            const todayStr = isoDate(now);
+            setFocusDay(todayStr);
+            const w = Math.min(maxWeeks, Math.ceil(now.getDate() / 7));
+            setActiveWeek(w);
+            window.setTimeout(() => focusCell(students[0]?.id, todayStr), 80);
           }}
         >
           Today
@@ -427,7 +462,14 @@ export function AttendancePanel({
                   eventDay === day && "is-selected",
                   ev && `has-${ev.kind}`,
                 )}
-                onClick={() => setEventDay(day === eventDay ? null : day)}
+                onClick={() => {
+                  setEventDay(day === eventDay ? null : day);
+                  setFocusDay(day);
+                  const dNum = parseIsoDate(day).getDate();
+                  const w = Math.min(maxWeeks, Math.ceil(dNum / 7));
+                  setActiveWeek(w);
+                  window.setTimeout(() => focusCell(students[0]?.id, day), 80);
+                }}
                 aria-label={`${longDate(day)}${ev ? ` — ${ev.label || ev.kind}` : ""}`}
               >
                 <span className="sec-cal__num">{dayNumber(day)}</span>
@@ -488,17 +530,73 @@ export function AttendancePanel({
         Type P (present) · A (absent) · L (late) — every mark updates the Attendance criterion
       </p>
 
+      {/* ── week / date-range filter ───────────────────────────────────── */}
+      <div className="sec-att__weeks" role="toolbar" aria-label="Attendance week selection">
+        <span className="sec-att__weeklabel mono-label">Days:</span>
+        <button
+          type="button"
+          className="sec-att__week sec-att__week--nav"
+          disabled={activeWeek === "all" || activeWeek <= 1}
+          onClick={() => typeof activeWeek === "number" && activeWeek > 1 && setActiveWeek(activeWeek - 1)}
+          title="Previous week"
+          aria-label="Previous week"
+        >
+          ‹
+        </button>
+        {weekOptions.map((opt) => (
+          <button
+            key={String(opt.key)}
+            type="button"
+            className={cx("sec-att__week", activeWeek === opt.key && "is-active")}
+            aria-pressed={activeWeek === opt.key}
+            onClick={() => setActiveWeek(opt.key)}
+          >
+            {opt.label}
+          </button>
+        ))}
+        <button
+          type="button"
+          className="sec-att__week sec-att__week--nav"
+          disabled={activeWeek === "all" || (typeof activeWeek === "number" && activeWeek >= maxWeeks)}
+          onClick={() => typeof activeWeek === "number" && activeWeek < maxWeeks && setActiveWeek(activeWeek + 1)}
+          title="Next week"
+          aria-label="Next week"
+        >
+          ›
+        </button>
+        {activeWeek === "all" ? (
+          <span className="sec-att__scrollbtns">
+            <button
+              type="button"
+              className="sec-att__week sec-att__week--nav"
+              onClick={() => scrollTable(-300)}
+              title="Scroll days left"
+            >
+              ← Days
+            </button>
+            <button
+              type="button"
+              className="sec-att__week sec-att__week--nav"
+              onClick={() => scrollTable(300)}
+              title="Scroll days right"
+            >
+              Days →
+            </button>
+          </span>
+        ) : null}
+      </div>
+
       {students.length === 0 ? (
         <p className="sec-att__none">Add students to the roster first, then mark their attendance.</p>
       ) : (
-        <div className="sec-tablewrap sec-att__tablewrap">
+        <div ref={tableWrapRef} className="sec-tablewrap sec-att__tablewrap">
           <table className="sec-table sec-att__table">
             <thead>
               <tr>
                 <th scope="col" className="sec-table__name mono-label">
                   Student
                 </th>
-                {visibleDays.map((day) => {
+                {displayedDays.map((day) => {
                   const ev = eventMap.get(`${period}|${day}`);
                   return (
                     <th
@@ -544,7 +642,7 @@ export function AttendancePanel({
                 return (
                   <tr key={student.id}>
                     <td className="sec-table__name">{student.name}</td>
-                    {visibleDays.map((day) => {
+                    {displayedDays.map((day) => {
                       const status = markOf(student.id, day);
                       const key = markKey(student.id, day);
                       const isPending = pending[key] === true;
