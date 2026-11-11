@@ -55,6 +55,20 @@ create table if not exists public.faculty_credentials (
   unique (email, role)
 );
 
+-- ── faculty.attendance ──────────────────────────────────────────────────────
+-- One row per (student, period): 'p' present, 'a' absent, 'l' late. The
+-- attendance status is the source of truth; it is also encoded into the
+-- "Attendance" criterion's score (see src/lib/attendance.ts).
+create table if not exists public.faculty_attendance (
+  id         uuid primary key default gen_random_uuid(),
+  section_id uuid not null references public.faculty_sections (id) on delete cascade,
+  student_id uuid not null references public.faculty_students (id) on delete cascade,
+  period     text not null check (period in ('prelim', 'midterm', 'semifinals', 'finals')),
+  status     text not null check (status in ('p', 'a', 'l')),
+  updated_at timestamptz not null default now(),
+  unique (section_id, student_id, period)
+);
+
 create table if not exists public.faculty_terms (
   id             uuid primary key default gen_random_uuid(),
   academic_year  text not null check (academic_year ~ '^\d{4}-\d{4}$'),
@@ -166,6 +180,7 @@ create index if not exists idx_sections_course      on public.faculty_sections (
 create index if not exists idx_periods_section      on public.faculty_periods (section_id);
 create index if not exists idx_assessments_section  on public.faculty_assessments (section_id, period_id);
 create index if not exists idx_students_section     on public.faculty_students (section_id);
+create index if not exists idx_attendance_section  on public.faculty_attendance (section_id, period);
 create index if not exists idx_grades_section       on public.faculty_grades (section_id);
 create index if not exists idx_grades_cell          on public.faculty_grades (assessment_id, student_id);
 create index if not exists idx_history_section      on public.faculty_grade_history (section_id, at desc);
@@ -200,6 +215,7 @@ alter table public.faculty_sections      enable row level security;
 alter table public.faculty_periods       enable row level security;
 alter table public.faculty_assessments   enable row level security;
 alter table public.faculty_students      enable row level security;
+alter table public.faculty_attendance   enable row level security;
 alter table public.faculty_grades        enable row level security;
 alter table public.faculty_grade_history enable row level security;
 alter table public.faculty_comments      enable row level security;
@@ -220,8 +236,10 @@ create policy "profiles_insert_own" on public.faculty_profiles
 
 -- credentials: only the department head may read or change them (the Worker
 -- also uses the service role, which bypasses RLS).
+drop policy if exists "credentials_admin_read" on public.faculty_credentials;
 create policy "credentials_admin_read" on public.faculty_credentials
   for select to authenticated using (public.faculty_current_role_is_admin());
+drop policy if exists "credentials_admin_write" on public.faculty_credentials;
 create policy "credentials_admin_write" on public.faculty_credentials
   for all to authenticated
   using (public.faculty_current_role_is_admin())
@@ -290,6 +308,16 @@ create policy "students_professor_all" on public.faculty_students
                  where s.id = section_id and c.professor_id = auth.uid()));
 drop policy if exists "students_admin_read" on public.faculty_students;
 create policy "students_admin_read" on public.faculty_students
+  for select to authenticated using (public.faculty_current_role_is_admin());
+
+-- attendance: owned like the rest of the section (professor rows only).
+create policy "attendance_professor_all" on public.faculty_attendance
+  for all to authenticated
+  using (exists (select 1 from public.faculty_courses c join public.faculty_sections s on s.course_id = c.id
+                 where s.id = section_id and c.professor_id = auth.uid()))
+  with check (exists (select 1 from public.faculty_courses c join public.faculty_sections s on s.course_id = c.id
+                 where s.id = section_id and c.professor_id = auth.uid()));
+create policy "attendance_admin_read" on public.faculty_attendance
   for select to authenticated using (public.faculty_current_role_is_admin());
 
 -- grades: professors read/write their own sections' cells; admins read only.

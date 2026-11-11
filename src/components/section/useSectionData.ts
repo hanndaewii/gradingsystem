@@ -13,7 +13,7 @@ import type {
 } from "../../types";
 
 /** Query-state views of the section page (D2). */
-export type SectionView = "gradebook" | "summary" | "history" | "discussion";
+export type SectionView = "gradebook" | "attendance" | "summary" | "history" | "discussion";
 
 export interface SectionBundle {
   section: Section;

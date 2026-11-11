@@ -29,6 +29,7 @@ export interface SideNavProps {
 
 const VIEW_ITEMS: Array<{ key: SectionView; label: string }> = [
   { key: "gradebook", label: "Gradebook" },
+  { key: "attendance", label: "Attendance" },
   { key: "summary", label: "Summary" },
   { key: "history", label: "History" },
   { key: "discussion", label: "Discussion" },

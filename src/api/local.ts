@@ -10,6 +10,7 @@ import type {
 import { buildSeed, DEMO_REGISTRATION_CODE, TERMS } from "../data/seed";
 import type { DbShape } from "../data/seed";
 import { buildPeriodProgress, classAveragePct, isPeriodEditable } from "../lib/grades";
+import { ATTENDANCE_CRITERION, attendanceScore } from "../lib/attendance";
 import { clampScore, DEFAULT_SCALE_TABLE } from "../lib/format";
 import { uid } from "../lib/id";
 
@@ -41,7 +42,7 @@ export function createLocalApi(): Api {
     return (
       Array.isArray(o.profiles) && Array.isArray(o.courses) && Array.isArray(o.sections) &&
       Array.isArray(o.assessments) && Array.isArray(o.students) && Array.isArray(o.grades) &&
-      Array.isArray(o.history) && Array.isArray(o.comments) &&
+      Array.isArray(o.history) && Array.isArray(o.comments) && Array.isArray(o.attendance) &&
       o.periodStates != null && typeof o.periodStates === "object"
     );
   };
@@ -199,6 +200,55 @@ export function createLocalApi(): Api {
       sessionId = profile.id;
       writeSessionId(sessionId);
       return profile;
+    },
+
+    async listAttendance(sectionId) {
+      await delay(LATENCY_MS);
+      const user = requireActor();
+      ownedSection(sectionId, user);
+      return db.attendance.filter((r) => r.sectionId === sectionId).map((r) => ({ ...r }));
+    },
+
+    async setAttendance(sectionId, period, studentRowId, status) {
+      await delay(LATENCY_MS);
+      const user = requireActor();
+      ownedSection(sectionId, user);
+      const state = periodStateOf(sectionId, period);
+      if (state.status === "submitted") {
+        throw new ApiError("This period is submitted — reopen it before editing attendance.", {
+          code: "PERIOD_SUBMITTED",
+        });
+      }
+      const idx = db.attendance.findIndex(
+        (r) => r.sectionId === sectionId && r.studentRowId === studentRowId && r.period === period,
+      );
+      if (status === null) {
+        if (idx >= 0) db.attendance.splice(idx, 1);
+      } else if (idx >= 0) {
+        db.attendance[idx] = { ...db.attendance[idx], status, updatedAt: new Date().toISOString() };
+      } else {
+        db.attendance.push({
+          sectionId,
+          studentRowId,
+          period,
+          status,
+          updatedAt: new Date().toISOString(),
+        });
+      }
+      persist();
+
+      // Encode the mark into the "Attendance" criterion's score.
+      const criterion = db.assessments.find(
+        (a) =>
+          a.sectionId === sectionId &&
+          a.period === period &&
+          a.name.trim().toLowerCase() === ATTENDANCE_CRITERION.toLowerCase(),
+      );
+      if (criterion) {
+        const score = status === null ? null : attendanceScore(status, criterion.maxScore);
+        await api.setGrade(sectionId, criterion.id, studentRowId, score);
+      }
+      return db.attendance.filter((r) => r.sectionId === sectionId).map((r) => ({ ...r }));
     },
 
     async signOut() {

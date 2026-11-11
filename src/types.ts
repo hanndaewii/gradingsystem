@@ -43,6 +43,18 @@ export interface Grade { id: string; sectionId: string; assessmentId: string; st
 
 export interface PeriodState { status: PeriodStatus; submittedAt: string | null }
 
+/** 'p' present, 'a' absent, 'l' late. */
+export type AttendanceStatus = "p" | "a" | "l";
+
+/** One student's attendance for one period. */
+export interface AttendanceRow {
+  sectionId: string;
+  studentRowId: string;
+  period: PeriodId;
+  status: AttendanceStatus;
+  updatedAt: string;
+}
+
 export interface PeriodProgress {
   period: PeriodId; status: PeriodStatus; submittedAt: string | null;
   gradedCells: number; totalCells: number; complete: boolean;
@@ -101,6 +113,15 @@ export interface Api {
   /** Sets a password for the signed-in user (right after registration, so the
    *  professor signs in with email + password from then on). */
   setPassword(password: string): Promise<void>;
+  /** Attendance: list the marks for a section, and set/clear one mark. Setting a
+   *  mark also encodes it into the "Attendance" criterion's score. */
+  listAttendance(sectionId: string): Promise<AttendanceRow[]>;
+  setAttendance(
+    sectionId: string,
+    period: PeriodId,
+    studentRowId: string,
+    status: AttendanceStatus | null,
+  ): Promise<AttendanceRow[]>;
   updateProfile(id: string, patch: Partial<Pick<Profile, "name" | "department" | "bio">>): Promise<Profile>;
 
   // reads

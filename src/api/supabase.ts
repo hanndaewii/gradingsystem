@@ -22,11 +22,12 @@ import { requireSupabase } from "./client";
 import { ApiError, PERIODS } from "../types";
 import { verifyCredential } from "./adminApi";
 import type {
-  Api, Assessment, Comment, Course, Grade, HistoryEntry, PeriodId,
+  Api, Assessment, AttendanceRow, AttendanceStatus, Comment, Course, Grade, HistoryEntry, PeriodId,
   PeriodProgress, PeriodState, Profile, ScaleRow, Section, SectionOverview,
   Student, Term,
 } from "../types";
 import { buildPeriodProgress, classAveragePct, isPeriodEditable } from "../lib/grades";
+import { ATTENDANCE_CRITERION, attendanceScore } from "../lib/attendance";
 import { clampScore, DEFAULT_SCALE_TABLE } from "../lib/format";
 
 // ── env (browser-safe publishable key; see .env / .env.example) ─────────────
@@ -64,6 +65,9 @@ interface HistoryRow {
   at: string; actor_id: string | null; detail?: string | null;
 }
 interface CommentRow { id: string; section_id: string; period: string | null; author_id: string; body: string; at: string; author?: { name?: string | null } | null }
+interface AttendanceDbRow {
+  section_id: string; student_id: string; period: string; status: string; updated_at: string;
+}
 
 // ── pure helpers (module scope) ──────────────────────────────────────────────
 
@@ -384,6 +388,25 @@ export function createSupabaseApi(): Api {
     return PERIODS.map((period) => buildPeriodProgress({ period, students, assessments, grades, state: states[period] }));
   };
 
+  // ── attendance ────────────────────────────────────────────────────────────
+  const attendanceRowsFor = async (sectionId: string): Promise<AttendanceRow[]> => {
+    const rows = await list<AttendanceDbRow>(
+      tbl("attendance")
+        .select("section_id, student_id, period, status, updated_at")
+        .eq("section_id", sectionId),
+      "Could not load attendance.",
+    );
+    return rows
+      .map((r) => ({
+        sectionId: r.section_id,
+        studentRowId: r.student_id,
+        period: asPeriod(r.period),
+        status: r.status as AttendanceStatus,
+        updatedAt: normTs(r.updated_at),
+      }))
+      .filter((r): r is AttendanceRow => r.period !== null);
+  };
+
   const api: Api = {
     // ── auth / session ───────────────────────────────────────────────────────
     async signIn(email, password) {
@@ -449,6 +472,100 @@ export function createSupabaseApi(): Api {
       }
       const { error } = await supabase.auth.updateUser({ password });
       if (error) throw new ApiError(error.message || "Could not set your password.", { field: "password" });
+    },
+
+    async listAttendance(sectionId) {
+      const user = await actor();
+      await ownedSection(sectionId, user);
+      return attendanceRowsFor(sectionId);
+    },
+
+    async setAttendance(sectionId, period, studentRowId, status) {
+      const user = await actor();
+      const section = await ownedSection(sectionId, user);
+      const periodRows = await fetchPeriodRows(sectionId);
+      assertEditable(section, period, periodRows);
+      const at = new Date().toISOString();
+
+      if (status === null) {
+        await exec(
+          tbl("attendance")
+            .delete()
+            .eq("section_id", sectionId)
+            .eq("student_id", studentRowId)
+            .eq("period", period),
+          "Could not clear the attendance mark.",
+        );
+      } else {
+        await exec(
+          tbl("attendance").upsert(
+            {
+              section_id: sectionId,
+              student_id: studentRowId,
+              period,
+              status,
+              updated_at: at,
+            },
+            { onConflict: "section_id,student_id,period" },
+          ),
+          "Could not save the attendance mark.",
+        );
+      }
+
+      // Encode the mark into the "Attendance" criterion's score.
+      const periodRow = periodRows.find((r) => r.period === period);
+      if (periodRow) {
+        const assessmentRows = await list<AssessmentRow>(
+          tbl("assessments").select("*").eq("section_id", sectionId).eq("period_id", periodRow.id),
+          "Could not load the assessments.",
+        );
+        const criterion = assessmentRows.find(
+          (a) => a.name.trim().toLowerCase() === ATTENDANCE_CRITERION.toLowerCase(),
+        );
+        if (criterion) {
+          const score = status === null ? null : attendanceScore(status, Number(criterion.max_score));
+          const existing = await single<GradeRow>(
+            tbl("grades")
+              .select("*")
+              .eq("assessment_id", criterion.id)
+              .eq("student_id", studentRowId)
+              .maybeSingle(),
+            "Could not load the attendance score.",
+          );
+          const oldScore = existing && existing.score != null ? Number(existing.score) : null;
+          if (existing) {
+            if (oldScore !== score) {
+              await exec(
+                tbl("grades").update({ score, updated_at: at }).eq("id", existing.id),
+                "Could not save the attendance score.",
+              );
+              await pushHistory({
+                sectionId, kind: "grade", period, assessmentId: criterion.id, studentRowId,
+                oldScore, newScore: score, at, actorId: user.id,
+                detail: status === null ? "Attendance cleared" : `Attendance: ${status}`,
+              });
+            }
+          } else if (score != null) {
+            await exec(
+              tbl("grades").insert({
+                section_id: sectionId,
+                assessment_id: criterion.id,
+                student_id: studentRowId,
+                score,
+                updated_at: at,
+              }),
+              "Could not save the attendance score.",
+            );
+            await pushHistory({
+              sectionId, kind: "grade", period, assessmentId: criterion.id, studentRowId,
+              oldScore: null, newScore: score, at, actorId: user.id,
+              detail: `Attendance: ${status}`,
+            });
+          }
+        }
+      }
+
+      return attendanceRowsFor(sectionId);
     },
 
     async signOut() {

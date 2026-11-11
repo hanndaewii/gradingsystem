@@ -11,7 +11,9 @@ import {
 } from "../../components/ui";
 import { api } from "../../api";
 import { PERIODS, PERIOD_LABELS } from "../../types";
-import type { Assessment, HistoryEntry, PeriodId, Section, Student } from "../../types";
+import type {
+  Assessment, AttendanceStatus, HistoryEntry, PeriodId, Section, Student,
+} from "../../types";
 import { useAuth } from "../../context/AuthContext";
 import { useAsync } from "../../lib/useAsync";
 import { termLabel } from "../../lib/format";
@@ -22,6 +24,7 @@ import { LockNotice, periodLockReason } from "../../components/section/LockNotic
 import { SubmitBar } from "../../components/section/SubmitBar";
 import { SideNav } from "../../components/section/SideNav";
 import { RosterTable } from "../../components/section/RosterTable";
+import { AttendancePanel } from "../../components/section/AttendancePanel";
 import type { FlashTarget } from "../../components/section/RosterTable";
 import { AssessmentsPanel } from "../../components/section/AssessmentsPanel";
 import type { AssessmentDef } from "../../components/section/AssessmentsPanel";
@@ -36,7 +39,9 @@ import { uid } from "../../lib/id";
 import "../../styles/section.css";
 
 function parseView(raw: string | null): SectionView {
-  return raw === "summary" || raw === "history" || raw === "discussion" ? raw : "gradebook";
+  return raw === "attendance" || raw === "summary" || raw === "history" || raw === "discussion"
+    ? raw
+    : "gradebook";
 }
 
 function parsePeriod(raw: string | null): PeriodId | null {
@@ -68,6 +73,11 @@ export default function SectionPage(): JSX.Element {
   } = data;
 
   const view = parseView(searchParams.get("view"));
+  // Attendance is only read when the view is open.
+  const attendanceQ = useAsync(
+    async () => (view === "attendance" ? api.listAttendance(sectionId) : []),
+    [sectionId, view],
+  );
   const period = parsePeriod(searchParams.get("period")) ?? defaultPeriod(progress);
   const states = useMemo(() => statesFromProgress(progress), [progress]);
   const periodAssessments = assessmentsByPeriod[period] ?? [];
@@ -309,6 +319,51 @@ export default function SectionPage(): JSX.Element {
       reload();
     },
     [sectionId, applyCommentLocal, toast, reload],
+  );
+
+  // ── attendance ────────────────────────────────────────────────────────────
+  const handleSetAttendance = useCallback(
+    async (period: PeriodId, studentRowId: string, status: AttendanceStatus | null) => {
+      try {
+        await api.setAttendance(sectionId, period, studentRowId, status);
+        toast.push({
+          tone: "success",
+          title:
+            status === null
+              ? "Attendance cleared"
+              : `Attendance saved (${status.toUpperCase()})`,
+        });
+        attendanceQ.reload();
+      } catch (err: unknown) {
+        toast.push({
+          tone: "danger",
+          title: "Could not save the attendance mark",
+          description: errMessage(err),
+        });
+        throw err;
+      }
+    },
+    [sectionId, toast, attendanceQ],
+  );
+
+  const handleSetAttendanceMany = useCallback(
+    async (period: PeriodId, entries: { studentRowId: string; status: AttendanceStatus }[]) => {
+      try {
+        await Promise.all(
+          entries.map((e) => api.setAttendance(sectionId, period, e.studentRowId, e.status)),
+        );
+        toast.push({ tone: "success", title: `${entries.length} students marked present` });
+        attendanceQ.reload();
+      } catch (err: unknown) {
+        toast.push({
+          tone: "danger",
+          title: "Could not mark everyone present",
+          description: errMessage(err),
+        });
+        throw err;
+      }
+    },
+    [sectionId, toast, attendanceQ],
   );
 
   // ── roster/CSV modals ──────────────────────────────────────────────────────
@@ -605,6 +660,16 @@ export default function SectionPage(): JSX.Element {
                 />
               ) : null}
             </>
+          ) : null}
+
+          {view === "attendance" ? (
+            <AttendancePanel
+              students={students}
+              rows={attendanceQ.data ?? []}
+              readOnly={readOnly}
+              onSet={handleSetAttendance}
+              onSetMany={handleSetAttendanceMany}
+            />
           ) : null}
 
           {view === "summary" ? (
