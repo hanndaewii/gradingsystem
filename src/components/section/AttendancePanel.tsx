@@ -274,16 +274,28 @@ export function AttendancePanel({
     let p = 0;
     let a = 0;
     let l = 0;
+    let marked = 0;
     for (const day of visibleDays) {
       for (const student of students) {
         const status = markOf(student.id, day);
+        if (!status) continue; // a blank day is simply not counted
+        marked += 1;
         if (status === "p") p += 1;
         else if (status === "a") a += 1;
         else if (status === "l") l += 1;
       }
     }
-    return { p, a, l };
+    return { p, a, l, marked };
   }, [visibleDays, students, marks, rowMap]);
+
+  /** How many students still have no mark on a day (0 = the day is done). */
+  const unmarkedOn = (day: string): number => {
+    let n = 0;
+    for (const student of students) {
+      if (!markOf(student.id, day)) n += 1;
+    }
+    return n;
+  };
 
   const rateFor = (student: Student): number | null => {
     let sum = 0;
@@ -483,7 +495,11 @@ export function AttendancePanel({
                       <button
                         type="button"
                         className="sec-att__daybtn"
-                        title={ev ? `${ev.label || ev.kind} — click to mark the whole day present` : "Mark the whole day present"}
+                        title={
+                          ev
+                            ? `${ev.label || ev.kind} — ${unmarkedOn(day)} of ${students.length} not marked yet`
+                            : `${unmarkedOn(day)} of ${students.length} not marked yet — click to mark the whole day present`
+                        }
                         onClick={() => {
                           setFocusDay(day);
                           void markDayPresent(day);
@@ -495,7 +511,11 @@ export function AttendancePanel({
                     </th>
                   );
                 })}
-                <th scope="col" className="sec-att__rate mono-label">
+                <th
+                  scope="col"
+                  className="sec-att__rate mono-label"
+                  title="The average over the days you marked — blank days are not counted as absences."
+                >
                   Rate
                 </th>
               </tr>
@@ -551,11 +571,17 @@ export function AttendancePanel({
       )}
 
       {students.length > 0 ? (
-        <p className="sec-att__totals mono-label">
-          {monthLabel(month.year, month.month)} · {TERM_LABELS[period]} — {totals.p} present ·{" "}
-          {totals.a} absent · {totals.l} late
-          {bulkBusy ? " · saving…" : ""}
-        </p>
+        <>
+          <p className="sec-att__totals mono-label">
+            {monthLabel(month.year, month.month)} · {TERM_LABELS[period]} — {totals.marked} marked
+            days · {totals.p} present · {totals.a} absent · {totals.l} late
+            {bulkBusy ? " · saving…" : ""}
+          </p>
+          <p className="sec-att__note mono-label">
+            The Attendance criterion averages every day marked in {TERM_LABELS[period]} — blank
+            days are not counted, so a day with no class never counts as an absence.
+          </p>
+        </>
       ) : null}
     </div>
   );

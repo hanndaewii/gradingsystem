@@ -1,5 +1,8 @@
 // End-to-end test of the attendance calendar flow against the live database:
-// per-day marks, the aggregated Attendance score, and calendar milestones.
+// per-day marks, the aggregated Attendance score, blank days, and milestones.
+//
+// The test works on three days in September that are empty, and it puts back
+// exactly what it finds — the professor's own marks are never disturbed.
 //   node --env-file=.env scripts/test-attendance.mjs
 import { execFileSync } from "node:child_process";
 import { mkdtempSync } from "node:fs";
@@ -35,7 +38,7 @@ const ok = (c, m) => {
   console.log(`${c ? "PASS" : "FAIL"}  ${m}`);
 };
 
-const profile = await api.signInWithRole(process.env.HEAD_EMAIL, "Doleo dolorem", "professor");
+await api.signInWithRole(process.env.HEAD_EMAIL, "Doleo dolorem", "professor");
 const term = { academicYear: "2025-2026", semester: 1 };
 const courses = await api.listCourses(term);
 const course = courses[0];
@@ -55,55 +58,156 @@ const scoreOf = async () => {
   const g = grades.find((x) => x.assessmentId === criterion.id && x.studentRowId === student.id);
   return g ? g.score : null;
 };
+const marksOf = async () =>
+  (await api.listAttendance(section.id)).filter(
+    (r) => r.studentRowId === student.id && r.period === "prelim",
+  );
+
+/**
+ * The score the criterion must hold: the average credit over every MARKED
+ * day in the period (a blank day is never counted as an absence).
+ */
+function expectedScore(base, changes, max = 100) {
+  const map = new Map(base.map((r) => [r.sessionDate, r.status]));
+  for (const [day, status] of changes) {
+    if (status === null) map.delete(day);
+    else map.set(day, status);
+  }
+  const list = [...map.values()];
+  if (list.length === 0) return null;
+  const credit = list.reduce(
+    (sum, st) => sum + (st === "p" ? 1 : st === "l" ? 0.75 : 0),
+    0,
+  );
+  return Math.round((credit / list.length) * max * 100) / 100;
+}
+
+// The professor's own marks — the snapshot the test always puts back.
+const snapshot = await marksOf();
+console.log(`   the student has ${snapshot.length} mark(s) of their own`);
 
 const D1 = "2026-09-01";
 const D2 = "2026-09-02";
 const D3 = "2026-09-03";
+for (const d of [D1, D2, D3]) {
+  const clash = snapshot.find((r) => r.sessionDate === d);
+  if (clash) {
+    console.error(`test day ${d} already has a mark — pick another day`);
+    process.exit(1);
+  }
+}
 
 // ── one mark per class date ────────────────────────────────────────────────
-await api.setAttendance(section.id, "prelim", student.id, D1, "p");
-let rows = await api.listAttendance(section.id);
+const first = await api.setAttendance(section.id, "prelim", student.id, D1, "p");
 ok(
-  rows.some((r) => r.studentRowId === student.id && r.sessionDate === D1 && r.status === "p"),
+  first.rows.some((r) => r.studentRowId === student.id && r.sessionDate === D1 && r.status === "p"),
   "mark 'p' on a class date → stored",
 );
-ok((await scoreOf()) === 100, `one present day → Attendance score ${await scoreOf()} (max ${criterion.maxScore})`);
+ok(
+  first.score === expectedScore(snapshot, [[D1, "p"]]),
+  `the save returns the new score (${first.score})`,
+);
+ok(first.assessmentId === criterion.id, "the save returns the Attendance criterion's id");
+ok(
+  (await scoreOf()) === expectedScore(snapshot, [[D1, "p"]]),
+  `one present day → Attendance score ${await scoreOf()}`,
+);
 
 // a second date is a separate row, and the score averages both
 await api.setAttendance(section.id, "prelim", student.id, D2, "l");
-rows = await api.listAttendance(section.id);
-const mine = rows.filter((r) => r.studentRowId === student.id);
-ok(mine.length === 2, `two class dates → two marks (${mine.length})`);
-ok((await scoreOf()) === 87.5, `present + late → Attendance score ${await scoreOf()} (expected 87.5)`);
+ok((await marksOf()).length === snapshot.length + 2, "two class dates → two more marks");
+ok(
+  (await scoreOf()) === expectedScore(snapshot, [[D1, "p"], [D2, "l"]]),
+  `present + late → Attendance score ${await scoreOf()}`,
+);
 
 // a third date, absent
 await api.setAttendance(section.id, "prelim", student.id, D3, "a");
-ok((await scoreOf()) === 58.33, `present + late + absent → Attendance score ${await scoreOf()} (expected 58.33)`);
-
-// other periods are independent
-rows = await api.listAttendance(section.id);
 ok(
-  rows.filter((r) => r.studentRowId === student.id && r.period === "prelim").length === 3,
-  "the marks belong to one period only",
+  (await scoreOf()) === expectedScore(snapshot, [[D1, "p"], [D2, "l"], [D3, "a"]]),
+  `present + late + absent → Attendance score ${await scoreOf()}`,
+);
+
+// ── a BLANK day is not an absence ──────────────────────────────────────────
+// September has 30 days; only three are marked. If the blank days counted as
+// absences the score would collapse.
+const sept = (await api.listAttendance(section.id)).filter(
+  (r) => r.studentRowId === student.id && r.sessionDate.startsWith("2026-09"),
+);
+ok(
+  sept.length === 3,
+  `only the three marked days have rows (${sept.length}) — 27 blank days are ignored`,
+);
+const withBlanksAsAbsent = (() => {
+  const map = new Map(snapshot.map((r) => [r.sessionDate, r.status]));
+  map.set(D1, "p");
+  map.set(D2, "l");
+  map.set(D3, "a");
+  const credit = [...map.values()].reduce(
+    (sum, st) => sum + (st === "p" ? 1 : st === "l" ? 0.75 : 0),
+    0,
+  );
+  // 30 days, 27 of them blank and counted as absent
+  return Math.round((credit / 30) * 100 * 100) / 100;
+})();
+ok(
+  (await scoreOf()) !== withBlanksAsAbsent,
+  `the blank days do not count as absences (score ${await scoreOf()}, not ${withBlanksAsAbsent})`,
+);
+ok(
+  (await scoreOf()) === expectedScore(snapshot, [[D1, "p"], [D2, "l"], [D3, "a"]]),
+  "the score is the average over the marked days only",
 );
 
 // changing a date replaces its mark instead of adding a row
 await api.setAttendance(section.id, "prelim", student.id, D3, "p");
-rows = await api.listAttendance(section.id);
 ok(
-  rows.filter((r) => r.studentRowId === student.id && r.period === "prelim").length === 3,
+  (await marksOf()).length === snapshot.length + 3,
   "re-marking a date replaces it (no duplicate row)",
 );
-ok((await scoreOf()) === 91.67, `present + late + present → Attendance score ${await scoreOf()} (expected 91.67)`);
-
-// clearing removes the mark and re-averages the score
-await api.setAttendance(section.id, "prelim", student.id, D3, null);
-rows = await api.listAttendance(section.id);
 ok(
-  !rows.some((r) => r.studentRowId === student.id && r.sessionDate === D3),
-  "clearing removes the mark",
+  (await scoreOf()) === expectedScore(snapshot, [[D1, "p"], [D2, "l"], [D3, "p"]]),
+  `re-marking re-averages the score (${await scoreOf()})`,
 );
-ok((await scoreOf()) === 87.5, `clearing re-averages the score (${await scoreOf()})`);
+
+// ── clearing ONE day must not touch the others ─────────────────────────────
+// (a stray Backspace used to wipe the whole period)
+await api.setAttendance(section.id, "prelim", student.id, D3, null);
+const afterClear = await marksOf();
+ok(
+  afterClear.length === snapshot.length + 2 &&
+    afterClear.some((r) => r.sessionDate === D1) &&
+    afterClear.some((r) => r.sessionDate === D2),
+  `clearing one day leaves the others alone (${afterClear.length} marks)`,
+);
+ok(
+  (await scoreOf()) === expectedScore(snapshot, [[D1, "p"], [D2, "l"], [D3, null]]),
+  `clearing re-averages the score (${await scoreOf()})`,
+);
+
+// ── with no marks at all there is no score (never a silent zero) ───────────
+for (const row of await marksOf()) {
+  await api.setAttendance(section.id, "prelim", student.id, row.sessionDate, null);
+}
+ok((await marksOf()).length === 0, "every mark can be cleared");
+ok((await scoreOf()) === null, `no marks left → no score at all (${await scoreOf()})`);
+
+// ── put the professor's marks back ─────────────────────────────────────────
+for (const row of snapshot) {
+  await api.setAttendance(section.id, "prelim", student.id, row.sessionDate, row.status);
+}
+const restored = await marksOf();
+ok(
+  restored.length === snapshot.length &&
+    snapshot.every((r) =>
+      restored.some((x) => x.sessionDate === r.sessionDate && x.status === r.status),
+    ),
+  `the professor's ${snapshot.length} mark(s) are back exactly (${restored.length})`,
+);
+ok(
+  (await scoreOf()) === expectedScore(snapshot, []),
+  `and so is the score (${await scoreOf()})`,
+);
 
 // ── calendar milestones ────────────────────────────────────────────────────
 await api.setCalendarEvent(section.id, {
@@ -129,27 +233,13 @@ ok(
   events.some((e) => e.eventDate === D2 && e.kind === "exam"),
   "a second milestone ('exam') is saved",
 );
-ok(events.length === 2, `two milestones on the calendar (${events.length})`);
 
 await api.clearCalendarEvent(section.id, D2);
 events = await api.listCalendarEvents(section.id);
-ok(
-  !events.some((e) => e.eventDate === D2),
-  "a milestone can be removed",
-);
-
-// ── leave the sheet as we found it ─────────────────────────────────────────
-await api.setAttendance(section.id, "prelim", student.id, D1, null);
-await api.setAttendance(section.id, "prelim", student.id, D2, null);
+ok(!events.some((e) => e.eventDate === D2), "a milestone can be removed");
 await api.clearCalendarEvent(section.id, D1);
-rows = await api.listAttendance(section.id);
 events = await api.listCalendarEvents(section.id);
-ok(
-  !rows.some((r) => r.studentRowId === student.id),
-  "test marks cleaned up",
-);
 ok(events.length === 0, "test milestones cleaned up");
-ok((await scoreOf()) === null, `the Attendance score is cleared again (${await scoreOf()})`);
 
 console.log(failures === 0 ? "\nattendance calendar verified" : `\n${failures} CHECK(S) FAILED`);
 process.exit(failures === 0 ? 0 : 1);

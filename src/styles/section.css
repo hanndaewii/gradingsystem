@@ -1849,6 +1849,14 @@
   margin: 0;
 }
 
+.sec-att__note {
+  margin: 0;
+  font-weight: 400;
+  color: var(--ink-3);
+  font-size: var(--text-xs);
+  line-height: 1.5;
+}
+
 .sec-att__none {
   font-size: var(--text-sm);
   color: var(--ink-3);

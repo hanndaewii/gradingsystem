@@ -57,6 +57,16 @@ export interface AttendanceRow {
   updatedAt: string;
 }
 
+/** The result of saving one attendance mark. */
+export interface AttendanceSave {
+  /** Every attendance mark in the section (after the save). */
+  rows: AttendanceRow[];
+  /** The Attendance criterion's score for this student in this period. */
+  score: number | null;
+  /** The Attendance criterion that carries the score (null when there is none). */
+  assessmentId: string | null;
+}
+
 /** A milestone on the section calendar: classes started, exam, holiday, note. */
 export interface CalendarEvent {
   id: string;
@@ -135,7 +145,7 @@ export interface Api {
     studentRowId: string,
     sessionDate: string,
     status: AttendanceStatus | null,
-  ): Promise<AttendanceRow[]>;
+  ): Promise<AttendanceSave>;
   /** Calendar milestones: when classes started, when the exam is, other notes. */
   listCalendarEvents(sectionId: string): Promise<CalendarEvent[]>;
   setCalendarEvent(

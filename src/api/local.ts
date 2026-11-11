@@ -247,13 +247,15 @@ export function createLocalApi(): Api {
       persist();
 
       // Encode the period's attendance into the "Attendance" criterion's
-      // score: the average credit across every class date marked.
+      // score: the average credit across every class date MARKED — a blank
+      // day is never counted as an absence.
       const criterion = db.assessments.find(
         (a) =>
           a.sectionId === sectionId &&
           a.period === period &&
           a.name.trim().toLowerCase() === ATTENDANCE_CRITERION.toLowerCase(),
       );
+      let score: number | null = null;
       if (criterion) {
         const marked = db.attendance
           .filter(
@@ -263,10 +265,14 @@ export function createLocalApi(): Api {
               r.period === period,
           )
           .map((r) => r.status);
-        const score = attendanceTotalScore(marked, criterion.maxScore);
+        score = attendanceTotalScore(marked, criterion.maxScore);
         await api.setGrade(sectionId, criterion.id, studentRowId, score);
       }
-      return db.attendance.filter((r) => r.sectionId === sectionId).map((r) => ({ ...r }));
+      return {
+        rows: db.attendance.filter((r) => r.sectionId === sectionId).map((r) => ({ ...r })),
+        score,
+        assessmentId: criterion ? criterion.id : null,
+      };
     },
 
     async listCalendarEvents(sectionId) {

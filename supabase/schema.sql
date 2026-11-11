@@ -440,6 +440,176 @@ create trigger trg_assessments_period_lock
   for each row execute function public.faculty_assert_period_not_submitted('assessments');
 
 -- ═══════════════════════════════════════════════════════════════════════════════
+-- --------------------------------------------------------------------------------
+-- faculty.set_attendance
+--
+-- One round trip per mark: store it, re-average the Attendance criterion from
+-- every MARKED day in the period (a blank day is never counted as absent) and
+-- record the change in the history. The function is security-definer, so it
+-- checks ownership itself.
+create or replace function public.faculty_set_attendance(
+  p_section_id   uuid,
+  p_student_id   uuid,
+  p_period       text,
+  p_session_date date,
+  p_status       text
+) returns jsonb
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_section      public.faculty_sections%rowtype;
+  v_criterion    public.faculty_assessments%rowtype;
+  v_period_state text;
+  v_first_open   text;
+  v_count        int := 0;
+  v_credit       numeric := 0;
+  v_score        numeric;
+  v_old          numeric;
+  v_has_criterion boolean := false;
+begin
+  if p_period not in ('prelim', 'midterm', 'semifinals', 'finals') then
+    raise exception 'Period not found.';
+  end if;
+  if p_status is not null and p_status not in ('p', 'a', 'l') then
+    raise exception 'Unknown attendance status.';
+  end if;
+
+  select * into v_section from public.faculty_sections where id = p_section_id;
+  if not found then raise exception 'Section not found.'; end if;
+
+  -- only the section's professor may mark attendance
+  if not exists (
+    select 1 from public.faculty_courses c
+     where c.id = v_section.course_id and c.professor_id = auth.uid()
+  ) then
+    raise exception 'Only the section''s professor can do that.';
+  end if;
+
+  -- the period must exist and still be open
+  select p.status into v_period_state from public.faculty_periods p
+   where p.section_id = p_section_id and p.period = p_period;
+  if v_period_state is null then raise exception 'Period not found.'; end if;
+  if v_period_state = 'submitted' then
+    raise exception 'This period is submitted - reopen it before making changes.';
+  end if;
+
+  -- the in-order rule: only the first period that is not submitted yet
+  if coalesce(v_section.enforce_order, true)
+     and not (p_period = any (coalesce(v_section.unlocked_periods, '{}'::text[]))) then
+    select p.period into v_first_open
+      from public.faculty_periods p
+     where p.section_id = p_section_id and p.status <> 'submitted'
+     order by case p.period
+                when 'prelim' then 1 when 'midterm' then 2
+                when 'semifinals' then 3 else 4 end
+     limit 1;
+    if v_first_open is distinct from p_period then
+      raise exception '% is locked - submit earlier periods first or unlock it manually.',
+        initcap(p_period);
+    end if;
+  end if;
+
+  -- the student must belong to the section
+  if not exists (
+    select 1 from public.faculty_students s
+     where s.id = p_student_id and s.section_id = p_section_id
+  ) then
+    raise exception 'Student not found.';
+  end if;
+
+  -- 1 - store the mark (one row per student per class date)
+  if p_status is null then
+    delete from public.faculty_attendance
+     where section_id = p_section_id
+       and student_id = p_student_id
+       and session_date = p_session_date;
+  else
+    insert into public.faculty_attendance
+      (section_id, student_id, period, session_date, status, updated_at)
+    values (p_section_id, p_student_id, p_period, p_session_date, p_status, now())
+    on conflict (section_id, student_id, session_date)
+    do update set period = excluded.period,
+                  status = excluded.status,
+                  updated_at = now();
+  end if;
+
+  -- 2 - the Attendance criterion of that period
+  select a.* into v_criterion
+    from public.faculty_assessments a
+    join public.faculty_periods p on p.id = a.period_id
+   where p.section_id = p_section_id
+     and p.period = p_period
+     and lower(btrim(a.name)) = 'attendance'
+   limit 1;
+  v_has_criterion := found;
+
+  -- 3 - the average credit over the MARKED days only: a blank day is simply
+  --     not counted, never treated as an absence.
+  select count(*),
+         coalesce(sum(case when status = 'p' then 1
+                          when status = 'l' then 0.75
+                          else 0 end), 0)
+    into v_count, v_credit
+    from public.faculty_attendance
+   where section_id = p_section_id
+     and student_id = p_student_id
+     and period = p_period;
+
+  if v_has_criterion then
+    if v_count = 0 then
+      v_score := null;                     -- nothing marked -> no score at all
+    else
+      v_score := round((v_credit / v_count) * v_criterion.max_score, 2);
+    end if;
+
+    -- 4 - write the score (and record it in the history)
+    select g.score into v_old
+      from public.faculty_grades g
+     where g.assessment_id = v_criterion.id
+       and g.student_id = p_student_id;
+
+    if v_old is distinct from v_score then
+      if v_score is null then
+        delete from public.faculty_grades
+         where assessment_id = v_criterion.id and student_id = p_student_id;
+      else
+        insert into public.faculty_grades
+          (section_id, assessment_id, student_id, score, updated_at)
+        values (p_section_id, v_criterion.id, p_student_id, v_score, now())
+        on conflict (assessment_id, student_id)
+        do update set score = excluded.score, updated_at = now();
+      end if;
+
+      insert into public.faculty_grade_history
+        (section_id, kind, period, assessment_id, student_id, old_score, new_score, at, actor_id, detail)
+      values
+        (p_section_id, 'grade', p_period, v_criterion.id, p_student_id, v_old, v_score,
+         now(), auth.uid(),
+         case when p_status is null then 'Attendance cleared'
+              else 'Attendance: ' || p_status end);
+    end if;
+  end if;
+
+  return jsonb_build_object(
+    'score', case when v_has_criterion then v_score else null end,
+    'assessment_id', case when v_has_criterion then v_criterion.id else null end,
+    'rows', (
+      select coalesce(jsonb_agg(jsonb_build_object(
+        'sectionId', a.section_id, 'studentRowId', a.student_id, 'period', a.period,
+        'sessionDate', a.session_date, 'status', a.status, 'updatedAt', a.updated_at
+        ) order by a.session_date), '[]'::jsonb)
+        from public.faculty_attendance a
+       where a.section_id = p_section_id
+    )
+  );
+end;
+$$;
+
+revoke execute on function public.faculty_set_attendance(uuid, uuid, text, date, text) from public;
+grant execute on function public.faculty_set_attendance(uuid, uuid, text, date, text) to authenticated;
+
 -- Grants
 -- --------------------------------------------------------------------------------
 -- The app talks to PostgREST as `authenticated`. Our tables live in `public`

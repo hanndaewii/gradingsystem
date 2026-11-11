@@ -28,7 +28,6 @@ import type {
   Student, Term,
 } from "../types";
 import { buildPeriodProgress, classAveragePct, isPeriodEditable } from "../lib/grades";
-import { ATTENDANCE_CRITERION, attendanceTotalScore } from "../lib/attendance";
 import { clampScore, DEFAULT_SCALE_TABLE } from "../lib/format";
 
 // ── env (browser-safe publishable key; see .env / .env.example) ─────────────
@@ -413,6 +412,12 @@ export function createSupabaseApi(): Api {
       .filter((r): r is AttendanceRow => r.period !== null);
   };
 
+  /** Postgres reports a raised exception as a message; keep it readable. */
+  const attendanceErrorMessage = (raw: string): string => {
+    const text = raw.replace(/\s+/g, " ").trim();
+    return text.length > 0 ? text : "Could not save the attendance mark.";
+  };
+
   const calendarEventsFor = async (sectionId: string): Promise<CalendarEvent[]> => {
     const rows = await list<CalendarEventRow>(
       tbl("calendar_events")
@@ -507,104 +512,31 @@ export function createSupabaseApi(): Api {
     },
 
     async setAttendance(sectionId, period, studentRowId, sessionDate, status) {
-      const user = await actor();
-      const section = await ownedSection(sectionId, user);
-      const periodRows = await fetchPeriodRows(sectionId);
-      assertEditable(section, period, periodRows);
-      const at = new Date().toISOString();
-
-      if (status === null) {
-        await exec(
-          tbl("attendance")
-            .delete()
-            .eq("section_id", sectionId)
-            .eq("student_id", studentRowId)
-            .eq("session_date", sessionDate),
-          "Could not clear the attendance mark.",
-        );
-      } else {
-        await exec(
-          tbl("attendance").upsert(
-            {
-              section_id: sectionId,
-              student_id: studentRowId,
-              period,
-              session_date: sessionDate,
-              status,
-              updated_at: at,
-            },
-            { onConflict: "section_id,student_id,session_date" },
-          ),
-          "Could not save the attendance mark.",
-        );
-      }
-
-      // Encode the period's attendance into the "Attendance" criterion's
-      // score: the average credit across every class date marked.
-      const periodRow = periodRows.find((r) => r.period === period);
-      if (periodRow) {
-        const assessmentRows = await list<AssessmentRow>(
-          tbl("assessments").select("*").eq("section_id", sectionId).eq("period_id", periodRow.id),
-          "Could not load the assessments.",
-        );
-        const criterion = assessmentRows.find(
-          (a) => a.name.trim().toLowerCase() === ATTENDANCE_CRITERION.toLowerCase(),
-        );
-        if (criterion) {
-          const marked = await list<AttendanceDbRow>(
-            tbl("attendance")
-              .select("status")
-              .eq("section_id", sectionId)
-              .eq("student_id", studentRowId)
-              .eq("period", period),
-            "Could not load the attendance marks.",
-          );
-          const score = attendanceTotalScore(
-            marked.map((m) => m.status as AttendanceStatus),
-            Number(criterion.max_score),
-          );
-          const existing = await single<GradeRow>(
-            tbl("grades")
-              .select("*")
-              .eq("assessment_id", criterion.id)
-              .eq("student_id", studentRowId)
-              .maybeSingle(),
-            "Could not load the attendance score.",
-          );
-          const oldScore = existing && existing.score != null ? Number(existing.score) : null;
-          if (existing) {
-            if (oldScore !== score) {
-              await exec(
-                tbl("grades").update({ score, updated_at: at }).eq("id", existing.id),
-                "Could not save the attendance score.",
-              );
-              await pushHistory({
-                sectionId, kind: "grade", period, assessmentId: criterion.id, studentRowId,
-                oldScore, newScore: score, at, actorId: user.id,
-                detail: status === null ? "Attendance cleared" : `Attendance: ${status}`,
-              });
-            }
-          } else if (score != null) {
-            await exec(
-              tbl("grades").insert({
-                section_id: sectionId,
-                assessment_id: criterion.id,
-                student_id: studentRowId,
-                score,
-                updated_at: at,
-              }),
-              "Could not save the attendance score.",
-            );
-            await pushHistory({
-              sectionId, kind: "grade", period, assessmentId: criterion.id, studentRowId,
-              oldScore: null, newScore: score, at, actorId: user.id,
-              detail: `Attendance: ${status}`,
-            });
-          }
-        }
-      }
-
-      return attendanceRowsFor(sectionId);
+      // One round trip: the database stores the mark, re-averages the
+      // Attendance criterion over the MARKED days (a blank day never counts
+      // as absent), writes the score and records the history.
+      const { data, error } = await supabase.rpc("faculty_set_attendance", {
+        p_section_id: sectionId,
+        p_student_id: studentRowId,
+        p_period: period,
+        p_session_date: sessionDate,
+        p_status: status,
+      });
+      if (error) throw new ApiError(attendanceErrorMessage(error.message));
+      const payload = (data ?? {}) as {
+        score: number | null;
+        assessment_id: string | null;
+        rows: AttendanceRow[];
+      };
+      return {
+        rows: (payload.rows ?? []).map((r) => ({
+          ...r,
+          period: asPeriod(r.period) ?? r.period,
+          status: r.status as AttendanceStatus,
+        })),
+        score: payload.score == null ? null : Number(payload.score),
+        assessmentId: payload.assessment_id ?? null,
+      };
     },
 
     async listCalendarEvents(sectionId) {

@@ -12,7 +12,8 @@ import {
 import { api } from "../../api";
 import { PERIODS, PERIOD_LABELS } from "../../types";
 import type {
-  Assessment, AttendanceStatus, CalendarEvent, HistoryEntry, PeriodId, Section, Student,
+  Assessment, AttendanceSave, AttendanceStatus, CalendarEvent, HistoryEntry, PeriodId, Section,
+  Student,
 } from "../../types";
 import { useAuth } from "../../context/AuthContext";
 import { useAsync } from "../../lib/useAsync";
@@ -333,13 +334,42 @@ export default function SectionPage(): JSX.Element {
   const attendanceQueue = useRef<Promise<unknown>>(Promise.resolve());
 
   const enqueueAttendance = useCallback(
-    (task: () => Promise<unknown>): Promise<unknown> => {
+    <T,>(task: () => Promise<T>): Promise<T> => {
       const run = attendanceQueue.current.then(task, task);
       attendanceQueue.current = run.catch(() => undefined);
       return run;
     },
     [],
   );
+
+  // The server sends the new Attendance score back with the mark, so the
+  // gradebook cell and the checklist update at once — nothing to re-fetch.
+  const applyAttendanceScore = useCallback(
+    (save: AttendanceSave, studentRowId: string) => {
+      if (!save.assessmentId) return;
+      applyGradeLocal({
+        // An empty id means "no score" — applyGradeLocal drops the cell.
+        id: save.score == null ? "" : `att-${save.assessmentId}-${studentRowId}`,
+        sectionId,
+        assessmentId: save.assessmentId,
+        studentRowId,
+        score: save.score,
+        updatedAt: new Date().toISOString(),
+      });
+    },
+    [sectionId, applyGradeLocal],
+  );
+
+  // One quiet refresh after the marks settle (the history picked up the
+  // attendance entries) — not one per keystroke.
+  const reloadTimer = useRef<number | null>(null);
+  const scheduleReload = useCallback(() => {
+    if (reloadTimer.current !== null) window.clearTimeout(reloadTimer.current);
+    reloadTimer.current = window.setTimeout(() => {
+      reloadTimer.current = null;
+      reload();
+    }, 1500);
+  }, [reload]);
 
   // A single mark saves quietly — the sheet shows it at once. Only failures
   // raise a toast, so marking a whole class does not bury the screen.
@@ -351,11 +381,11 @@ export default function SectionPage(): JSX.Element {
       status: AttendanceStatus | null,
     ) => {
       try {
-        await enqueueAttendance(() =>
+        const save = await enqueueAttendance(() =>
           api.setAttendance(sectionId, period, studentRowId, sessionDate, status),
         );
-        attendanceQ.reload();
-        reload(); // the Attendance criterion score changed in the gradebook
+        applyAttendanceScore(save, studentRowId);
+        scheduleReload();
       } catch (err: unknown) {
         toast.push({
           tone: "danger",
@@ -365,7 +395,7 @@ export default function SectionPage(): JSX.Element {
         throw err;
       }
     },
-    [sectionId, toast, attendanceQ, reload, enqueueAttendance],
+    [sectionId, toast, applyAttendanceScore, scheduleReload, enqueueAttendance],
   );
 
   const handleSetAttendanceMany = useCallback(
@@ -375,13 +405,18 @@ export default function SectionPage(): JSX.Element {
       entries: { studentRowId: string; status: AttendanceStatus }[],
     ) => {
       try {
+        let last: AttendanceSave | null = null;
         await enqueueAttendance(async () => {
           for (const e of entries) {
-            await api.setAttendance(sectionId, period, e.studentRowId, sessionDate, e.status);
+            last = await api.setAttendance(
+              sectionId, period, e.studentRowId, sessionDate, e.status,
+            );
           }
         });
-        attendanceQ.reload();
-        reload();
+        for (const e of entries) {
+          if (last) applyAttendanceScore(last, e.studentRowId);
+        }
+        scheduleReload();
       } catch (err: unknown) {
         toast.push({
           tone: "danger",
@@ -391,7 +426,7 @@ export default function SectionPage(): JSX.Element {
         throw err;
       }
     },
-    [sectionId, toast, attendanceQ, reload, enqueueAttendance],
+    [sectionId, toast, applyAttendanceScore, scheduleReload, enqueueAttendance],
   );
 
   const handleSetEvent = useCallback(

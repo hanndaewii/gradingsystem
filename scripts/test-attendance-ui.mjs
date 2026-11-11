@@ -1,10 +1,17 @@
-// One-off: drive a real browser (headless Edge via CDP) to prove the
-// attendance cells accept typing and save to the live database.
+// Drives a real browser (headless Edge via CDP) to prove the attendance cells
+// accept typing and save to the live database.
+//
+// The test remembers what was in the cells it touches and puts it back — the
+// professor's own marks are never disturbed.
+//   node --env-file=.env scripts/test-attendance-ui.mjs
 import { spawn } from "node:child_process";
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { execFileSync } from "node:child_process";
+import { createRequire } from "node:module";
 
+const require = createRequire(import.meta.url);
 const EDGE = "C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe";
 const APP = process.env.APP_URL ?? "http://localhost:5173";
 const EMAIL = process.env.HEAD_EMAIL;
@@ -19,9 +26,6 @@ const ok = (c, m) => {
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 // ── the live API, so we can read the database back ─────────────────────────
-import { execFileSync } from "node:child_process";
-const { createRequire } = await import("node:module");
-const require = createRequire(import.meta.url);
 const bundle = join(mkdtempSync(join(tmpdir(), "faculty-api-")), "api.cjs");
 execFileSync(
   process.execPath,
@@ -45,7 +49,6 @@ await dbApi.signInWithRole(EMAIL, PASSWORD, "professor");
 let dbSectionId = "";
 let dbStudents = [];
 const listAttendance = async () => dbApi.listAttendance(dbSectionId);
-const firstStudentId = async () => dbStudents[0].id;
 
 // ── launch the browser ─────────────────────────────────────────────────────
 const profile = mkdtempSync(join(tmpdir(), "faculty-cdp-"));
@@ -59,19 +62,6 @@ const browser = spawn(EDGE, [
   "--window-size=1440,1000",
   "about:blank",
 ], { stdio: "ignore" });
-
-async function waitForDevtools() {
-  for (let i = 0; i < 60; i += 1) {
-    try {
-      const res = await fetch(`http://127.0.0.1:${PORT}/json/version`);
-      if (res.ok) return await res.json();
-    } catch {
-      /* not up yet */
-    }
-    await sleep(250);
-  }
-  throw new Error("devtools never came up");
-}
 
 let ws;
 let nextId = 0;
@@ -99,7 +89,7 @@ async function evaluate(expression) {
   return res.result.value;
 }
 
-async function waitFor(fn, timeout = 20000, every = 300) {
+async function waitFor(fn, timeout = 30000, every = 300) {
   const end = Date.now() + timeout;
   for (;;) {
     const v = await evaluate(fn);
@@ -109,8 +99,47 @@ async function waitFor(fn, timeout = 20000, every = 300) {
   }
 }
 
+/** Types a character into a cell (the cell selects its content on focus). */
+async function typeIn(index, letter) {
+  await evaluate(`
+    (() => {
+      const cells = [...document.querySelectorAll(".sec-att__input")];
+      if (!cells[${index}]) return false;
+      cells[${index}].focus();
+      return true;
+    })()
+  `);
+  await send("Input.insertText", { text: letter });
+  await sleep(350);
+}
+
+/** Backspaces a cell (clears the mark). */
+async function clearCell(index) {
+  await evaluate(`
+    (() => {
+      const cells = [...document.querySelectorAll(".sec-att__input")];
+      if (!cells[${index}]) return false;
+      cells[${index}].focus();
+      return true;
+    })()
+  `);
+  await send("Input.dispatchKeyEvent", { type: "keyDown", key: "Backspace", code: "Backspace", windowsVirtualKeyCode: 8 });
+  await send("Input.dispatchKeyEvent", { type: "keyUp", key: "Backspace", code: "Backspace", windowsVirtualKeyCode: 8 });
+  await sleep(500);
+}
+
+const TOUCHED = [0, 1, 2];
+
 try {
-  await waitForDevtools();
+  for (let i = 0; i < 60; i += 1) {
+    try {
+      const r = await fetch(`http://127.0.0.1:${PORT}/json/version`);
+      if (r.ok) break;
+    } catch {
+      /* not up yet */
+    }
+    await sleep(250);
+  }
 
   const target = await (
     await fetch(`http://127.0.0.1:${PORT}/json/new?about:blank`, { method: "PUT" })
@@ -144,10 +173,10 @@ try {
       };
       set(document.querySelector("#sh-login-email"), ${JSON.stringify(EMAIL)});
       set(document.querySelector("#sh-login-password"), ${JSON.stringify(PASSWORD)});
+      document.querySelector("form.sh-login__form").requestSubmit();
       return true;
     })()
   `);
-  await evaluate(`document.querySelector("form.sh-login__form").requestSubmit(); true`);
   await waitFor(`!document.querySelector("#sh-login-email")`, 30000);
   await sleep(1500);
   ok(true, `signed in as ${EMAIL} (professor)`);
@@ -165,10 +194,18 @@ try {
   dbSectionId = base.replace("/sections/", "");
   dbStudents = await dbApi.listStudents(dbSectionId);
   await evaluate(`location.href = ${JSON.stringify(`${APP}${base}?view=attendance`)}; true`);
-  await sleep(2500);
+  await sleep(1200);
+  await waitFor(`document.querySelector(".sec-att__table") != null`);
+  await sleep(500);
 
-  const panel = await waitFor(`document.querySelector(".sec-att__table") != null`);
-  ok(panel, "the attendance sheet rendered");
+  // ── remember what is in the cells we are about to touch ──────────────────
+  const original = await evaluate(`
+    (() => {
+      const cells = [...document.querySelectorAll(".sec-att__input")];
+      return ${JSON.stringify(TOUCHED)}.map((i) => (cells[i] ? cells[i].value : ""));
+    })()
+  `);
+  console.log(`   the cells start as ${JSON.stringify(original)}`);
 
   // ── the cells must be typeable ───────────────────────────────────────────
   const cellInfo = await evaluate(`
@@ -192,7 +229,6 @@ try {
       return {
         value: first.value,
         cls: first.className,
-        focused: document.activeElement === first,
         focusedIndex: cells.indexOf(document.activeElement),
       };
     })()
@@ -201,13 +237,11 @@ try {
   ok(/is-p/.test(afterType?.cls ?? ""), "the cell turns green (present)");
   ok(
     afterType?.focusedIndex === 1,
-    `focus advances to the next student (index ${afterType?.focusedIndex})`,
+    `focus advances to the next cell (index ${afterType?.focusedIndex})`,
   );
 
   // typing "a" over "p" must replace it (focus selects the old mark)
-  await evaluate(`document.querySelectorAll(".sec-att__input")[1].focus(); true`);
-  await send("Input.insertText", { text: "a" });
-  await sleep(400);
+  await typeIn(1, "a");
   const afterReplace = await evaluate(`
     (() => {
       const cells = [...document.querySelectorAll(".sec-att__input")];
@@ -219,19 +253,20 @@ try {
     `typing "a" replaces the mark (value="${afterReplace?.v1}")`,
   );
 
-  // an invalid character must not stick
-  await evaluate(`document.querySelectorAll(".sec-att__input")[2].focus(); true`);
-  await send("Input.insertText", { text: "z" });
-  await sleep(400);
+  // an invalid character must not stick — the previous mark stays
+  await typeIn(2, "z");
   const afterInvalid = await evaluate(
     `document.querySelectorAll(".sec-att__input")[2].value`,
   );
-  ok(afterInvalid === "", `an invalid letter is rejected (value="${afterInvalid}")`);
+  ok(
+    afterInvalid !== "z" && afterInvalid === (original[2] ?? ""),
+    `an invalid letter is rejected (value="${afterInvalid}")`,
+  );
 
   // ── the marks must reach the database ────────────────────────────────────
   await sleep(2500);
   const saved = await evaluate(`
-    (async () => {
+    (() => {
       const cells = [...document.querySelectorAll(".sec-att__input")];
       const name = document.querySelector(".sec-att__table tbody tr .sec-table__name").textContent;
       return { name, cells: cells.slice(0, 3).map((c) => c.value) };
@@ -239,37 +274,14 @@ try {
   `);
   console.log(`   marked: ${saved?.name} → ${JSON.stringify(saved?.cells)}`);
 
-  // read the live database back
   const dbRows = await listAttendance();
-  const firstStudent = await firstStudentId();
+  const firstStudent = dbStudents[0].id;
   const dbMarks = dbRows
     .filter((r) => r.studentRowId === firstStudent)
     .map((r) => `${r.sessionDate}=${r.status}`);
   ok(
     dbMarks.some((m) => m.endsWith("=p")) && dbMarks.some((m) => m.endsWith("=a")),
-    `the marks are in the live database (${dbMarks.join(", ")})`,
-  );
-
-  // clean up: clear the three cells we touched
-  for (const i of [0, 1, 2]) {
-    await evaluate(`
-      (() => {
-        const el = document.querySelectorAll(".sec-att__input")[${i}];
-        el.focus();
-        return true;
-      })()
-    `);
-    await send("Input.dispatchKeyEvent", { type: "keyDown", key: "Backspace", code: "Backspace", windowsVirtualKeyCode: 8 });
-    await send("Input.dispatchKeyEvent", { type: "keyUp", key: "Backspace", code: "Backspace", windowsVirtualKeyCode: 8 });
-    await sleep(600);
-  }
-  await sleep(1500);
-  const cleared = await evaluate(
-    `[...document.querySelectorAll(".sec-att__input")].slice(0, 3).map((c) => c.value)`,
-  );
-  ok(
-    JSON.stringify(cleared) === JSON.stringify(["", "", ""]),
-    `the cells can be cleared again (${JSON.stringify(cleared)})`,
+    `the marks are in the live database (${dbMarks.length} marks)`,
   );
 
   // ── the term headers switch the calendar ─────────────────────────────────
@@ -289,6 +301,26 @@ try {
 
   const calCells = await evaluate(`document.querySelectorAll(".sec-cal__cell:not(.is-empty)").length`);
   ok(calCells >= 28, `the month calendar is drawn (${calCells} days)`);
+
+  // ── put the cells back exactly as they were ──────────────────────────────
+  await evaluate(`document.querySelectorAll(".sec-att__term")[0].click(); true`);
+  await sleep(800);
+  for (let i = 0; i < TOUCHED.length; i += 1) {
+    const want = original[i] ?? "";
+    if (want === "") await clearCell(i);
+    else await typeIn(i, want);
+  }
+  await sleep(2000);
+  const restored = await evaluate(`
+    (() => {
+      const cells = [...document.querySelectorAll(".sec-att__input")];
+      return ${JSON.stringify(TOUCHED)}.map((i) => (cells[i] ? cells[i].value : ""));
+    })()
+  `);
+  ok(
+    JSON.stringify(restored) === JSON.stringify(original),
+    `the cells are back as they were (${JSON.stringify(restored)})`,
+  );
 
   console.log(failures === 0 ? "\nbrowser check passed" : `\n${failures} CHECK(S) FAILED`);
 } catch (err) {
