@@ -1,7 +1,9 @@
 // LoginPage — the portal's front door.
 //
 // Two modes:
-//   • Sign in    — email + password (Supabase Auth).
+//   • Sign in    — email + password. The role (Professor / Department
+//                   head) is detected from the password, so there is nothing
+//                   to pick — the right password opens the right door.
 //   • Register   — name + department + email → we email a one-time code →
 //                   they set their own password → done. After that they sign
 //                   in with email + password like everyone else.
@@ -25,7 +27,6 @@ export default function LoginPage(): JSX.Element {
   const [searchParams] = useSearchParams();
   const [mode, setMode] = useState<Mode>("signin");
   const [regStep, setRegStep] = useState<RegStep>("details");
-  const [role, setRole] = useState<"professor" | "admin">("professor");
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -103,8 +104,10 @@ export default function LoginPage(): JSX.Element {
 
       setSubmitting(true);
       auth
-        .signIn(trimmed, password, role)
+        .signIn(trimmed, password)
         .then(() => {
+          // "/" is the role home: it sends a professor to their courses and a
+          // department head to the department review.
           navigate(next, { replace: true });
         })
         .catch((err: unknown) => {
@@ -204,7 +207,7 @@ export default function LoginPage(): JSX.Element {
     mode === "signin" ? "Sign in" : regStep === "details" ? "Register" : regStep === "code" ? "Verify your email" : "Choose a password";
   const subline =
     mode === "signin"
-      ? "Use your university account to submit and review grades."
+      ? "Use your university account to submit and review grades. Your password takes you to the right place."
       : regStep === "details"
         ? "Create a faculty account — we email you a one-time code to verify your address."
         : regStep === "code"
@@ -239,29 +242,6 @@ export default function LoginPage(): JSX.Element {
             Register
           </button>
         </div>
-
-        {mode === "signin" ? (
-          <div className="sh-login__roles" role="radiogroup" aria-label="Signing in as">
-            <button
-              type="button"
-              role="radio"
-              aria-checked={role === "professor"}
-              className={`sh-login__role${role === "professor" ? " is-active" : ""}`}
-              onClick={() => setRole("professor")}
-            >
-              Professor
-            </button>
-            <button
-              type="button"
-              role="radio"
-              aria-checked={role === "admin"}
-              className={`sh-login__role${role === "admin" ? " is-active" : ""}`}
-              onClick={() => setRole("admin")}
-            >
-              Department head
-            </button>
-          </div>
-        ) : null}
 
         <form className="sh-login__form" onSubmit={handleSubmit} noValidate>
           {mode === "register" && regStep === "details" ? (

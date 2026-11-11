@@ -82,11 +82,15 @@ export async function setCredential(input: {
   });
 }
 
-/** Verifies a role-scoped credential and returns a one-time session token. */
+/**
+ * Verifies a credential and returns a one-time session token. The Worker works
+ * out the role from the password, so the sign-in screen has nothing to ask —
+ * `role` is only an optional hint for the ops scripts.
+ */
 export async function verifyCredential(input: {
   email: string;
   password: string;
-  role: "professor" | "admin";
+  role?: "professor" | "admin";
 }): Promise<{ token_hash: string; email: string; role: string }> {
   const res = await fetch(`${ADMIN_API}/signin`, {
     method: "POST",
@@ -101,15 +105,21 @@ export async function verifyCredential(input: {
     available_roles?: string[];
   };
   if (!res.ok || !body.token_hash) {
-    const roles = (body.available_roles ?? [])
-      .map((r) => (r === "admin" ? "Department head" : "Professor"))
-      .join(", ");
-    const hint = roles ? ` This email can sign in as: ${roles}.` : "";
+    const roles = body.available_roles ?? [];
+    // Two roles means two passwords — say so instead of leaving them guessing.
+    const hint =
+      roles.length > 1
+        ? " This email has a separate password for Professor and for Department head."
+        : "";
     const err = new Error(`${body.error ?? "The faculty service did not respond."}${hint}`) as Error & {
       status?: number;
     };
     err.status = res.status;
     throw err;
   }
-  return { token_hash: body.token_hash, email: body.email ?? input.email, role: body.role ?? input.role };
+  return {
+    token_hash: body.token_hash,
+    email: body.email ?? input.email,
+    role: body.role ?? input.role ?? "professor",
+  };
 }

@@ -10,8 +10,10 @@
 //   POST /teachers        → create a teacher account {email, password, name, department}
 //   POST /reset-password  → set a new professor password for an account {email, password}
 //   POST /credentials     → set a ROLE-SCOPED password {email, role, password, name?, department?}
-//   POST /signin          → verify a role-scoped credential {email, password, role} and
-//                           return a one-time token_hash the app exchanges for a session
+//   POST /signin          → verify a credential {email, password} and return a one-time
+//                           token_hash the app exchanges for a session. The role is worked
+//                           out from the password itself, so the sign-in screen has no
+//                           role picker.
 //
 // Secrets: SUPABASE_SECRET_KEY (wrangler secret put). Vars: SUPABASE_URL, ALLOWED_ORIGIN.
 
@@ -137,51 +139,68 @@ export default {
 
     const url = new URL(request.url);
 
-    // ── role-scoped sign-in (one email, two roles) ─────────────────────────
+    // ── sign-in (the role comes from the password, not from a picker) ───────
     // Runs before the admin gate: it IS the sign-in.
     if (request.method === "POST" && url.pathname === "/signin") {
       const body = (await request.json()) as { email?: string; password?: string; role?: string };
       const email = (body.email ?? "").trim().toLowerCase();
       const password = body.password ?? "";
-      const role = body.role === "admin" ? "admin" : "professor";
+      // An explicit role is only a hint (the ops scripts use it).
+      const hint = body.role === "admin" || body.role === "professor" ? body.role : null;
       if (!email || !password) return json({ error: "Email and password are required." }, 400, echo);
 
       const credRes = await adminFetch(
         env,
-        `/rest/v1/faculty_credentials?select=id,email,role,password_hash&email=eq.${encodeURIComponent(email)}`,
+        `/rest/v1/faculty_credentials?select=id,email,role,password_hash,updated_at&email=eq.${encodeURIComponent(email)}&order=updated_at.desc`,
       );
-      const allCreds = (await credRes.json()) as { id: string; role: string; password_hash: string }[];
-      const cred = allCreds.find((c) => c.role === role);
-      if (!cred) {
-        // Tell the caller which roles this email actually has.
-        const roles = allCreds.map((c) => c.role);
-        if (roles.length === 0) {
-          return json(
-            { error: "That email has no account yet — ask the department head to add you." },
-            401,
-            echo,
-          );
-        }
+      const allCreds = (await credRes.json()) as {
+        id: string; role: string; password_hash: string; updated_at: string;
+      }[];
+      if (allCreds.length === 0) {
+        return json(
+          { error: "That email has no account yet — ask the department head to add you." },
+          401,
+          echo,
+        );
+      }
+
+      // The password itself says which role this is: try every credential the
+      // email holds and take the one that matches. The sign-in screen needs no
+      // role picker — the right password opens the right door.
+      const matches: string[] = [];
+      for (const cred of allCreds) {
+        if (await verifyPassword(password, cred.password_hash)) matches.push(cred.role);
+      }
+      if (matches.length === 0) {
         return json(
           {
-            error: `This email has no ${role === "admin" ? "Department head" : "Professor"} account.`,
-            available_roles: roles,
+            error: "Email or password is incorrect.",
+            available_roles: allCreds.map((c) => c.role),
           },
           401,
           echo,
         );
       }
-      if (!(await verifyPassword(password, cred.password_hash))) {
-        const roles = allCreds.map((c) => c.role);
-        const label = role === "admin" ? "Department head" : "Professor";
-        return json(
-          {
-            error: `That password is not the ${label.toLowerCase()} password for this email. Switch to the other role, or ask the department head to reset it.`,
-            available_roles: roles,
-          },
-          401,
-          echo,
-        );
+      // A hint is honoured strictly (the ops scripts ask for one role); with
+      // no hint the most recently changed matching credential wins — that is
+      // the one the user set last, so it is the one they mean.
+      let role: string;
+      if (hint) {
+        if (!matches.includes(hint)) {
+          return json(
+            {
+              error: `That password is not the ${
+                hint === "admin" ? "department head" : "professor"
+              } password for this email.`,
+              available_roles: allCreds.map((c) => c.role),
+            },
+            401,
+            echo,
+          );
+        }
+        role = hint;
+      } else {
+        role = matches[0];
       }
 
       // The auth user must exist (a credential can outlive it).

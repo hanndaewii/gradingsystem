@@ -9,7 +9,9 @@ import type { Profile } from "../types";
 export interface AuthContextValue {
   profile: Profile | null;
   loading: boolean;
-  signIn(email: string, password: string, role?: "professor" | "admin"): Promise<Profile>;
+  /** Signs in and returns the profile. The role is detected from the
+   *  password — the user never picks one. */
+  signIn(email: string, password: string): Promise<Profile>;
   signOut(): Promise<void>;
   updateProfile(patch: Partial<Pick<Profile, "name" | "department" | "bio">>): Promise<Profile>;
 }
@@ -45,10 +47,8 @@ export function AuthProvider({ children }: { children: ReactNode }): JSX.Element
     () => ({
       profile,
       loading,
-      signIn: async (email, password, role) => {
-        const signedIn = role
-          ? await api.signInWithRole(email, password, role)
-          : await api.signIn(email, password);
+      signIn: async (email, password) => {
+        const signedIn = await api.signIn(email, password);
         setProfile(signedIn);
         return signedIn;
       },

@@ -437,63 +437,97 @@ export function createSupabaseApi(): Api {
       .filter((r): r is CalendarEvent => r.period !== null);
   };
 
+  /** Supabase's own password sign-in — the fallback when the account
+   *  service cannot be reached. */
+  const signInDirect = async (email: string, password: string): Promise<Profile> => {
+    const { error } = await supabase.auth.signInWithPassword({ email: email.trim(), password });
+    if (error) throw new ApiError("Email or password is incorrect.", { code: "BAD_CREDENTIALS" });
+    const { data: userData } = await supabase.auth.getUser();
+    const uid = userData.user?.id;
+    if (!uid) throw new ApiError("Email or password is incorrect.", { code: "BAD_CREDENTIALS" });
+    const row = await fetchProfileRow(uid);
+    if (!row) {
+      throw new ApiError(
+        "No profile for this account. Ask the department head to provision your faculty profile.",
+        { code: "FORBIDDEN" },
+      );
+    }
+    return mapProfile(row);
+  };
+
+  /** The account service verifies the password, works out the role and
+   *  mints a one-time token the app exchanges for a session. */
+  const signInViaWorker = async (
+    email: string,
+    password: string,
+    role?: "professor" | "admin",
+  ): Promise<Profile> => {
+    const { token_hash } = await verifyCredential({ email, password, role });
+    const { data: otp, error: otpError } = await supabase.auth.verifyOtp({
+      token_hash,
+      type: "magiclink",
+    });
+    if (otpError || !otp.session) {
+      throw new ApiError("Email or password is incorrect.", { code: "BAD_CREDENTIALS" });
+    }
+    // verifyOtp leaves the session in memory only (implicit flow), so a
+    // page refresh would sign the user out. Persist it explicitly.
+    await supabase.auth.setSession({
+      access_token: otp.session.access_token,
+      refresh_token: otp.session.refresh_token,
+    });
+    const { data: userData } = await supabase.auth.getUser();
+    const uid = userData.user?.id;
+    if (!uid) throw new ApiError("Email or password is incorrect.", { code: "BAD_CREDENTIALS" });
+    const row = await fetchProfileRow(uid);
+    if (!row) {
+      throw new ApiError(
+        "Your account has no faculty profile yet — ask the department head to add you.",
+        { code: "FORBIDDEN" },
+      );
+    }
+    return mapProfile(row);
+  };
+
   const api: Api = {
     // ── auth / session ───────────────────────────────────────────────────────
+    /**
+     * Sign in. The role is not asked for: the account service works it out
+     * from the password (an email may hold a professor password and a
+     * department-head password) and the session is opened for that role.
+     */
     async signIn(email, password) {
-      const { error } = await supabase.auth.signInWithPassword({ email: email.trim(), password });
-      if (error) throw new ApiError("Email or password is incorrect.", { code: "BAD_CREDENTIALS" });
-      const { data: userData } = await supabase.auth.getUser();
-      const uid = userData.user?.id;
-      if (!uid) throw new ApiError("Email or password is incorrect.", { code: "BAD_CREDENTIALS" });
-      const row = await fetchProfileRow(uid);
-      if (!row) {
-        throw new ApiError("No profile for this account. Ask the department head to provision your faculty profile.", { code: "FORBIDDEN" });
-      }
-      return mapProfile(row);
-    },
-
-    /** Role-scoped sign-in — the email may hold a professor password and a
-     *  department-head password; the Worker verifies the one for the role
-     *  chosen on the login screen and mints the session. */
-    async signInWithRole(email, password, role) {
       try {
-        const { token_hash } = await verifyCredential({ email: email.trim(), password, role });
-        const { data: otp, error: otpError } = await supabase.auth.verifyOtp({
-          token_hash,
-          type: "magiclink",
-        });
-        if (otpError || !otp.session) {
-          throw new ApiError("Email or password is incorrect.", { code: "BAD_CREDENTIALS" });
-        }
-        // verifyOtp leaves the session in memory only (implicit flow), so a
-        // page refresh would sign the user out. Persist it explicitly.
-        await supabase.auth.setSession({
-          access_token: otp.session.access_token,
-          refresh_token: otp.session.refresh_token,
-        });
+        return await signInViaWorker(email.trim(), password);
       } catch (err) {
-        if (err instanceof ApiError) throw err;
-        // A credential problem (wrong password / wrong role) is reported
-        // verbatim; only a network failure falls back to plain Supabase sign-in.
         const status = (err as { status?: number }).status;
         if (status === 401 || status === 400) {
-          throw new ApiError(err instanceof Error ? err.message : "Email or password is incorrect.", {
-            code: "BAD_CREDENTIALS",
-          });
+          throw new ApiError(
+            err instanceof Error ? err.message : "Email or password is incorrect.",
+            { code: "BAD_CREDENTIALS" },
+          );
         }
-        return api.signIn(email, password);
+        // The account service is unreachable — fall back to Supabase's own
+        // password sign-in (accounts with no role-scoped credential).
+        return signInDirect(email, password);
       }
-      const { data: userData } = await supabase.auth.getUser();
-      const uid = userData.user?.id;
-      if (!uid) throw new ApiError("Email or password is incorrect.", { code: "BAD_CREDENTIALS" });
-      const row = await fetchProfileRow(uid);
-      if (!row) {
-        throw new ApiError(
-          "Your account has no faculty profile yet — ask the department head to add you.",
-          { code: "FORBIDDEN" },
-        );
+    },
+
+    /** Sign-in with an explicit role (the ops scripts). The Worker still
+     *  verifies the password against that role's credential. */
+    async signInWithRole(email, password, role) {
+      try {
+        return await signInViaWorker(email.trim(), password, role);
+      } catch (err) {
+        const status = (err as { status?: number }).status;
+        if (status === 401 || status === 400) {
+          throw new ApiError(
+            err instanceof Error ? err.message : "Email or password is incorrect.",
+            { code: "BAD_CREDENTIALS" },
+          );
+        }
+        return signInDirect(email, password);
       }
-      return mapProfile(row);
     },
 
     async setPassword(password) {
