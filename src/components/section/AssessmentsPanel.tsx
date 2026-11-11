@@ -5,6 +5,7 @@
 // stays editable but shows the lock reason and an unlock shortcut.
 import { useState } from "react";
 import { Button, Checkbox, Field, Input, Menu } from "../../components/ui";
+import { standardCriteriaDefs } from "../../lib/standardCriteria";
 import { PERIOD_LABELS } from "../../types";
 import type { Assessment, PeriodId, Section } from "../../types";
 
@@ -241,6 +242,18 @@ export function AssessmentsPanel({
       <p className="sec-assess__hint mono-label">
         {section.enforceOrder ? "In-order entry is on — unlock a period to grade it early." : "In-order entry is off — every period is open."}
       </p>
+
+      {canEdit ? (
+        <div className="sec-assess__standards">
+          <Button
+            variant="ghost"
+            onClick={() => void save(standardCriteriaDefs())}
+            title="A (10%) · R-1 R-2 R-3 (Total, 30%) · Q-1 (10%) · Q-2 (10%) · Exam (40%)"
+          >
+            Use the standard criteria
+          </Button>
+        </div>
+      ) : null}
 
       {canEdit ? (
         <div className="sec-assess__add">

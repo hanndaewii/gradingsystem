@@ -42,3 +42,5 @@ export type { MenuItem } from "./Menu";
 
 export { Spinner } from "./Spinner";
 export { TickIcon } from "./TickIcon";
+
+export { ErrorBoundary } from "./ErrorBoundary";

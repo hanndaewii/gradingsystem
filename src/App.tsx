@@ -7,6 +7,7 @@
 // public/_redirects SPA fallback.
 import { BrowserRouter, Navigate, Outlet, Route, Routes, useLocation } from "react-router-dom";
 import { Spinner, ToastProvider } from "./components/ui";
+import { ErrorBoundary } from "./components/ui/ErrorBoundary";
 import { AppShell } from "./components/layout/AppShell";
 import { AuthProvider, useAuth } from "./context/AuthContext";
 import { TermProvider } from "./context/TermContext";
@@ -64,26 +65,28 @@ function RoleHome(): JSX.Element {
 
 function AppRoutes(): JSX.Element {
   return (
-    <Routes>
-      <Route element={<AppShell />}>
-        <Route path="/login" element={<LoginPage />} />
-        <Route element={<RequireAuth />}>
-          <Route path="/" element={<RoleHome />} />
-          <Route element={<RequireProfessor />}>
-            <Route path="/courses/:courseId" element={<CoursePage />} />
+    <ErrorBoundary>
+      <Routes>
+        <Route element={<AppShell />}>
+          <Route path="/login" element={<LoginPage />} />
+          <Route element={<RequireAuth />}>
+            <Route path="/" element={<RoleHome />} />
+            <Route element={<RequireProfessor />}>
+              <Route path="/courses/:courseId" element={<CoursePage />} />
+            </Route>
+            {/* Both roles — WO-5 derives readOnly from the profile role. */}
+            <Route path="/sections/:sectionId" element={<SectionPage />} />
+            {/* The department head manages faculty accounts here. */}
+            <Route element={<RequireAdmin />}>
+              <Route path="/faculty" element={<FacultyPage />} />
+            </Route>
+            {/* The head may also teach — their own courses live here. */}
+            <Route path="/teaching" element={<ProfessorHome />} />
           </Route>
-          {/* Both roles — WO-5 derives readOnly from the profile role. */}
-          <Route path="/sections/:sectionId" element={<SectionPage />} />
-          {/* The department head manages faculty accounts here. */}
-          <Route element={<RequireAdmin />}>
-            <Route path="/faculty" element={<FacultyPage />} />
-          </Route>
-          {/* The head may also teach — their own courses live here. */}
-          <Route path="/teaching" element={<ProfessorHome />} />
+          <Route path="*" element={<NotFoundPage />} />
         </Route>
-        <Route path="*" element={<NotFoundPage />} />
-      </Route>
-    </Routes>
+      </Routes>
+    </ErrorBoundary>
   );
 }
 

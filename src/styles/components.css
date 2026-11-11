@@ -424,6 +424,46 @@
   opacity: 0.55;
 }
 
+/* ---- crash screen (error boundary) ---- */
+
+.ui-crash {
+  max-width: 640px;
+  margin: 12vh auto 0;
+  padding: var(--space-6);
+  background: var(--surface);
+  border: 1px solid var(--rule-strong);
+}
+
+.ui-crash__title {
+  font-family: var(--font-display);
+  font-size: var(--text-xl);
+  font-weight: 700;
+  margin-bottom: var(--space-2);
+}
+
+.ui-crash__body {
+  color: var(--ink-2);
+  margin-bottom: var(--space-4);
+}
+
+.ui-crash__msg {
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  color: var(--danger);
+  background: var(--paper-2);
+  border-left: 3px solid var(--danger);
+  padding: var(--space-3);
+  overflow-x: auto;
+  white-space: pre-wrap;
+  margin-bottom: var(--space-4);
+}
+
+.ui-crash__actions {
+  display: flex;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+}
+
 /* ---- password field with show/hide eye ---- */
 
 .ui-password {

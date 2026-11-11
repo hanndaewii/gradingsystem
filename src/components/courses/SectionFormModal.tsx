@@ -7,6 +7,7 @@
 import { useEffect, useState } from "react";
 import type { FormEvent } from "react";
 import { api } from "../../api";
+import { standardCriteriaDefs } from "../../lib/standardCriteria";
 import { prevTerm, plural, termLabel } from "../../lib/format";
 import { useAsync } from "../../lib/useAsync";
 import { PERIODS } from "../../types";
@@ -121,7 +122,16 @@ export default function SectionFormModal({ open, onClose, course = null, section
           tone: "info",
         });
       } else {
-        toast.push({ title: `Created ${created.name}.`, tone: "success" });
+        // A fresh section starts with the standard class-record criteria
+        // (A | R-1..R-3 → Total | Q-1 | Q-2 | Exam) so the grading grid is
+        // usable straight away instead of empty.
+        for (const p of PERIODS) {
+          await api.setAssessments(created.id, p, standardCriteriaDefs());
+        }
+        toast.push({
+          title: `Created ${created.name} with the standard grading criteria.`,
+          tone: "success",
+        });
       }
       onSaved(created);
     } catch (err: unknown) {

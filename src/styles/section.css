@@ -1413,3 +1413,10 @@
     grid-template-columns: 90px 120px minmax(0, 1fr);
   }
 }
+
+/* "Use the standard criteria" shortcut above the add-assessment row */
+.sec-assess__standards {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: var(--space-2);
+}
