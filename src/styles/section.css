@@ -584,6 +584,20 @@
   box-shadow: 0 0 0 2px var(--accent-soft);
 }
 
+/* locked periods still show a cell box (dashed, wash) so the sheet always
+   reads as a sheet — only the editable ones get the solid green box */
+.sec-table td.sec-cell .sec-cell__locked {
+  display: inline-block;
+  min-width: 30px;
+  padding: 4px 6px;
+  border: 1px dashed var(--rule-strong);
+  border-radius: 4px;
+  background: var(--paper-2);
+  color: var(--ink-2);
+  text-align: center;
+  font-weight: 600;
+}
+
 /* inputs must not keep the browser's default 20-character width (that alone
    made the sheet wider than the screen and forced sideways scrolling) */
 .sec-table td.sec-cell .sec-cell__input {

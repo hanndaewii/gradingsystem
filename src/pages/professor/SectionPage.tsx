@@ -222,6 +222,8 @@ export default function SectionPage(): JSX.Element {
   }
 
   const [unlocking, setUnlocking] = useState(false);
+  const [reopenPrompt, setReopenPrompt] = useState(false);
+  const [reopening, setReopening] = useState(false);
   const handleUnlock = useCallback(async () => {
     if (!section) return;
     setUnlocking(true);
@@ -511,6 +513,22 @@ export default function SectionPage(): JSX.Element {
                   label={`Grading criteria · ${PERIOD_LABELS[period]}`}
                   actions={
                     <span className="sec-panelactions">
+                      {!readOnly && submitted ? (
+                        <Button size="sm" variant="secondary" onClick={() => setReopenPrompt(true)}>
+                          Reopen {PERIOD_LABELS[period]}
+                        </Button>
+                      ) : null}
+                      {!readOnly && !submitted && orderReason != null ? (
+                        <Button
+                          size="sm"
+                          variant="secondary"
+                          loading={unlocking}
+                          disabled={unlocking}
+                          onClick={() => void handleUnlock()}
+                        >
+                          Unlock {PERIOD_LABELS[period]}
+                        </Button>
+                      ) : null}
                       <Button size="sm" variant="secondary" onClick={handleExportClassRecord}>
                         Export .xlsx
                       </Button>
@@ -634,6 +652,26 @@ export default function SectionPage(): JSX.Element {
         period={period}
         assessments={periodAssessments}
         onImport={handleImport}
+      />
+
+      <ConfirmDialog
+        open={reopenPrompt}
+        title={`Reopen ${PERIOD_LABELS[period]}?`}
+        tone="danger"
+        busy={reopening}
+        confirmLabel={`Reopen ${PERIOD_LABELS[period]}`}
+        onConfirm={() => {
+          setReopenPrompt(false);
+          setReopening(true);
+          void handleReopened().finally(() => setReopening(false));
+        }}
+        onCancel={() => (reopening ? undefined : setReopenPrompt(false))}
+        body={
+          <p>
+            {PERIOD_LABELS[period]} was submitted, so its scores are locked. Reopening lets you edit them
+            again — the reopen is recorded in the history.
+          </p>
+        }
       />
 
       <ConfirmDialog

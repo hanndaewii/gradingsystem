@@ -310,7 +310,12 @@ export function RosterTable({
                             }}
                           />
                         ) : (
-                          <span className="num">{authoritative}</span>
+                          <span
+                            className="sec-cell__locked num"
+                            title="This period is locked — reopen or unlock it to edit scores"
+                          >
+                            {authoritative === "" ? "—" : authoritative}
+                          </span>
                         )}
                         {isFlash && flash ? (
                           <span className="sec-cell__chip num" aria-hidden="true">
