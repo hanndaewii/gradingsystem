@@ -584,6 +584,68 @@
   box-shadow: 0 0 0 2px var(--accent-soft);
 }
 
+/* inputs must not keep the browser's default 20-character width (that alone
+   made the sheet wider than the screen and forced sideways scrolling) */
+.sec-table td.sec-cell .sec-cell__input {
+  min-width: 0;
+  width: 100%;
+}
+
+/* below 1400px the side rail becomes a horizontal strip so the whole sheet
+   and the submit bar fit without scrolling */
+@media (max-width: 1400px) {
+  .sec-layout {
+    grid-template-columns: minmax(0, 1fr);
+    gap: var(--space-5);
+  }
+
+  .sec-sidenav {
+    position: static;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--space-2) var(--space-4);
+    border-right: none;
+    border-bottom: 1px solid var(--rule);
+    padding: 0 0 var(--space-3);
+    font-size: var(--text-sm);
+  }
+
+  .sec-sidenav__group {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--space-1) var(--space-3);
+  }
+
+  .sec-sidenav__label,
+  .sec-sidenav__count,
+  .sec-sidenav__empty {
+    display: none;
+  }
+
+  .sec-sidenav__item {
+    margin-left: 0;
+    padding: 4px 8px;
+    border-left: none;
+    border-bottom: 2px solid transparent;
+  }
+
+  .sec-sidenav__item.is-active {
+    background: transparent;
+    border-left: none;
+    border-bottom-color: var(--brand);
+  }
+
+  .sec-sidenav__item--sub {
+    padding-left: 8px;
+  }
+
+  .sec-sidenav__check {
+    margin-left: 0;
+  }
+}
+
 .sec-panelactions {
   display: inline-flex;
   align-items: center;

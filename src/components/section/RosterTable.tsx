@@ -294,6 +294,7 @@ export function RosterTable({
                             className="ui-input sec-cell__input num"
                             inputMode="decimal"
                             autoComplete="off"
+                            size={2}
                             aria-label={`${student.name} (${student.studentNo}) — ${a.name}, out of ${a.maxScore}`}
                             value={display}
                             onChange={(e) => setDraft(key, e.target.value)}
