@@ -24,6 +24,6 @@
 # rebuild. NEVER set SUPABASE_SECRET_KEY or DATABASE_URL as a Pages build
 # variable — they are server-side only and would ship to every browser.
 
-name = "faculty-grading-portal"
+name = "gradingsystem"
 compatibility_date = "2024-11-01"
 pages_build_output_dir = "dist"
