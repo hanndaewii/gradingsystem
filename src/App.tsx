@@ -78,6 +78,8 @@ function AppRoutes(): JSX.Element {
           <Route element={<RequireAdmin />}>
             <Route path="/faculty" element={<FacultyPage />} />
           </Route>
+          {/* The head may also teach — their own courses live here. */}
+          <Route path="/teaching" element={<ProfessorHome />} />
         </Route>
         <Route path="*" element={<NotFoundPage />} />
       </Route>

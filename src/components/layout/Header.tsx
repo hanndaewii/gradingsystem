@@ -48,14 +48,14 @@ export function Header(): JSX.Element {
           </span>
         </Link>
 
-        {profile?.role === "professor" ? (
+        {profile ? (
           <nav className="sh-nav" aria-label="Primary">
             <Link
-              to="/"
+              to={profile.role === "admin" ? "/teaching" : "/"}
               className="sh-nav__link"
-              aria-current={location.pathname === "/" ? "page" : undefined}
+              aria-current={location.pathname === "/" || location.pathname === "/teaching" ? "page" : undefined}
             >
-              Courses
+              {profile.role === "admin" ? "My courses" : "Courses"}
             </Link>
           </nav>
         ) : null}

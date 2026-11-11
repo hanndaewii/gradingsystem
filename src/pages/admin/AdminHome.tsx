@@ -77,6 +77,9 @@ export default function AdminHome(): JSX.Element {
         <Link to="/faculty" className="adm-mast__link">
           Faculty accounts
         </Link>
+        <Link to="/teaching" className="adm-mast__link">
+          My courses
+        </Link>
       </header>
 
       {overview.length === 0 ? (

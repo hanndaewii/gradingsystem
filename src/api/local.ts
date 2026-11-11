@@ -102,7 +102,8 @@ export function createLocalApi(): Api {
     return user;
   };
 
-  const isOwner = (professorId: string, user: Profile): boolean => user.role === "professor" && user.id === professorId;
+  // Ownership is by course owner id — the department head may also teach.
+  const isOwner = (professorId: string, user: Profile): boolean => user.id === professorId;
   const canRead = (professorId: string, user: Profile): boolean => user.role === "admin" || isOwner(professorId, user);
 
   const courseOf = (section: Section): Course | undefined => db.courses.find((c) => c.id === section.courseId);
@@ -406,9 +407,7 @@ export function createLocalApi(): Api {
     async createCourse(input) {
       await delay(LATENCY_MS);
       const user = requireActor();
-      if (user.role !== "professor") {
-        throw new ApiError("Only professors can create courses.", { code: "FORBIDDEN" });
-      }
+      // Any signed-in account may create a course it owns — the head can teach too.
       const code = input.code.trim().toUpperCase();
       if (!code) throw new ApiError("Code is required.", { field: "code" });
       if (!input.title.trim()) throw new ApiError("Title is required.", { field: "title" });

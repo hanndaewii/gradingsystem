@@ -264,8 +264,9 @@ export function createSupabaseApi(): Api {
     return mapProfile(row);
   };
 
-  const isOwner = (course: CourseRow, user: Profile): boolean =>
-    user.role === "professor" && course.professor_id === user.id;
+  // Ownership is by course.professor_id — the department head may also teach,
+  // so an admin who creates a course owns it (and can grade it) like anyone else.
+  const isOwner = (course: CourseRow, user: Profile): boolean => course.professor_id === user.id;
   const canRead = (course: CourseRow, user: Profile): boolean => user.role === "admin" || isOwner(course, user);
 
   const fetchCourseRow = (id: string): Promise<CourseRow | null> =>
@@ -719,9 +720,8 @@ export function createSupabaseApi(): Api {
     // ── writes: courses ──────────────────────────────────────────────────────
     async createCourse(input) {
       const user = await actor();
-      if (user.role !== "professor") {
-        throw new ApiError("Only professors can create courses.", { code: "FORBIDDEN" });
-      }
+      // Any signed-in account may create a course it owns — the department head
+      // can teach too.
       const code = input.code.trim().toUpperCase();
       if (!code) throw new ApiError("Code is required.", { field: "code" });
       if (!input.title.trim()) throw new ApiError("Title is required.", { field: "title" });
