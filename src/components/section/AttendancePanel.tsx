@@ -22,6 +22,10 @@ export interface AttendancePanelProps {
   rows: AttendanceRow[];
   events: CalendarEvent[];
   readOnly: boolean;
+  /** Active period (e.g. from the Gradebook). */
+  period?: PeriodId;
+  /** Reports when the professor picks a different term. */
+  onPeriodChange?(period: PeriodId): void;
   /** Writes one mark; the parent reloads the list afterwards. */
   onSet(
     period: PeriodId,
@@ -71,13 +75,27 @@ export function AttendancePanel({
   rows,
   events,
   readOnly,
+  period: propPeriod,
+  onPeriodChange,
   onSet,
   onSetMany,
   onSetEvent,
   onClearEvent,
 }: AttendancePanelProps): JSX.Element {
   const today = isoDate(new Date());
-  const [period, setPeriod] = useState<PeriodId>("prelim");
+  const [internalPeriod, setInternalPeriod] = useState<PeriodId>(propPeriod ?? "prelim");
+  const period = propPeriod ?? internalPeriod;
+
+  useEffect(() => {
+    if (propPeriod) {
+      setInternalPeriod(propPeriod);
+    }
+  }, [propPeriod]);
+
+  function handlePeriodChange(p: PeriodId): void {
+    setInternalPeriod(p);
+    onPeriodChange?.(p);
+  }
   const [month, setMonth] = useState(() => {
     const now = new Date();
     return { year: now.getFullYear(), month: now.getMonth() };
@@ -332,7 +350,7 @@ export function AttendancePanel({
             type="button"
             className={cx("sec-att__term", period === p && "is-active")}
             aria-pressed={period === p}
-            onClick={() => setPeriod(p)}
+            onClick={() => handlePeriodChange(p)}
           >
             {TERM_LABELS[p]}
           </button>

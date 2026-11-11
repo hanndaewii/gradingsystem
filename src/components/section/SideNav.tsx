@@ -29,13 +29,12 @@ export interface SideNavProps {
 
 const VIEW_ITEMS: Array<{ key: SectionView; label: string }> = [
   { key: "gradebook", label: "Gradebook" },
-  { key: "attendance", label: "Attendance" },
   { key: "summary", label: "Summary" },
   { key: "history", label: "History" },
   { key: "discussion", label: "Discussion" },
 ];
 
-const PANEL_IDS = ["sec-roster", "sec-assessments"] as const;
+const PANEL_IDS = ["sec-roster", "sec-attendance", "sec-assessments"] as const;
 
 export function SideNav({ view, period, assessments, progress, onNavigate, gradedCounts, studentCount }: SideNavProps): JSX.Element {
   const [subActive, setSubActive] = useState<string | null>(null);
@@ -93,6 +92,14 @@ export function SideNav({ view, period, assessments, progress, onNavigate, grade
             onClick={() => onNavigate({ view: "gradebook", anchor: "sec-roster" })}
           >
             Roster
+          </button>
+          <button
+            type="button"
+            className={cx("sec-sidenav__item sec-sidenav__item--sub", subActive === "sec-attendance" && "is-active")}
+            aria-current={subActive === "sec-attendance" ? "true" : undefined}
+            onClick={() => onNavigate({ view: "gradebook", anchor: "sec-attendance" })}
+          >
+            Attendance
           </button>
           <button
             type="button"

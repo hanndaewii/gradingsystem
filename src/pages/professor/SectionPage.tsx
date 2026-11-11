@@ -40,7 +40,7 @@ import { uid } from "../../lib/id";
 import "../../styles/section.css";
 
 function parseView(raw: string | null): SectionView {
-  return raw === "attendance" || raw === "summary" || raw === "history" || raw === "discussion"
+  return raw === "summary" || raw === "history" || raw === "discussion"
     ? raw
     : "gradebook";
 }
@@ -74,15 +74,15 @@ export default function SectionPage(): JSX.Element {
   } = data;
 
   const view = parseView(searchParams.get("view"));
-  // Attendance is only read when the view is open.
+  // Attendance is read when the gradebook is open.
   const attendanceQ = useAsync(
-    async () => (view === "attendance" ? api.listAttendance(sectionId) : []),
-    [sectionId, view],
+    async () => (view === "gradebook" || searchParams.get("view") === "attendance" ? api.listAttendance(sectionId) : []),
+    [sectionId, view, searchParams],
   );
   // The calendar of milestones (classes started, exam, no class, notes).
   const eventsQ = useAsync(
-    async () => (view === "attendance" ? api.listCalendarEvents(sectionId) : []),
-    [sectionId, view],
+    async () => (view === "gradebook" || searchParams.get("view") === "attendance" ? api.listCalendarEvents(sectionId) : []),
+    [sectionId, view, searchParams],
   );
   const period = parsePeriod(searchParams.get("period")) ?? defaultPeriod(progress);
   const states = useMemo(() => statesFromProgress(progress), [progress]);
@@ -111,6 +111,18 @@ export default function SectionPage(): JSX.Element {
     },
     [searchParams, setSearchParams],
   );
+
+  // If navigated to ?view=attendance, smoothly redirect to gradebook and scroll down to the attendance panel
+  useEffect(() => {
+    if (searchParams.get("view") === "attendance") {
+      updateQuery({ view: "gradebook" });
+      window.setTimeout(() => {
+        document
+          .getElementById("sec-attendance")
+          ?.scrollIntoView({ block: "start", behavior: prefersReducedMotion() ? "auto" : "smooth" });
+      }, 120);
+    }
+  }, [searchParams, updateQuery]);
 
   // ── flash (history trace) ─────────────────────────────────────────────────
   const [flash, setFlash] = useState<FlashTarget | null>(null);
@@ -735,6 +747,23 @@ export default function SectionPage(): JSX.Element {
                 </Panel>
               </div>
 
+              <div id="sec-attendance" className="sec-anchor">
+                <Panel label={`Attendance · ${PERIOD_LABELS[period]}`}>
+                  <AttendancePanel
+                    period={period}
+                    onPeriodChange={(p) => updateQuery({ period: p })}
+                    students={students}
+                    rows={attendanceQ.data ?? []}
+                    events={eventsQ.data ?? []}
+                    readOnly={readOnly}
+                    onSet={handleSetAttendance}
+                    onSetMany={handleSetAttendanceMany}
+                    onSetEvent={handleSetEvent}
+                    onClearEvent={handleClearEvent}
+                  />
+                </Panel>
+              </div>
+
               <div id="sec-assessments" className="sec-anchor">
                 <Panel label={`Assessments · ${PERIOD_LABELS[period]}`}>
                   <AssessmentsPanel
@@ -762,19 +791,6 @@ export default function SectionPage(): JSX.Element {
                 />
               ) : null}
             </>
-          ) : null}
-
-          {view === "attendance" ? (
-            <AttendancePanel
-              students={students}
-              rows={attendanceQ.data ?? []}
-              events={eventsQ.data ?? []}
-              readOnly={readOnly}
-              onSet={handleSetAttendance}
-              onSetMany={handleSetAttendanceMany}
-              onSetEvent={handleSetEvent}
-              onClearEvent={handleClearEvent}
-            />
           ) : null}
 
           {view === "summary" ? (
