@@ -92,6 +92,7 @@ create table if not exists public.assessments (
   name       text not null,
   max_score  numeric not null check (max_score > 0),
   weight     numeric,                          -- null = equal-weight mode (D14)
+  group_key  text,                             -- Total-group key: consecutive rows sharing a key render as one "Total" column
   "order"    int not null default 0           -- quoted: ORDER is reserved
 );
 

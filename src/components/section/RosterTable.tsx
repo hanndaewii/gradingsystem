@@ -3,11 +3,12 @@
 // clamp to [0, maxScore], blank clears. Live Period Grade + Running Semester
 // Grade footers; `flash` drives the "85 → 92" trace highlight; readOnly (or a
 // locked period) renders plain mono text cells.
-import { useEffect, useMemo, useState, Fragment } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Button, EmptyState, Menu, useToast } from "../../components/ui";
 import { PERIODS, PERIOD_LABELS } from "../../types";
 import type { Assessment, Grade, PeriodId, PeriodState, Section, Student } from "../../types";
 import { buildPeriodProgress, classAveragePct, isPeriodEditable, periodGrade } from "../../lib/grades";
+import { buildSheetColumns } from "../../lib/classRecord";
 import type { AssessmentScore } from "../../lib/grades";
 import { clampScore, formatGrade, formatPercent, parseScoreInput } from "../../lib/format";
 import { cx } from "./cx";
@@ -185,17 +186,16 @@ export function RosterTable({
   // Hide the ID column when every student was added without one (AUTO-####).
   const idsSynthetic = students.every((s) => /^AUTO-/i.test(s.studentNo.trim()));
 
-  // Class-record math (the Excel sheet layout): each assessment is followed
-  // by its weighted contribution. Effective weight = explicit weight, else an
-  // equal share; normalised so contributions always sum to the PG (D14).
+  // Class-record math (the professor's Excel sheet): each standalone
+  // assessment is followed by its weighted contribution; consecutive
+  // assessments sharing a `group` key collapse into raw columns + one
+  // "Total" column + one group-weight column. Normalised so all
+  // contribution columns always sum to the PG (D14).
   const eqW = assessments.length > 0 ? 100 / assessments.length : 0;
   const weightOf = (a: Assessment): number => (a.weight ?? eqW);
   const sumW = assessments.reduce((acc, a) => (a.maxScore > 0 ? acc + weightOf(a) : acc), 0);
   const normFactor = sumW > 0 ? 100 / sumW : 0;
-  const weightLabel = (a: Assessment): string => {
-    const w = weightOf(a);
-    return `${Number.isInteger(w) ? w : Number(w.toFixed(2))}%`;
-  };
+  const sheetCols = useMemo(() => buildSheetColumns(assessments), [assessments]);
   const periodWeight = section.periodWeights[period];
 
   return (
@@ -205,22 +205,51 @@ export function RosterTable({
           <tr>
             {!idsSynthetic ? <th scope="col" className="sec-table__id mono-label">Student ID</th> : null}
             <th scope="col" className="sec-table__name mono-label">Name</th>
-            {assessments.map((a) => (
-              <th key={a.id} scope="colgroup" colSpan={2} className="sec-table__assessgroup">
-                <div className="sec-table__assesspair">
-                  <span className="sec-table__assess">
+            {sheetCols.map((col) => {
+              if (col.kind === "raw") {
+                const a = col.assessment;
+                return (
+                  <th key={col.key} scope="col" className="sec-table__assess">
                     <span className="sec-table__assessname">{a.name}</span>
                     <span className="sec-table__assessmeta num">max {a.maxScore}</span>
-                  </span>
-                  <span
+                  </th>
+                );
+              }
+              if (col.kind === "weight") {
+                return (
+                  <th
+                    key={col.key}
+                    scope="col"
                     className="sec-table__pcthead num"
                     title={`Weight toward the ${PERIOD_LABELS[period]} grade`}
                   >
-                    {weightLabel(a)}
-                  </span>
-                </div>
-              </th>
-            ))}
+                    {col.weight}%
+                  </th>
+                );
+              }
+              if (col.kind === "grouptotal") {
+                return (
+                  <th
+                    key={col.key}
+                    scope="col"
+                    className="sec-table__totalhead"
+                    title={`Average of ${col.members.map((m) => m.name).join(", ")}`}
+                  >
+                    Total
+                  </th>
+                );
+              }
+              return (
+                <th
+                  key={col.key}
+                  scope="col"
+                  className="sec-table__pcthead num"
+                  title={`Group weight — sum of ${col.members.map((m) => m.name).join(", ")}`}
+                >
+                  {col.weight}%
+                </th>
+              );
+            })}
             <th scope="col" className="sec-table__periodgrade mono-label" title="Period grade">
               PG
             </th>
@@ -244,20 +273,17 @@ export function RosterTable({
               <tr key={student.id} className={cx(complete && "sec-row--complete")}>
                 {!idsSynthetic ? <td className="sec-table__id num">{student.studentNo}</td> : null}
                 <td className="sec-table__name">{student.name}</td>
-                {assessments.map((a) => {
-                  const key = cellKey(a.id, student.id);
-                  const g = gradesByCell.get(key);
-                  const authoritative = scoreText(g);
-                  const display = drafts.get(key) ?? pending.get(key) ?? authoritative;
-                  const isFlash = flashKey === key;
-                  const score = g?.score ?? null;
-                  const contrib =
-                    score == null || a.maxScore <= 0
-                      ? ""
-                      : `${((score / a.maxScore) * weightOf(a) * normFactor).toFixed(2)}%`;
-                  return (
-                    <Fragment key={a.id}>
+                {sheetCols.map((col) => {
+                  if (col.kind === "raw") {
+                    const a = col.assessment;
+                    const key = cellKey(a.id, student.id);
+                    const g = gradesByCell.get(key);
+                    const authoritative = scoreText(g);
+                    const display = drafts.get(key) ?? pending.get(key) ?? authoritative;
+                    const isFlash = flashKey === key;
+                    return (
                       <td
+                        key={col.key}
                         id={`sec-cell-${a.id}-${student.id}`}
                         className={cx("sec-cell", isFlash && "sec-cell--flash")}
                       >
@@ -289,8 +315,41 @@ export function RosterTable({
                           </span>
                         ) : null}
                       </td>
-                      <td className="sec-table__contrib num">{contrib}</td>
-                    </Fragment>
+                    );
+                  }
+                  if (col.kind === "weight") {
+                    const a = col.assessment;
+                    const score = gradesByCell.get(cellKey(a.id, student.id))?.score ?? null;
+                    const contrib =
+                      score == null || a.maxScore <= 0
+                        ? ""
+                        : `${((score / a.maxScore) * weightOf(a) * normFactor).toFixed(2)}%`;
+                    return (
+                      <td key={col.key} className="sec-table__contrib num">
+                        {contrib}
+                      </td>
+                    );
+                  }
+                  if (col.kind === "grouptotal") {
+                    const total = periodGrade(entriesFor(student, col.members));
+                    return (
+                      <td key={col.key} className="sec-table__total num">
+                        {total == null ? "" : String(Number(total.toFixed(2)))}
+                      </td>
+                    );
+                  }
+                  let sum = 0;
+                  let any = false;
+                  for (const m of col.members) {
+                    const score = gradesByCell.get(cellKey(m.id, student.id))?.score ?? null;
+                    if (score == null || m.maxScore <= 0) continue;
+                    sum += (score / m.maxScore) * weightOf(m) * normFactor;
+                    any = true;
+                  }
+                  return (
+                    <td key={col.key} className="sec-table__contrib num">
+                      {any ? `${sum.toFixed(2)}%` : ""}
+                    </td>
                   );
                 })}
                 <td className="sec-table__periodgrade num">{formatGrade(perPct, section)}</td>
@@ -325,23 +384,35 @@ export function RosterTable({
             <td className="sec-table__name">
               <span className="mono-label">Averages{provisional ? " · provisional" : ""}</span>
             </td>
-            {assessments.map((a) => {
-              const avg = periodGrade(
-                students.map((s) => ({
-                  assessmentId: a.id,
-                  maxScore: a.maxScore,
-                  weight: null, // equal-weight mean over the roster
-                  score: gradesByCell.get(cellKey(a.id, s.id))?.score ?? null,
-                })),
-              );
-              return (
-                <Fragment key={a.id}>
-                  <td className="sec-cell num">
+            {sheetCols.map((col) => {
+              if (col.kind === "raw") {
+                const a = col.assessment;
+                const avg = periodGrade(
+                  students.map((s) => ({
+                    assessmentId: a.id,
+                    maxScore: a.maxScore,
+                    weight: null, // equal-weight mean over the roster
+                    score: gradesByCell.get(cellKey(a.id, s.id))?.score ?? null,
+                  })),
+                );
+                return (
+                  <td key={col.key} className="sec-cell num">
                     {avg == null ? "—" : formatPercent(avg)}
                   </td>
-                  <td className="sec-table__contrib num" />
-                </Fragment>
-              );
+                );
+              }
+              if (col.kind === "grouptotal") {
+                const pgs = students
+                  .map((s) => periodGrade(entriesFor(s, col.members)))
+                  .filter((v): v is number => v != null);
+                const avg = pgs.length > 0 ? pgs.reduce((acc, v) => acc + v, 0) / pgs.length : null;
+                return (
+                  <td key={col.key} className="sec-table__total num">
+                    {avg == null ? "—" : String(Number(avg.toFixed(2)))}
+                  </td>
+                );
+              }
+              return <td key={col.key} className="sec-table__contrib num" />;
             })}
             <td className="sec-table__periodgrade num">{formatGrade(periodAverage, section)}</td>
             <td className="sec-table__periodgrade num">

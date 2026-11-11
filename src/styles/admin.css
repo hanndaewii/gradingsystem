@@ -270,3 +270,33 @@
   font-variant-numeric: tabular-nums;
   color: var(--ink-2);
 }
+
+/* ---- editorial overrides (flat print style) ---- */
+
+.adm-mast {
+  border-bottom: none;
+  margin-bottom: var(--space-5);
+}
+
+.adm-mast__title {
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: clamp(38px, 5vw, 64px);
+  line-height: 0.95;
+  letter-spacing: -0.035em;
+}
+
+.adm-stats__value {
+  font-family: var(--font-display);
+  font-weight: 800;
+}
+
+.adm-table thead th {
+  background: var(--paper);
+  font-weight: 600;
+}
+
+.adm-table th,
+.adm-table td {
+  padding: var(--space-3) var(--space-2);
+}

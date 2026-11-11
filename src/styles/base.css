@@ -68,9 +68,9 @@ h6 {
   color: var(--ink);
 }
 
-/* Focus is NEVER removed — 2px gold ring, everywhere, keyboard only. */
+/* Focus is NEVER removed — 3px pen-green ring, everywhere, keyboard only. */
 :focus-visible {
-  outline: 2px solid var(--focus-ring);
+  outline: 3px solid var(--focus-ring);
   outline-offset: 2px;
 }
 
@@ -82,10 +82,11 @@ h6 {
 }
 
 .mono-label {
-  font-family: var(--font-mono);
-  font-size: var(--text-xs);
-  letter-spacing: var(--label-tracking);
-  text-transform: uppercase;
+  font-family: var(--font-serif);
+  font-size: var(--text-sm);
+  font-weight: 600;
+  letter-spacing: 0;
+  text-transform: none;
   color: var(--ink-3);
 }
 

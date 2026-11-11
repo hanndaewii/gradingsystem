@@ -39,10 +39,8 @@
 /* ---- header block ---- */
 
 .sec-header {
-  background: var(--surface);
-  border: 1px solid var(--rule);
-  box-shadow: var(--shadow-card);
-  padding: var(--space-5);
+  position: relative;
+  padding: 0 0 var(--space-5);
 }
 
 .sec-header__main {
@@ -68,14 +66,19 @@
 }
 
 .sec-header__title {
-  font-size: var(--text-2xl);
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: clamp(44px, 7vw, 84px);
+  line-height: 0.95;
+  letter-spacing: -0.035em;
+  margin: var(--space-1) 0 var(--space-2);
   color: var(--ink);
 }
 
 .sec-header__meta {
   margin-top: var(--space-1);
   font-size: var(--text-sm);
-  color: var(--ink-2);
+  color: var(--ink-3);
 }
 
 .sec-header__end {
@@ -89,14 +92,14 @@
 
 .sec-layout {
   display: grid;
-  grid-template-columns: 200px minmax(0, 1fr);
+  grid-template-columns: 210px minmax(0, 1fr);
   gap: var(--space-6);
   align-items: start;
 }
 
 .sec-content {
   display: grid;
-  gap: var(--space-6);
+  gap: var(--space-7);
   min-width: 0;
 }
 
@@ -104,14 +107,12 @@
 
 .sec-sidenav {
   position: sticky;
-  top: calc(var(--header-offset) + var(--space-2));
+  top: var(--header-offset);
   display: grid;
   gap: var(--space-5);
-  font-size: var(--text-sm);
-  background: var(--surface);
-  border: 1px solid var(--rule);
-  box-shadow: var(--shadow-card);
-  padding: var(--space-4);
+  font-size: var(--text-base);
+  border-right: 1px solid var(--rule);
+  padding: var(--space-2) var(--space-5) var(--space-4) 0;
 }
 
 .sec-sidenav__group {
@@ -128,30 +129,29 @@
   appearance: none;
   background: none;
   border: none;
-  border-left: 2px solid transparent;
+  border-left: 3px solid transparent;
   color: var(--ink-2);
   cursor: pointer;
   font: inherit;
   text-align: left;
-  padding: var(--space-1) var(--space-2);
+  padding: 6px 8px 6px 12px;
+  margin-left: -12px;
   transition: color var(--dur-fast) var(--ease), border-color var(--dur-fast) var(--ease);
 }
 
 .sec-sidenav__item:hover,
 .sec-sidenav__check:hover {
   color: var(--ink);
-  background: var(--paper-2);
 }
 
 .sec-sidenav__item.is-active {
-  background: var(--brand);
-  color: var(--paper);
-  border-left-color: transparent;
+  color: var(--ink);
+  font-weight: 600;
+  border-left-color: var(--ink);
 }
 
-.sec-sidenav__item.is-active:hover {
-  background: var(--brand);
-  color: var(--paper);
+.sec-sidenav__item--sub.is-active {
+  border-left-color: var(--accent);
 }
 
 .sec-sidenav__item--sub {
@@ -343,6 +343,78 @@
   text-transform: lowercase;
 }
 
+/* ---- editorial table overrides (the class-record sheet) ---- */
+
+.sec-table thead th {
+  border-bottom: 2px solid var(--rule-strong);
+  font-family: var(--font-serif);
+  font-size: var(--text-sm);
+  font-weight: 600;
+  text-transform: none;
+  letter-spacing: 0;
+  color: var(--ink-2);
+  vertical-align: bottom;
+}
+
+.sec-table th,
+.sec-table td {
+  padding: var(--space-2) var(--space-2);
+}
+
+.sec-table tbody td {
+  padding: var(--space-4) var(--space-2);
+}
+
+.sec-table tfoot td {
+  background: transparent;
+  border-top: 1px solid var(--rule);
+  font-weight: 700;
+}
+
+.sec-table__foot--semester td {
+  border-top: none;
+  border-bottom: 2px solid var(--rule-strong);
+}
+
+.sec-table__totalhead {
+  font-weight: 700;
+  color: var(--ink);
+}
+
+.sec-table__total {
+  font-weight: 700;
+}
+
+.sec-locknotice {
+  border: none;
+  border-left: 3px solid var(--accent);
+  border-radius: 0;
+  background: transparent;
+  padding: var(--space-1) var(--space-3);
+}
+
+.sec-summary__card {
+  border: none;
+  border-left: 3px solid var(--rule-strong);
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  padding: var(--space-2) 0 var(--space-2) var(--space-3);
+}
+
+.sec-final {
+  border: none;
+  border-top: 2px solid var(--rule-strong);
+  background: transparent;
+  border-radius: 0;
+  box-shadow: none;
+  padding: var(--space-4) 0 0;
+}
+
+.sec-final--complete {
+  border-top-color: var(--accent);
+}
+
 .sec-panelactions {
   display: inline-flex;
   align-items: center;
@@ -525,11 +597,13 @@
   position: sticky;
   bottom: 0;
   z-index: var(--z-nav);
-  background: var(--surface);
-  border: 1px solid var(--rule-strong);
-  border-radius: var(--radius-lg);
-  box-shadow: var(--shadow-card);
-  padding: var(--space-3) var(--space-4);
+  margin: var(--space-7) calc(-1 * var(--space-6)) 0;
+  background: var(--paper-2);
+  border: none;
+  border-top: 1px solid var(--rule);
+  border-radius: 0;
+  box-shadow: none;
+  padding: var(--space-4) var(--space-6);
 }
 
 .sec-submitbar__main {

@@ -463,7 +463,7 @@ export function createLocalApi(): Api {
         // Copy assessments (new ids, same content) + roster. No grades, no
         // history — period states reset to not_started (WO-2 step 8).
         for (const a of db.assessments.filter((x) => x.sectionId === source.id)) {
-          db.assessments.push({ id: uid("as"), sectionId: section.id, period: a.period, name: a.name, maxScore: a.maxScore, weight: a.weight, order: a.order });
+          db.assessments.push({ id: uid("as"), sectionId: section.id, period: a.period, name: a.name, maxScore: a.maxScore, weight: a.weight, group: a.group, order: a.order });
         }
         for (const st of db.students.filter((x) => x.sectionId === source.id)) {
           db.students.push({ id: uid("stu"), sectionId: section.id, studentNo: st.studentNo, name: st.name });
@@ -530,6 +530,7 @@ export function createLocalApi(): Api {
           target.name = name;
           target.maxScore = def.maxScore;
           target.weight = def.weight;
+          target.group = def.group ?? null;
           target.order = index;
           if (def.maxScore < prevMax) {
             // Lowering a max re-clamps stored scores so percentages stay ≤ 100.
@@ -543,7 +544,7 @@ export function createLocalApi(): Api {
           kept.add(target.id);
           result.push(target);
         } else {
-          const created: Assessment = { id: uid("as"), sectionId, period, name, maxScore: def.maxScore, weight: def.weight, order: index };
+          const created: Assessment = { id: uid("as"), sectionId, period, name, maxScore: def.maxScore, weight: def.weight, group: def.group ?? null, order: index };
           db.assessments.push(created);
           result.push(created);
         }

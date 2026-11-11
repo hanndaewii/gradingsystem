@@ -4,7 +4,7 @@
 // submitted period is read-only with a reopen note; an order-locked period
 // stays editable but shows the lock reason and an unlock shortcut.
 import { useState } from "react";
-import { Button, Field, Input, Menu } from "../../components/ui";
+import { Button, Checkbox, Field, Input, Menu } from "../../components/ui";
 import { PERIOD_LABELS } from "../../types";
 import type { Assessment, PeriodId, Section } from "../../types";
 
@@ -14,6 +14,8 @@ export interface AssessmentDef {
   name: string;
   maxScore: number;
   weight: number | null;
+  /** Total-group key — consecutive assessments sharing one key collapse into a single "Total" column. */
+  group?: string | null;
 }
 
 export interface AssessmentsPanelProps {
@@ -33,7 +35,7 @@ export interface AssessmentsPanelProps {
 }
 
 const toDefs = (list: Assessment[]): AssessmentDef[] =>
-  list.map((a) => ({ id: a.id, name: a.name, maxScore: a.maxScore, weight: a.weight }));
+  list.map((a) => ({ id: a.id, name: a.name, maxScore: a.maxScore, weight: a.weight, group: a.group }));
 
 export function AssessmentsPanel({
   section, period, assessments, readOnly, locked, onSave, onRemove, onToggleUnlock, orderLockReason,
@@ -47,6 +49,7 @@ export function AssessmentsPanel({
   const [name, setName] = useState("");
   const [maxScore, setMaxScore] = useState("100");
   const [weight, setWeight] = useState("25");
+  const [withPrev, setWithPrev] = useState(false);
   const [addError, setAddError] = useState<string | null>(null);
 
   const canEdit = !readOnly && !locked;
@@ -115,7 +118,12 @@ export function AssessmentsPanel({
     setName("");
     setMaxScore("100");
     setWeight("25");
-    void save([...toDefs(assessments), { name: trimmed, maxScore: max, weight: w }]);
+    // "Total with previous" chains this assessment onto the previous one's
+    // Total group (like R-1 / R-2 / R-3 collapsing into Total | 30%).
+    const prev = assessments[assessments.length - 1];
+    const group = withPrev && prev ? (prev.group ?? prev.id) : null;
+    setWithPrev(false);
+    void save([...toDefs(assessments), { name: trimmed, maxScore: max, weight: w, group }]);
   }
 
   return (
@@ -183,6 +191,7 @@ export function AssessmentsPanel({
                   <span className="sec-assess__name">{a.name}</span>
                   <span className="sec-assess__meta num">
                     max {a.maxScore} · {a.weight != null ? `${a.weight}%` : "equal"}
+                    {a.group != null ? " · in Total group" : ""}
                   </span>
                   {canEdit ? (
                     <span className="sec-assess__tools">
@@ -265,6 +274,19 @@ export function AssessmentsPanel({
               inputMode="decimal"
               value={weight}
               onChange={(e) => setWeight(e.target.value)}
+            />
+          </Field>
+          <Field
+            label="Total group"
+            htmlFor="sec-assess-add-group"
+            hint="Tick to merge into one Total column with the previous assessments (like R-1 / R-2 / R-3)"
+          >
+            <Checkbox
+              id="sec-assess-add-group"
+              checked={withPrev}
+              onChange={setWithPrev}
+              label="Total with previous"
+              disabled={!canEdit || assessments.length === 0}
             />
           </Field>
           <Button variant="secondary" onClick={addAssessment} disabled={busy}>

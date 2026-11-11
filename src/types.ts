@@ -35,7 +35,7 @@ export interface Section {
   createdAt: string;
 }
 
-export interface Assessment { id: string; sectionId: string; period: PeriodId; name: string; maxScore: number; weight: number | null; order: number }
+export interface Assessment { id: string; sectionId: string; period: PeriodId; name: string; maxScore: number; weight: number | null; /** Total-group key: consecutive assessments sharing a key collapse into one "Total" column (the Excel class-record grouping). */ group: string | null; order: number }
 
 export interface Student { id: string; sectionId: string; studentNo: string; name: string }   // see D1
 
@@ -114,7 +114,7 @@ export interface Api {
   createSection(courseId: string, input: { name: string; schedule: string; room: string; copyFromSectionId?: string | null }): Promise<Section>;
   updateSection(id: string, patch: Partial<Pick<Section, "name" | "schedule" | "room" | "displayScale" | "scaleTable" | "enforceOrder" | "unlockedPeriods">>): Promise<Section>;
   deleteSection(id: string): Promise<void>;
-  setAssessments(sectionId: string, period: PeriodId, defs: { id?: string; name: string; maxScore: number; weight: number | null }[]): Promise<Assessment[]>;
+  setAssessments(sectionId: string, period: PeriodId, defs: { id?: string; name: string; maxScore: number; weight: number | null; group?: string | null }[]): Promise<Assessment[]>;
   addStudents(sectionId: string, students: { name: string; studentNo?: string }[]): Promise<{ added: number; duplicates: string[] }>;
   removeStudent(sectionId: string, studentRowId: string): Promise<void>;
   setGrade(sectionId: string, assessmentId: string, studentRowId: string, score: number | null): Promise<Grade>;

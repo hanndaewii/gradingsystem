@@ -278,22 +278,50 @@ export function buildSeed(): DbShape {
       const pp = plan.periods[period];
 
       // 3–5 assessments per period; exactly one all-null-weight (equal-weight)
-      // period per section: period index (planIdx % 4).
-      const count = 3 + Math.floor(rand() * 3);
-      const equalWeight = pIdx === planIdx % 4;
-      const cycle = WEIGHT_CYCLES[count];
-      const names = ASSESSMENT_NAMES[period];
+      // period per section: period index (planIdx % 4). cs101-a Prelim mirrors
+      // the professor's Excel class record: A | R-1 R-2 R-3 (one Total group)
+      // | Q-1 | Q-2 | Exam with weights 10/30/10/10/40.
+      const sheetPrelim = plan.key === "cs101-a" && period === "prelim";
       const periodAssessments: Assessment[] = [];
-      for (let i = 0; i < count; i++) {
-        periodAssessments.push({
-          id: `as-${plan.key}-${period}-${i}`,
-          sectionId,
-          period,
-          name: names[i % names.length],
-          maxScore: pickFrom(MAX_SCORES),
-          weight: equalWeight || cycle == null ? null : cycle[i] ?? null,
-          order: i,
-        });
+      if (sheetPrelim) {
+        const sheetDefs: { name: string; maxScore: number; weight: number; group: string | null }[] = [
+          { name: "A", maxScore: 100, weight: 10, group: null },
+          { name: "R-1", maxScore: 100, weight: 10, group: "recitation" },
+          { name: "R-2", maxScore: 100, weight: 10, group: "recitation" },
+          { name: "R-3", maxScore: 100, weight: 10, group: "recitation" },
+          { name: "Q-1", maxScore: 100, weight: 10, group: null },
+          { name: "Q-2", maxScore: 100, weight: 10, group: null },
+          { name: "Exam", maxScore: 100, weight: 40, group: null },
+        ];
+        sheetDefs.forEach((d, i) =>
+          periodAssessments.push({
+            id: `as-${plan.key}-${period}-${i}`,
+            sectionId,
+            period,
+            name: d.name,
+            maxScore: d.maxScore,
+            weight: d.weight,
+            group: d.group,
+            order: i,
+          }),
+        );
+      } else {
+        const count = 3 + Math.floor(rand() * 3);
+        const equalWeight = pIdx === planIdx % 4;
+        const cycle = WEIGHT_CYCLES[count];
+        const names = ASSESSMENT_NAMES[period];
+        for (let i = 0; i < count; i++) {
+          periodAssessments.push({
+            id: `as-${plan.key}-${period}-${i}`,
+            sectionId,
+            period,
+            name: names[i % names.length],
+            maxScore: pickFrom(MAX_SCORES),
+            weight: equalWeight || cycle == null ? null : cycle[i] ?? null,
+            group: null,
+            order: i,
+          });
+        }
       }
       assessments.push(...periodAssessments);
 

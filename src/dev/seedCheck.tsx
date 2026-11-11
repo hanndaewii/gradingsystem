@@ -283,8 +283,8 @@ const checks: { name: string; run: () => string | Promise<string> }[] = [
         { id: "s2", sectionId: "sec-x", studentNo: "2023-00002", name: "B" },
       ];
       const assessments = [
-        { id: "a1", sectionId: "sec-x", period: "prelim" as const, name: "Q1", maxScore: 10, weight: null, order: 0 },
-        { id: "a2", sectionId: "sec-x", period: "prelim" as const, name: "Q2", maxScore: 10, weight: null, order: 1 },
+        { id: "a1", sectionId: "sec-x", period: "prelim" as const, name: "Q1", maxScore: 10, weight: null, group: null as string | null, order: 0 },
+        { id: "a2", sectionId: "sec-x", period: "prelim" as const, name: "Q2", maxScore: 10, weight: null, group: null as string | null, order: 1 },
       ];
       const grades = [
         { id: "g1", sectionId: "sec-x", assessmentId: "a1", studentRowId: "s1", score: 9, updatedAt: "2025-01-01T00:00:00.000Z" },
