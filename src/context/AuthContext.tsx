@@ -53,8 +53,13 @@ export function AuthProvider({ children }: { children: ReactNode }): JSX.Element
         return signedIn;
       },
       signOut: async () => {
-        await api.signOut();
-        setProfile(null);
+        try {
+          await api.signOut();
+        } finally {
+          // Always clear local profile so the UI treats the user as signed out
+          // even if the Supabase call timed-out or errored.
+          setProfile(null);
+        }
       },
       updateProfile: async (patch) => {
         if (!profile) throw new Error("Cannot update the profile without a session.");

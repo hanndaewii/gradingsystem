@@ -26,12 +26,26 @@ export function Header(): JSX.Element {
     if (signingOut) return;
     setSigningOut(true);
     try {
-      await auth.signOut();
-      navigate("/login", { replace: true });
+      // Race the sign-out against a 5-second timeout so the spinner never
+      // gets permanently stuck if Supabase is slow or unreachable.
+      await Promise.race([
+        auth.signOut(),
+        new Promise<void>((_, reject) =>
+          setTimeout(() => reject(new Error("sign-out timed out")), 5000),
+        ),
+      ]);
     } catch {
-      toast.push({ title: "Sign-out failed", description: "Please try again.", tone: "danger" });
+      // Even on error/timeout we still clear local state and send the user to
+      // the login page — the session cookie will be cleaned up on next load.
+      toast.push({
+        title: "Sign-out issue",
+        description: "Session cleared locally. You have been signed out.",
+        tone: "warn",
+      });
+    } finally {
       setSigningOut(false);
     }
+    navigate("/login", { replace: true });
   }
 
   return (
