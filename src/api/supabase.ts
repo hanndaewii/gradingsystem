@@ -18,6 +18,7 @@
 // Error mapping: 23505→DUPLICATE_CODE · 42501→FORBIDDEN · trigger message
 // "PERIOD_SUBMITTED…"→PERIOD_SUBMITTED (friendly pre-checks mirror local.ts).
 import { createClient, type PostgrestError, type SupabaseClient } from "@supabase/supabase-js";
+import { requireSupabase } from "./client";
 import { ApiError, PERIODS } from "../types";
 import { verifyCredential } from "./adminApi";
 import type {
@@ -214,7 +215,7 @@ export function createSupabaseApi(): Api {
   if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
     throw new ApiError("Missing VITE_SUPABASE_URL / VITE_SUPABASE_ANON_KEY — cannot start the Supabase API.");
   }
-  const supabase: SupabaseClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+  const supabase: SupabaseClient = requireSupabase();
 
   /** Every table lives in the `faculty` schema — this is the ONLY door in. */
   const tbl = (name: string) => supabase.from(`${TABLE_PREFIX}${name}`);
@@ -404,11 +405,19 @@ export function createSupabaseApi(): Api {
     async signInWithRole(email, password, role) {
       try {
         const { token_hash } = await verifyCredential({ email: email.trim(), password, role });
-        const { error: otpError } = await supabase.auth.verifyOtp({
+        const { data: otp, error: otpError } = await supabase.auth.verifyOtp({
           token_hash,
           type: "magiclink",
         });
-        if (otpError) throw new ApiError("Email or password is incorrect.", { code: "BAD_CREDENTIALS" });
+        if (otpError || !otp.session) {
+          throw new ApiError("Email or password is incorrect.", { code: "BAD_CREDENTIALS" });
+        }
+        // verifyOtp leaves the session in memory only (implicit flow), so a
+        // page refresh would sign the user out. Persist it explicitly.
+        await supabase.auth.setSession({
+          access_token: otp.session.access_token,
+          refresh_token: otp.session.refresh_token,
+        });
       } catch (err) {
         if (err instanceof ApiError) throw err;
         // A credential problem (wrong password / wrong role) is reported
@@ -506,9 +515,16 @@ export function createSupabaseApi(): Api {
     },
 
     async getSession() {
-      const { data, error } = await supabase.auth.getUser();
-      if (error || !data.user) return null;
-      const row = await fetchProfileRow(data.user.id);
+      // Read the stored session locally first — a network round-trip here can
+      // sign the user out when the access token merely needs refreshing.
+      let { data } = await supabase.auth.getSession();
+      if (!data.session) {
+        // Nothing usable in storage: try the refresh token once.
+        const refreshed = await supabase.auth.refreshSession();
+        data = refreshed.data;
+      }
+      if (!data.session) return null;
+      const row = await fetchProfileRow(data.session.user.id);
       return row ? mapProfile(row) : null;   // stale session → signed out
     },
 

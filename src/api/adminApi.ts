@@ -2,7 +2,7 @@
 //
 // The Worker holds the Supabase service-role key; the browser only ever sends
 // its own access token, and the Worker checks that the caller is an admin.
-import { createClient } from "@supabase/supabase-js";
+import { supabase } from "./client";
 
 const ADMIN_API =
   (import.meta.env.VITE_ADMIN_API_URL as string | undefined) ??
@@ -17,11 +17,9 @@ export interface FacultyMember {
 }
 
 async function headers(): Promise<Record<string, string>> {
-  const url = import.meta.env.VITE_SUPABASE_URL as string | undefined;
-  const key = import.meta.env.VITE_SUPABASE_ANON_KEY as string | undefined;
-  if (!url || !key) throw new Error("The backend is not configured.");
-  const client = createClient(url, key);
-  const { data } = await client.auth.getSession();
+  if (!supabase) throw new Error("The backend is not configured.");
+  // The shared client — never create a second one for the same storage key.
+  const { data } = await supabase.auth.getSession();
   const token = data.session?.access_token;
   if (!token) throw new Error("Your session has expired — sign in again.");
   return { Authorization: `Bearer ${token}`, "Content-Type": "application/json" };
