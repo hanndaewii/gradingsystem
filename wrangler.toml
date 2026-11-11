@@ -1,20 +1,14 @@
-# Cloudflare Pages configuration.
+# Cloudflare Pages project configuration.
 #
-# Build settings (Cloudflare Pages → your project → Settings → Builds):
-#   • Build command:       npm run build
-#   • Build output dir:    dist   (pages_build_output_dir below)
-#   • Root directory:      /  (repo root)
-#   • Deploy command:      LEAVE EMPTY  ← important
-#
-# Why "leave empty": Cloudflare Pages deploys the build output itself. If you
-# set a deploy command, it must be the PAGES flavour:
-#     npx wrangler pages deploy dist
-# NOT `npx wrangler deploy` — that is the Workers flavour, which fails with
-# "Missing entry-point to Worker script or to assets directory" because there
-# is no Worker script (only static assets).
-#
-# If you prefer the CLI, `name` below must match your Pages project name
-# (Dashboard → your project → the project name in the URL / overview).
+#   • Build command:        npm run build
+#   • Build output dir:     dist   (pages_build_output_dir below)
+#   • Root directory:       /  (repo root)
+#   • Deploy command:       LEAVE EMPTY in the dashboard — Pages publishes the
+#                            build output itself. If you set one, it must be
+#                            the Pages flavour:
+#                              npx wrangler pages deploy dist --project-name=gradingsystem
+#                            (plain `npx wrangler deploy` is the Workers command
+#                            and fails on a Pages project)
 #
 # Build-time environment variables — set BOTH in Dashboard → Pages project →
 # Settings → Environment variables (Production + Preview):
@@ -25,5 +19,4 @@
 # variable — they are server-side only and would ship to every browser.
 
 name = "gradingsystem"
-compatibility_date = "2024-11-01"
 pages_build_output_dir = "dist"
