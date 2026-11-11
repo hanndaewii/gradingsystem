@@ -6,7 +6,7 @@
 //   • Sign in   — email + password (Supabase Auth).
 //   • Register  — the professor's name, department and email; we email them a
 //     one-time code, which is exchanged for a session and a faculty profile.
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import type { FormEvent } from "react";
 import { Navigate, useNavigate, useSearchParams } from "react-router-dom";
 import { ApiError } from "../types";
@@ -32,10 +32,18 @@ export default function LoginPage(): JSX.Element {
   const [code, setCode] = useState("");
   const [codeSent, setCodeSent] = useState(false);
   const [resending, setResending] = useState(false);
+  const [cooldown, setCooldown] = useState(0);
   const [fieldErrors, setFieldErrors] = useState<{ email?: string; password?: string; name?: string; department?: string; code?: string }>({});
   const [formError, setFormError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+
+  // Resend cooldown — Supabase limits how many codes one address may
+  // receive, so the button rests for a minute after every request.
+  useEffect(() => {
+    const id = window.setInterval(() => setCooldown((c) => (c > 0 ? c - 1 : 0)), 1000);
+    return () => window.clearInterval(id);
+  }, []);
 
   // While the session is being restored, show the spinner — never a flash
   // of the login form. A live session goes straight to the portal; to use
@@ -110,6 +118,7 @@ export default function LoginPage(): JSX.Element {
         .then(() => {
           setSubmitting(false);
           setCodeSent(true);
+          setCooldown(60);
           setNotice(
             `We sent a 6-digit code to ${trimmed}. Enter it below to finish setting up your account.`,
           );
@@ -291,7 +300,7 @@ export default function LoginPage(): JSX.Element {
               <button
                 type="button"
                 className="sh-login__link"
-                disabled={resending}
+                disabled={resending || cooldown > 0}
                 onClick={() => {
                   setResending(true);
                   setNotice(null);
@@ -299,6 +308,7 @@ export default function LoginPage(): JSX.Element {
                     .requestRegistrationCode(email.trim())
                     .then(() => {
                       setResending(false);
+                      setCooldown(60);
                       setNotice(`We sent a new code to ${email.trim()}. It expires in 60 minutes.`);
                     })
                     .catch((err: unknown) => {
@@ -309,7 +319,7 @@ export default function LoginPage(): JSX.Element {
                     });
                 }}
               >
-                {resending ? "Sending…" : "Resend code"}
+                {resending ? "Sending…" : cooldown > 0 ? `Resend code (${cooldown}s)` : "Resend code"}
               </button>
             </div>
           ) : null}
