@@ -7,7 +7,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { createTeacher, listFaculty, resetPassword, setCredential } from "../../api/adminApi";
 import type { FacultyMember } from "../../api/adminApi";
-import { Button, Field, Input, Panel, Spinner, useToast } from "../../components/ui";
+import { Button, Field, Input, Panel, PasswordInput, Spinner, useToast } from "../../components/ui";
 import "../../styles/admin.css";
 
 export default function FacultyPage(): JSX.Element {
@@ -127,7 +127,12 @@ export default function FacultyPage(): JSX.Element {
               <Input id="adm-fac-email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="faculty@college.edu" />
             </Field>
             <Field label="Password" htmlFor="adm-fac-pass" hint="Leave blank to generate one">
-              <Input id="adm-fac-pass" value={password} onChange={(e) => setPassword(e.target.value)} />
+              <PasswordInput
+                id="adm-fac-pass"
+                autoComplete="new-password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+              />
             </Field>
             <Button type="submit" variant="primary" loading={busy} disabled={busy}>
               Create account
@@ -156,9 +161,8 @@ export default function FacultyPage(): JSX.Element {
                     <span className={`adm-faclist__role adm-faclist__role--${m.role}`}>{m.role}</span>
                     {isEditing ? (
                       <span className="adm-faclist__set">
-                        <Input
+                        <PasswordInput
                           className="num"
-                          type="password"
                           autoComplete="new-password"
                           placeholder="new password"
                           value={newPass}

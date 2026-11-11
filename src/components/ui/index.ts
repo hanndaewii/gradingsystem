@@ -28,6 +28,9 @@ export type { TabItem, TabsProps } from "./Tabs";
 export { Field, Input, Select, Textarea, Checkbox } from "./Field";
 export type { FieldProps } from "./Field";
 
+export { PasswordInput } from "./PasswordInput";
+export type { PasswordInputProps } from "./PasswordInput";
+
 export { EmptyState } from "./EmptyState";
 export type { EmptyStateProps } from "./EmptyState";
 

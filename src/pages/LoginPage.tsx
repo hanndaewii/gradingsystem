@@ -9,7 +9,7 @@ import { useEffect, useState } from "react";
 import type { FormEvent } from "react";
 import { Navigate, useNavigate, useSearchParams } from "react-router-dom";
 import { ApiError } from "../types";
-import { Button, Field, Input, Spinner } from "../components/ui";
+import { Button, Field, Input, PasswordInput, Spinner } from "../components/ui";
 import { useAuth } from "../context/AuthContext";
 import { api, API_MODE } from "../api";
 import { DEMO_REGISTRATION_CODE } from "../data/seed";
@@ -302,9 +302,8 @@ export default function LoginPage(): JSX.Element {
 
           {mode === "signin" ? (
             <Field label="Password" htmlFor="sh-login-password" error={fieldErrors.password ?? null}>
-              <Input
+              <PasswordInput
                 id="sh-login-password"
-                type="password"
                 autoComplete="current-password"
                 value={password}
                 invalid={fieldErrors.password != null}
@@ -332,9 +331,8 @@ export default function LoginPage(): JSX.Element {
           {mode === "register" && regStep === "password" ? (
             <>
               <Field label="New password" htmlFor="sh-reg-pass" error={fieldErrors.password ?? null}>
-                <Input
+                <PasswordInput
                   id="sh-reg-pass"
-                  type="password"
                   autoComplete="new-password"
                   value={password}
                   invalid={fieldErrors.password != null}
@@ -342,9 +340,8 @@ export default function LoginPage(): JSX.Element {
                 />
               </Field>
               <Field label="Confirm password" htmlFor="sh-reg-pass2" error={fieldErrors.confirm ?? null}>
-                <Input
+                <PasswordInput
                   id="sh-reg-pass2"
-                  type="password"
                   autoComplete="new-password"
                   value={confirmPassword}
                   invalid={fieldErrors.confirm != null}

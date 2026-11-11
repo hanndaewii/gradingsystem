@@ -5,7 +5,7 @@
 import { useEffect, useState } from "react";
 import type { FormEvent } from "react";
 import { api, API_MODE } from "../api";
-import { Button, ConfirmDialog, Field, Input, Modal, StatusPill, Textarea, useToast } from "./ui";
+import { Button, ConfirmDialog, Field, Input, Modal, PasswordInput, StatusPill, Textarea, useToast } from "./ui";
 import { useAuth } from "../context/AuthContext";
 
 const BIO_MAX = 400;
@@ -229,9 +229,8 @@ export function ProfileModal({ open, onClose }: ProfileModalProps): JSX.Element 
               <p className="mono-label">Change password</p>
               <div className="sh-profile__passrow">
                 <Field label="New password" htmlFor="sh-profile-pass" error={passErrors.password ?? null}>
-                  <Input
+                  <PasswordInput
                     id="sh-profile-pass"
-                    type="password"
                     autoComplete="new-password"
                     value={newPassword}
                     invalid={passErrors.password != null}
@@ -239,9 +238,8 @@ export function ProfileModal({ open, onClose }: ProfileModalProps): JSX.Element 
                   />
                 </Field>
                 <Field label="Confirm" htmlFor="sh-profile-pass2" error={passErrors.confirm ?? null}>
-                  <Input
+                  <PasswordInput
                     id="sh-profile-pass2"
-                    type="password"
                     autoComplete="new-password"
                     value={confirmPassword}
                     invalid={passErrors.confirm != null}
