@@ -31,6 +31,7 @@ export default function LoginPage(): JSX.Element {
   const [department, setDepartment] = useState("");
   const [code, setCode] = useState("");
   const [codeSent, setCodeSent] = useState(false);
+  const [resending, setResending] = useState(false);
   const [fieldErrors, setFieldErrors] = useState<{ email?: string; password?: string; name?: string; department?: string; code?: string }>({});
   const [formError, setFormError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
@@ -253,6 +254,10 @@ export default function LoginPage(): JSX.Element {
           {notice !== null ? (
             <div className="sh-login__notice" role="status">
               {notice}
+              <span className="sh-login__notefine">
+                If it does not arrive, check your spam folder — your college’s mail service must be allowed to send
+                from our address.
+              </span>
             </div>
           ) : null}
 
@@ -271,17 +276,42 @@ export default function LoginPage(): JSX.Element {
           </Button>
 
           {mode === "register" && codeSent ? (
-            <button
-              type="button"
-              className="sh-login__link"
-              onClick={() => {
-                setCodeSent(false);
-                setCode("");
-                resetMessages();
-              }}
-            >
-              Use a different email
-            </button>
+            <div className="sh-login__actions">
+              <button
+                type="button"
+                className="sh-login__link"
+                onClick={() => {
+                  setCodeSent(false);
+                  setCode("");
+                  resetMessages();
+                }}
+              >
+                Use a different email
+              </button>
+              <button
+                type="button"
+                className="sh-login__link"
+                disabled={resending}
+                onClick={() => {
+                  setResending(true);
+                  setNotice(null);
+                  api
+                    .requestRegistrationCode(email.trim())
+                    .then(() => {
+                      setResending(false);
+                      setNotice(`We sent a new code to ${email.trim()}. It expires in 60 minutes.`);
+                    })
+                    .catch((err: unknown) => {
+                      setResending(false);
+                      setFormError(
+                        err instanceof Error ? err.message : "We could not resend the code. Please try again.",
+                      );
+                    });
+                }}
+              >
+                {resending ? "Sending…" : "Resend code"}
+              </button>
+            </div>
           ) : null}
 
           {mode === "register" && !codeSent ? (
