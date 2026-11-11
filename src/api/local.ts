@@ -7,7 +7,7 @@ import type {
   Api, Assessment, Comment, Course, Grade, HistoryEntry, PeriodId,
   PeriodProgress, PeriodState, Profile, Section, SectionOverview, Term,
 } from "../types";
-import { buildSeed, TERMS } from "../data/seed";
+import { buildSeed, DEMO_REGISTRATION_CODE, TERMS } from "../data/seed";
 import type { DbShape } from "../data/seed";
 import { buildPeriodProgress, classAveragePct, isPeriodEditable } from "../lib/grades";
 import { clampScore, DEFAULT_SCALE_TABLE } from "../lib/format";
@@ -180,6 +180,41 @@ export function createLocalApi(): Api {
       await delay(LATENCY_MS);
       sessionId = null;
       writeSessionId(null);
+    },
+
+    // ── registration (demo backend: the code is shown in the UI) ─────────────
+    async requestRegistrationCode(email) {
+      await delay(LATENCY_MS);
+      if (!email.trim()) throw new ApiError("Email is required.", { field: "email" });
+      // The demo backend has no mailer — the login screen tells the user the
+      // code. The Supabase backend really sends an email.
+    },
+
+    async completeRegistration({ email, code, name, department }) {
+      await delay(LATENCY_MS);
+      const normalized = email.trim().toLowerCase();
+      if (code.trim() !== DEMO_REGISTRATION_CODE) {
+        throw new ApiError("That code is not valid or has expired.", { code: "BAD_CREDENTIALS" });
+      }
+      if (!name.trim()) throw new ApiError("Name is required.", { field: "name" });
+      if (!department.trim()) throw new ApiError("Department is required.", { field: "department" });
+      const existing = db.profiles.find((p) => p.email.toLowerCase() === normalized);
+      const profile: Profile = existing ?? {
+        id: uid("prof"),
+        email: normalized,
+        password: "",
+        name: name.trim(),
+        department: department.trim(),
+        bio: "",
+        role: "professor",
+      };
+      if (!existing) {
+        db.profiles.push(profile);
+        persist();
+      }
+      sessionId = profile.id;
+      writeSessionId(sessionId);
+      return profile;
     },
 
     async getSession() {

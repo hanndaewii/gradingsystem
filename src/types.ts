@@ -90,6 +90,10 @@ export interface Api {
   signIn(email: string, password: string): Promise<Profile>;              // ApiError BAD_CREDENTIALS
   signOut(): Promise<void>;
   getSession(): Promise<Profile | null>;
+  // Registration by emailed code: request a one-time code, then exchange it
+  // for a session (and, on the Supabase backend, a professor profile row).
+  requestRegistrationCode(email: string): Promise<void>;
+  completeRegistration(input: { email: string; code: string; name: string; department: string }): Promise<Profile>;
   updateProfile(id: string, patch: Partial<Pick<Profile, "name" | "department" | "bio">>): Promise<Profile>;
 
   // reads

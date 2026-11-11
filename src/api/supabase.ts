@@ -400,6 +400,64 @@ export function createSupabaseApi(): Api {
       await supabase.auth.signOut();
     },
 
+    // ── registration by emailed code (Supabase Auth OTP) ────────────────────
+    async requestRegistrationCode(email) {
+      const address = email.trim().toLowerCase();
+      if (!address) throw new ApiError("Email is required.", { field: "email" });
+      const redirectTo = typeof window !== "undefined" ? window.location.origin : undefined;
+      const { error } = await supabase.auth.signInWithOtp({
+        email: address,
+        options: { shouldCreateUser: true, ...(redirectTo ? { emailRedirectTo: redirectTo } : {}) },
+      });
+      if (error) {
+        // Rate limits and SMTP misconfiguration both land here.
+        throw new ApiError(
+          error.message.includes("rate")
+            ? "Too many codes requested. Please wait a minute and try again."
+            : "We could not send the code. Please try again in a moment.",
+          { code: "BAD_CREDENTIALS", field: "email" },
+        );
+      }
+    },
+
+    async completeRegistration({ email, code, name, department }) {
+      const address = email.trim().toLowerCase();
+      const token = code.trim();
+      if (!address) throw new ApiError("Email is required.", { field: "email" });
+      if (!token) throw new ApiError("Enter the code we emailed you.", { field: "code" });
+      if (!name.trim()) throw new ApiError("Name is required.", { field: "name" });
+      if (!department.trim()) throw new ApiError("Department is required.", { field: "department" });
+
+      const { data, error } = await supabase.auth.verifyOtp({
+        email: address,
+        token,
+        type: "email",
+      });
+      if (error || !data.user) {
+        throw new ApiError("That code is not valid or has expired.", { code: "BAD_CREDENTIALS", field: "code" });
+      }
+      const uid = data.user.id;
+
+      // A self-registered professor gets their own profile row (RLS allows a
+      // user to insert only their own row). The department head can rename or
+      // re-role them later.
+      const existing = await fetchProfileRow(uid);
+      if (!existing) {
+        const { error: insertError } = await tbl("profiles").insert({
+          id: uid,
+          email: data.user.email ?? address,
+          name: name.trim(),
+          department: department.trim(),
+          bio: "",
+          role: "professor",
+        });
+        if (insertError) throw mapDbError(insertError, "Could not create your faculty profile.");
+      }
+      const row = await fetchProfileRow(uid);
+      if (!row) throw new ApiError("Could not create your faculty profile.", { code: "FORBIDDEN" });
+      return mapProfile(row);
+    },
+
     async getSession() {
       const { data, error } = await supabase.auth.getUser();
       if (error || !data.user) return null;

@@ -22,8 +22,11 @@ export type { Api };
 
 const env = import.meta.env as Record<string, string | undefined>;
 
-export const api: Api =
-  env.VITE_SUPABASE_URL && env.VITE_SUPABASE_ANON_KEY ? createSupabaseApi() : createLocalApi();
+/** Which backend is live — the UI uses it to explain the demo-only bits. */
+export const API_MODE: "supabase" | "demo" =
+  env.VITE_SUPABASE_URL && env.VITE_SUPABASE_ANON_KEY ? "supabase" : "demo";
+
+export const api: Api = API_MODE === "supabase" ? createSupabaseApi() : createLocalApi();
 
 // D20 — dev console hook: exercise data + auth from DevTools without UI.
 if (import.meta.env.DEV) {

@@ -22,6 +22,10 @@ export interface DbShape {
 }
 
 /** D8 — pinned demo accounts (WO-3 quick-fill chips import this). */
+/** The one-time code the demo backend accepts for self-registration (the
+ *  Supabase backend emails a real code instead). */
+export const DEMO_REGISTRATION_CODE = "123456";
+
 export const DEMO_ACCOUNTS: { label: string; email: string; password: string; role: Role }[] = [
   { label: "Dr. Marisol Reyes · Admin", email: "admin@northstate.edu", password: "demo1234", role: "admin" },
   { label: "Prof. Antonio Cruz", email: "acruz@northstate.edu", password: "demo1234", role: "professor" },

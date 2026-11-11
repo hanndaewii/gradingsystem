@@ -194,6 +194,11 @@ create policy "profiles_read_authenticated" on public.faculty_profiles
 drop policy if exists "profiles_update_own" on public.faculty_profiles;
 create policy "profiles_update_own" on public.faculty_profiles
   for update to authenticated using (id = auth.uid()) with check (id = auth.uid());
+-- self-registration: a signed-up user may create exactly their own profile
+-- row (the app does this after the emailed code is verified).
+drop policy if exists "profiles_insert_own" on public.faculty_profiles;
+create policy "profiles_insert_own" on public.faculty_profiles
+  for insert to authenticated with check (id = auth.uid());
 
 -- terms: static lookup data, readable by all signed-in users.
 drop policy if exists "terms_read_authenticated" on public.faculty_terms;
@@ -201,6 +206,7 @@ create policy "terms_read_authenticated" on public.faculty_terms
   for select to authenticated using (true);
 -- terms are shared calendar reference data: any signed-in user may add a new
 -- academic year / semester (the portal creates the term on demand).
+drop policy if exists "terms_insert_authenticated" on public.faculty_terms;
 create policy "terms_insert_authenticated" on public.faculty_terms
   for insert to authenticated with check (true);
 

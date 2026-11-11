@@ -209,3 +209,17 @@ npm run preview   # serves the production build locally
 The `gradingsystem` project is a Cloudflare **Workers** project with static assets, published with `npm run deploy` (see `scripts/deploy.mjs` → `wrangler deploy`). `wrangler.toml` points it at the build output (`[assets] directory = "./dist"`) and enables the SPA fallback (`not_found_handling = "single-page-application"`) so clean deep links work. Set Cloudflare's **Deploy command** to `npm run deploy`, and delete any custom `CLOUDFLARE_API_TOKEN` from the project's environment variables: it overrides the build environment's own scoped credential and is what caused *"Authentication error [code: 10000]"*. `public/_headers` ships the security headers (CSP, frame-ancestors, nosniff, etc.).
 
 Live: **https://gradingsystem.hanndaaewii.workers.dev**
+
+### Faculty registration (emailed code)
+
+The login screen has a **Register** tab. The professor enters their name, department and email; the app calls
+`supabase.auth.signInWithOtp({ email, shouldCreateUser: true })`, Supabase emails a 6-digit code, and the app
+exchanges it with `verifyOtp({ type: "email" })`. On success a `faculty.profiles` row is created for that user
+(role `professor`) — the RLS policy `profiles_insert_own` only lets a user create their *own* profile row, and
+the department head can rename or re-role anyone from the Supabase dashboard afterwards.
+
+> **Custom SMTP is required for real faculty addresses.** Supabase's built-in mailer only delivers to project
+> team members and is heavily rate-limited. Configure your own provider (Resend, Mailgun, Brevo, SendGrid…) in
+> **Supabase → Authentication → Emails → SMTP**, or codes to non-team addresses will never arrive.
+>
+> Without a backend the demo build accepts the code `123456` and says so on the form.
