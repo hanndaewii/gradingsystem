@@ -209,9 +209,13 @@ export function RosterTable({
               if (col.kind === "raw") {
                 const a = col.assessment;
                 return (
-                  <th key={col.key} scope="col" className="sec-table__assess">
+                  <th
+                    key={col.key}
+                    scope="col"
+                    className="sec-table__assess"
+                    title={`${a.name} — max score ${a.maxScore}`}
+                  >
                     <span className="sec-table__assessname">{a.name}</span>
-                    <span className="sec-table__assessmeta num">max {a.maxScore}</span>
                   </th>
                 );
               }
