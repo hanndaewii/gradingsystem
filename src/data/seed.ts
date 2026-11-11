@@ -59,19 +59,18 @@ const LAST_NAMES = [
   "Lopez", "Rivera", "Morales",
 ];
 
-const ASSESSMENT_NAMES: Record<PeriodId, string[]> = {
-  prelim: ["Quiz 1", "Quiz 2", "Problem Set", "Seatwork", "Recitation"],
-  midterm: ["Quiz 3", "Problem Set 2", "Machine Project", "Midterm Exam", "Lab Exam"],
-  semifinals: ["Lab Exercise", "Case Study", "Quiz 4", "Project Checkpoint", "Practical Exam"],
-  finals: ["Final Exam", "Final Project", "Reflection Paper", "Demo Day", "Oral Defense"],
-};
-
-const MAX_SCORES = [10, 20, 50, 100] as const;
-const WEIGHT_CYCLES: Record<number, number[]> = {
-  3: [40, 35, 25],
-  4: [25, 25, 25, 25],
-  5: [20, 20, 20, 20, 20],
-};
+// The class-record layout used by EVERY section and EVERY period — the
+// professor's Excel sheet: A | R-1 R-2 R-3 (one Total group) | Q-1 | Q-2 |
+// Exam, weights 10/30/10/10/40, all max 100.
+const SHEET_DEFS: { name: string; maxScore: number; weight: number; group: string | null }[] = [
+  { name: "A", maxScore: 100, weight: 10, group: null },
+  { name: "R-1", maxScore: 100, weight: 10, group: "recitation" },
+  { name: "R-2", maxScore: 100, weight: 10, group: "recitation" },
+  { name: "R-3", maxScore: 100, weight: 10, group: "recitation" },
+  { name: "Q-1", maxScore: 100, weight: 10, group: null },
+  { name: "Q-2", maxScore: 100, weight: 10, group: null },
+  { name: "Exam", maxScore: 100, weight: 40, group: null },
+];
 
 // Fixed grade-row timestamps cycled through the seed (Risk 9: fixed ISOs).
 const STAMPS: string[] = [
@@ -277,52 +276,18 @@ export function buildSeed(): DbShape {
       const period = PERIODS[pIdx];
       const pp = plan.periods[period];
 
-      // 3–5 assessments per period; exactly one all-null-weight (equal-weight)
-      // period per section: period index (planIdx % 4). cs101-a Prelim mirrors
-      // the professor's Excel class record: A | R-1 R-2 R-3 (one Total group)
-      // | Q-1 | Q-2 | Exam with weights 10/30/10/10/40.
-      const sheetPrelim = plan.key === "cs101-a" && period === "prelim";
-      const periodAssessments: Assessment[] = [];
-      if (sheetPrelim) {
-        const sheetDefs: { name: string; maxScore: number; weight: number; group: string | null }[] = [
-          { name: "A", maxScore: 100, weight: 10, group: null },
-          { name: "R-1", maxScore: 100, weight: 10, group: "recitation" },
-          { name: "R-2", maxScore: 100, weight: 10, group: "recitation" },
-          { name: "R-3", maxScore: 100, weight: 10, group: "recitation" },
-          { name: "Q-1", maxScore: 100, weight: 10, group: null },
-          { name: "Q-2", maxScore: 100, weight: 10, group: null },
-          { name: "Exam", maxScore: 100, weight: 40, group: null },
-        ];
-        sheetDefs.forEach((d, i) =>
-          periodAssessments.push({
-            id: `as-${plan.key}-${period}-${i}`,
-            sectionId,
-            period,
-            name: d.name,
-            maxScore: d.maxScore,
-            weight: d.weight,
-            group: d.group,
-            order: i,
-          }),
-        );
-      } else {
-        const count = 3 + Math.floor(rand() * 3);
-        const equalWeight = pIdx === planIdx % 4;
-        const cycle = WEIGHT_CYCLES[count];
-        const names = ASSESSMENT_NAMES[period];
-        for (let i = 0; i < count; i++) {
-          periodAssessments.push({
-            id: `as-${plan.key}-${period}-${i}`,
-            sectionId,
-            period,
-            name: names[i % names.length],
-            maxScore: pickFrom(MAX_SCORES),
-            weight: equalWeight || cycle == null ? null : cycle[i] ?? null,
-            group: null,
-            order: i,
-          });
-        }
-      }
+      // Every section and period uses the professor's Excel class-record
+      // layout — identical from Prelim to Finals.
+      const periodAssessments: Assessment[] = SHEET_DEFS.map((d, i) => ({
+        id: `as-${plan.key}-${period}-${i}`,
+        sectionId,
+        period,
+        name: d.name,
+        maxScore: d.maxScore,
+        weight: d.weight,
+        group: d.group,
+        order: i,
+      }));
       assessments.push(...periodAssessments);
 
       if (pp.kind !== "empty") {

@@ -84,20 +84,24 @@ const checks: { name: string; run: () => string | Promise<string> }[] = [
     },
   },
   {
-    name: "Seed assessments — 3–5 per section period",
+    name: "Seed assessments — the 7-sheet layout in every section period",
     run: () => {
       const s = buildSeed();
       for (const sec of s.sections) {
         for (const p of PERIODS) {
-          const n = s.assessments.filter((a) => a.sectionId === sec.id && a.period === p).length;
-          assert(n >= 3 && n <= 5, `${sec.id}/${p}: ${n}`);
+          const list = s.assessments.filter((a) => a.sectionId === sec.id && a.period === p);
+          assert(list.length === 7, `${sec.id}/${p}: ${list.length}`);
+          const names = list.map((a) => a.name).join(",");
+          assert(names === "A,R-1,R-2,R-3,Q-1,Q-2,Exam", `${sec.id}/${p}: ${names}`);
+          const w = list.reduce((acc, a) => acc + (a.weight ?? 0), 0);
+          assert(Math.abs(w - 100) < 0.01, `${sec.id}/${p}: weights ${w}`);
         }
       }
-      return `all ${s.sections.length * PERIODS.length} section-periods within 3–5`;
+      return `all ${s.sections.length * PERIODS.length} section-periods = A | R-1..R-3 | Q-1 | Q-2 | Exam (100%)`;
     },
   },
   {
-    name: "Seed variety — lock cases, scale5, all-submitted, equal-weight period",
+    name: "Seed variety — lock cases, scale5, all-submitted, Total group",
     run: () => {
       const s = buildSeed();
       assert(s.sections.some((sec) => sec.enforceOrder === false), "no enforceOrder:false section");
@@ -106,13 +110,11 @@ const checks: { name: string; run: () => string | Promise<string> }[] = [
       const allSubmitted = s.sections.filter((sec) => PERIODS.every((p) => s.periodStates[sec.id][p].status === "submitted")).length;
       assert(allSubmitted >= 1, `all-submitted sections: ${allSubmitted}`);
       for (const sec of s.sections) {
-        const equalWeightPeriods = PERIODS.filter((p) => {
-          const list = s.assessments.filter((a) => a.sectionId === sec.id && a.period === p);
-          return list.length > 0 && list.every((a) => a.weight == null);
-        }).length;
-        assert(equalWeightPeriods >= 1, `${sec.id}: ${equalWeightPeriods} equal-weight periods`);
+        const list = s.assessments.filter((a) => a.sectionId === sec.id && a.period === "prelim");
+        const grouped = list.filter((a) => a.group != null).map((a) => a.name).join(",");
+        assert(grouped === "R-1,R-2,R-3", `${sec.id}: group = ${grouped}`);
       }
-      return "enforceOrder:false ✓ · unlocked finals ✓ · scale5 ✓ · all-submitted ✓ · equal-weight period per section ✓";
+      return "enforceOrder:false ✓ · unlocked finals ✓ · scale5 ✓ · all-submitted ✓ · R-group in every period ✓";
     },
   },
   {
