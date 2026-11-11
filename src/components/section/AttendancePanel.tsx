@@ -491,7 +491,7 @@ export function AttendancePanel({
       {students.length === 0 ? (
         <p className="sec-att__none">Add students to the roster first, then mark their attendance.</p>
       ) : (
-        <div className="sec-tablewrap">
+        <div className="sec-tablewrap sec-att__tablewrap">
           <table className="sec-table sec-att__table">
             <thead>
               <tr>
