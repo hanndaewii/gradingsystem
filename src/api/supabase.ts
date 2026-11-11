@@ -289,6 +289,18 @@ export function createSupabaseApi(): Api {
       "Could not load the term.",
     );
 
+  /** Resolve a term, creating it on demand (terms are shared calendar data). */
+  const ensureTermRow = async (academicYear: string, semester: 1 | 2): Promise<TermRow> => {
+    const existing = await resolveTermRow(academicYear, semester);
+    if (existing) return existing;
+    const { data, error } = await tbl("terms")
+      .upsert({ academic_year: academicYear, semester }, { onConflict: "academic_year,semester" })
+      .select("*")
+      .single();
+    if (error) throw new ApiError("Could not create that term.", { code: "FORBIDDEN" });
+    return data as TermRow;
+  };
+
   const termOf = async (termId: string): Promise<{ academicYear: string; semester: 1 | 2 }> => {
     const row = await fetchTermRow(termId);
     if (!row) throw new ApiError("Term not found.", { code: "NOT_FOUND" });
@@ -646,7 +658,7 @@ export function createSupabaseApi(): Api {
       const code = input.code.trim().toUpperCase();
       if (!code) throw new ApiError("Code is required.", { field: "code" });
       if (!input.title.trim()) throw new ApiError("Title is required.", { field: "title" });
-      const termRow = await resolveTermRow(input.academicYear, input.semester);
+      const termRow = await ensureTermRow(input.academicYear, input.semester);
       if (!termRow) throw new ApiError("This term does not exist yet.", { code: "NOT_FOUND" });
       const termInfo: { academicYear: string; semester: 1 | 2 } = {
         academicYear: termRow.academic_year, semester: termRow.semester === 2 ? 2 : 1,

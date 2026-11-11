@@ -199,6 +199,10 @@ create policy "profiles_update_own" on public.faculty_profiles
 drop policy if exists "terms_read_authenticated" on public.faculty_terms;
 create policy "terms_read_authenticated" on public.faculty_terms
   for select to authenticated using (true);
+-- terms are shared calendar reference data: any signed-in user may add a new
+-- academic year / semester (the portal creates the term on demand).
+create policy "terms_insert_authenticated" on public.faculty_terms
+  for insert to authenticated with check (true);
 
 -- courses: professors own their rows; admins read all.
 drop policy if exists "courses_professor_all" on public.faculty_courses;
