@@ -28,7 +28,7 @@ Two extra HTML entries exist for development verification (they are **kept** in 
 - `http://localhost:5173/kit-preview.html` â€” UI kit gallery (design-system primitives in every state, light/dim toggle)
 - `http://localhost:5173/seedcheck.html` â€” seed + pure-logic assertion page (seed counts, grading math, CSV parsing, lock rules, api scoping)
 
-`vite build` output contains only the app entry (`dist/index.html` + hashed assets). `npm run preview` serves it with SPA fallback, and routing is a `BrowserRouter` (clean URLs) — on Cloudflare Pages the `public/_redirects` SPA fallback makes deep links such as `/sections/sec-cs101-a` reload correctly.
+`vite build` output contains only the app entry (`dist/index.html` + hashed assets). `npm run preview` serves it with SPA fallback, and routing is a `BrowserRouter` (clean URLs) — on Cloudflare the SPA fallback comes from `not_found_handling = "single-page-application"` in `wrangler.toml`, so deep links such as `/sections/sec-cs101-a` reload correctly.
 
 ## Data & storage
 
@@ -170,7 +170,7 @@ Nothing outside `src/api/` imports the localStorage backend, and no page touches
 
 ## Launching on Cloudflare Pages
 
-The portal deploys as a static site on Cloudflare Pages with clean URLs (`BrowserRouter`; the `public/_redirects` SPA fallback serves deep links like `/sections/<id>`).
+The portal deploys as a static site on Cloudflare (a Workers project with static assets, `name = "gradingsystem"`) with clean URLs (`BrowserRouter`; the `not_found_handling = "single-page-application"` SPA fallback serves deep links like `/sections/<id>`).
 
 **Project settings (Dashboard → Workers & Pages → Create → Pages → Connect to Git):**
 
@@ -206,4 +206,6 @@ npm run build     # type-checks (tsc --noEmit) then bundles to dist/
 npm run preview   # serves the production build locally
 ```
 
-Deploying is handled by `npm run deploy` (see `scripts/deploy-pages.mjs`), which runs `wrangler pages deploy dist --project-name=gradingsystem` — the **Pages** flavour; plain `npx wrangler deploy` is the Workers command and fails on a Pages project with *"Missing entry-point to Worker script or to assets directory"*. Set Cloudflare's **Deploy command** to `npm run deploy`, and delete any custom `CLOUDFLARE_API_TOKEN` from the project's environment variables: it overrides the build environment's own scoped credential and is what caused *"Authentication error [code: 10000]"*. `wrangler.toml` in the repo root holds the Pages project config (`name = "gradingsystem"`, output dir `dist`), and `public/_headers` ships the security headers (CSP, frame-ancestors, nosniff, etc.).
+The `gradingsystem` project is a Cloudflare **Workers** project with static assets, published with `npm run deploy` (see `scripts/deploy.mjs` → `wrangler deploy`). `wrangler.toml` points it at the build output (`[assets] directory = "./dist"`) and enables the SPA fallback (`not_found_handling = "single-page-application"`) so clean deep links work. Set Cloudflare's **Deploy command** to `npm run deploy`, and delete any custom `CLOUDFLARE_API_TOKEN` from the project's environment variables: it overrides the build environment's own scoped credential and is what caused *"Authentication error [code: 10000]"*. `public/_headers` ships the security headers (CSP, frame-ancestors, nosniff, etc.).
+
+Live: **https://gradingsystem.hanndaaewii.workers.dev**

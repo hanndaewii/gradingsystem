@@ -1,25 +1,33 @@
-# Cloudflare Pages project configuration.
+# Cloudflare deployment configuration (Workers Static Assets).
 #
+# The "gradingsystem" project is a Cloudflare **Workers** project with static
+# assets (not a Pages project), so it is published with `wrangler deploy`
+# and the [assets] block below points it at the built site.
+#
+# Cloudflare build settings (Workers & Pages → gradingsystem → Settings →
+# Builds & deployments → Build configuration):
 #   • Build command:        npm run build
-#   • Build output dir:     dist   (pages_build_output_dir below)
-#   • Root directory:       /  (repo root)
 #   • Deploy command:       npm run deploy
-#                            (scripts/deploy-pages.mjs → wrangler pages deploy dist
-#                             --project-name=gradingsystem). This uses the Pages
-#                            flavour; plain `npx wrangler deploy` is the Workers
-#                            command and fails on a Pages project.
-#                            IMPORTANT: delete any custom CLOUDFLARE_API_TOKEN
-#                            from the project settings — it overrides the build
-#                            environment's own scoped credential and usually
-#                            lacks "Cloudflare Pages: Edit".
+#   • Build output dir:     dist
+#   • Root directory:       /  (repo root)
 #
-# Build-time environment variables — set BOTH in Dashboard → Pages project →
-# Settings → Environment variables (Production + Preview):
+# IMPORTANT: delete any custom CLOUDFLARE_API_TOKEN from the project's
+# environment variables. It overrides the credential Cloudflare injects into
+# the build and usually lacks the needed permissions ("Authentication error
+# [code: 10000]").
+#
+# Build-time environment variables (Production + Preview) — only these two:
 #   • VITE_SUPABASE_URL
 #   • VITE_SUPABASE_ANON_KEY
-# These are baked into the bundle at build time; changing them requires a
-# rebuild. NEVER set SUPABASE_SECRET_KEY or DATABASE_URL as a Pages build
-# variable — they are server-side only and would ship to every browser.
+# They are baked into the bundle at build time. NEVER set SUPABASE_SECRET_KEY
+# or DATABASE_URL as build variables — they are server-side only and would
+# ship to every browser.
 
 name = "gradingsystem"
-pages_build_output_dir = "dist"
+compatibility_date = "2024-11-01"
+
+# The built SPA. not_found_handling = "single-page-application" makes deep
+# links like /sections/<id> resolve to index.html (the app uses clean URLs).
+[assets]
+directory = "./dist"
+not_found_handling = "single-page-application"
