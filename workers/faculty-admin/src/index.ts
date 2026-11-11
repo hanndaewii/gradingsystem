@@ -66,9 +66,19 @@ export default {
       .split(",")
       .map((o) => o.trim())
       .filter(Boolean);
-    // Browsers always send Origin on cross-origin calls, so the check still
-    // blocks them; a request without Origin is a server-to-server call.
-    if (origin && allowed.length > 0 && !allowed.includes(origin)) {
+    // Any of this account's own Cloudflare hostnames (the live site, branch
+    // preview URLs, pages.dev) plus localhost. A request without an Origin
+    // header is a server-to-server call.
+    const host = (() => {
+      try {
+        return new URL(origin).hostname;
+      } catch {
+        return "";
+      }
+    })();
+    const ownCloudflareHost =
+      host.endsWith(".workers.dev") || host.endsWith(".pages.dev") || host === "localhost" || host === "127.0.0.1";
+    if (origin && !ownCloudflareHost && !allowed.includes(origin)) {
       return json({ error: "Origin not allowed." }, 403, origin);
     }
     const echo = origin || allowed[0] || "*";

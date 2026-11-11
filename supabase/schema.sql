@@ -38,6 +38,23 @@ create table if not exists public.faculty_profiles (
 );
 
 -- ── public.faculty_terms ────────────────────────────────────────────────────────────
+-- ── faculty.credentials ──────────────────────────────────────────────────────
+-- Role-scoped sign-in: ONE email can hold two credentials — a department-head
+-- password and a professor password. The login screen picks the role; the
+-- Worker verifies the bcrypt hash here and issues the session, and the profile
+-- row's role is set to the role that was used, so row-level security matches
+-- the session. Nothing readable is stored.
+create table if not exists public.faculty_credentials (
+  id            uuid primary key default gen_random_uuid(),
+  email         text not null,
+  role          text not null check (role in ('professor', 'admin')),
+  password_hash text not null,          -- crypt(password, gen_salt('bf'))
+  label         text not null default '',
+  created_at    timestamptz not null default now(),
+  updated_at    timestamptz not null default now(),
+  unique (email, role)
+);
+
 create table if not exists public.faculty_terms (
   id             uuid primary key default gen_random_uuid(),
   academic_year  text not null check (academic_year ~ '^\d{4}-\d{4}$'),
@@ -176,6 +193,7 @@ as $$
 $$;
 
 alter table public.faculty_profiles      enable row level security;
+alter table public.faculty_credentials  enable row level security;
 alter table public.faculty_terms         enable row level security;
 alter table public.faculty_courses       enable row level security;
 alter table public.faculty_sections      enable row level security;
@@ -199,6 +217,15 @@ create policy "profiles_update_own" on public.faculty_profiles
 drop policy if exists "profiles_insert_own" on public.faculty_profiles;
 create policy "profiles_insert_own" on public.faculty_profiles
   for insert to authenticated with check (id = auth.uid());
+
+-- credentials: only the department head may read or change them (the Worker
+-- also uses the service role, which bypasses RLS).
+create policy "credentials_admin_read" on public.faculty_credentials
+  for select to authenticated using (public.faculty_current_role_is_admin());
+create policy "credentials_admin_write" on public.faculty_credentials
+  for all to authenticated
+  using (public.faculty_current_role_is_admin())
+  with check (public.faculty_current_role_is_admin());
 
 -- terms: static lookup data, readable by all signed-in users.
 drop policy if exists "terms_read_authenticated" on public.faculty_terms;
@@ -364,6 +391,7 @@ create trigger trg_assessments_period_lock
 -- grading-system tables.
 grant select, insert, update, delete on all tables in schema public to authenticated;
 grant all on all sequences in schema public to authenticated;
+grant execute on function public.faculty_current_role_is_admin() to authenticated;
 
 -- Cascade chain reference (all ON DELETE CASCADE):
 --   courses ─▶ sections ─▶ periods

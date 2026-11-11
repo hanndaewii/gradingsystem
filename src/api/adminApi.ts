@@ -28,7 +28,16 @@ async function headers(): Promise<Record<string, string>> {
 }
 
 async function call<T>(path: string, init?: RequestInit): Promise<T> {
-  const res = await fetch(`${ADMIN_API}${path}`, { ...init, headers: await headers() });
+  let res: Response;
+  try {
+    res = await fetch(`${ADMIN_API}${path}`, { ...init, headers: await headers() });
+  } catch (err) {
+    // Almost always a blocked request: the portal's Content-Security-Policy
+    // must allow the faculty-admin Worker in connect-src.
+    throw new Error(
+      `Could not reach the faculty service (${ADMIN_API}). If you are on the deployed site, the Content-Security-Policy must allow that host.`,
+    );
+  }
   const body = (await res.json().catch(() => ({}))) as T & { error?: string };
   if (!res.ok) throw new Error(body.error ?? "The faculty service did not respond.");
   return body;
