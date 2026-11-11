@@ -415,6 +415,79 @@
   border-top-color: var(--accent);
 }
 
+/* ---- spreadsheet grid: the grading table looks like the Excel sheet ---- */
+
+.sec-table th,
+.sec-table td {
+  border: 1px solid var(--rule);
+  text-align: center;
+}
+
+.sec-table thead th {
+  border-bottom: 2px solid var(--rule-strong);
+}
+
+.sec-table tfoot td {
+  border-top: 1px solid var(--rule);
+}
+
+.sec-table__foot--semester td {
+  border-top: none;
+  border-bottom: 2px solid var(--rule-strong);
+}
+
+/* names keep left alignment; every number cell centres like the sheet */
+.sec-table th.sec-table__name,
+.sec-table td.sec-table__name,
+.sec-table th.sec-table__id,
+.sec-table td.sec-table__id {
+  text-align: left;
+}
+
+.sec-table th.sec-table__name,
+.sec-table td.sec-table__name {
+  padding-left: var(--space-3);
+  min-width: 200px;
+}
+
+.sec-table thead th.sec-table__assess {
+  text-align: center;
+}
+
+.sec-table__assessname,
+.sec-table__assessmeta {
+  text-align: center;
+}
+
+.sec-table th.sec-table__pcthead,
+.sec-table th.sec-table__totalhead,
+.sec-table th.sec-table__periodgrade {
+  text-align: center;
+}
+
+.sec-table td.sec-table__contrib {
+  border-left: 1px solid var(--rule);
+}
+
+.sec-table td.sec-table__contrib,
+.sec-table td.sec-table__total,
+.sec-table td.sec-table__periodgrade {
+  text-align: center;
+}
+
+/* the score input sits inside its grid cell — no underline of its own */
+.sec-table td.sec-cell .sec-cell__input {
+  border: none;
+  min-height: 36px;
+  padding: 0;
+  text-align: center;
+  background: transparent;
+}
+
+.sec-table td.sec-cell {
+  text-align: center;
+}
+
 .sec-panelactions {
   display: inline-flex;
   align-items: center;
