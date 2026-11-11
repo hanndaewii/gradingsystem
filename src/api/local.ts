@@ -13,7 +13,10 @@ import { buildPeriodProgress, classAveragePct, isPeriodEditable } from "../lib/g
 import { clampScore, DEFAULT_SCALE_TABLE } from "../lib/format";
 import { uid } from "../lib/id";
 
-const DB_KEY = "faculty-portal.db:v1";
+// v2: reseeds automatically for anyone who loaded the earlier random
+// assessment seed — the sheet layout (A | R-1..R-3 | Q-1 | Q-2 | Exam) must
+// exist in every section and period.
+const DB_KEY = "faculty-portal.db:v2";
 const SESSION_KEY = "faculty-portal.session:v1";
 const LATENCY_MS = 60;
 

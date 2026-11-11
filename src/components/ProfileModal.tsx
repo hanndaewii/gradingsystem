@@ -1,4 +1,4 @@
-// ProfileModal (WO-3) — "Your profile": read view (name, mono email,
+﻿// ProfileModal (WO-3) â€” "Your profile": read view (name, mono email,
 // role pill, department, bio) and an edit form (name/department/bio with
 // inline validation) for BOTH roles. The footer also carries the demo-data
 // reset behind a ConfirmDialog (D4/D20). Mounted only by the Header.
@@ -180,12 +180,12 @@ export function ProfileModal({ open, onClose }: ProfileModalProps): JSX.Element 
             </div>
             <div className="sh-profile__row">
               <span className="mono-label">Department</span>
-              <span>{profile.department === "" ? <span className="sh-profile__empty">—</span> : profile.department}</span>
+              <span>{profile.department === "" ? <span className="sh-profile__empty">â€”</span> : profile.department}</span>
             </div>
             <div className="sh-profile__row">
               <span className="mono-label">Bio</span>
               <span className="serif-prose sh-profile__bio">
-                {profile.bio === "" ? <span className="sh-profile__empty">—</span> : profile.bio}
+                {profile.bio === "" ? <span className="sh-profile__empty">â€”</span> : profile.bio}
               </span>
             </div>
           </div>
@@ -205,10 +205,10 @@ export function ProfileModal({ open, onClose }: ProfileModalProps): JSX.Element 
         body={
           <>
             <p>
-              This wipes every local change — courses, sections, grades, history and comments — and
+              This wipes every local change â€” courses, sections, grades, history and comments â€” and
               restores the seeded demo data. This cannot be undone.
             </p>
-            <p className="sh-profile__reset-note mono-label">faculty-portal.db:v1</p>
+            <p className="sh-profile__reset-note mono-label">faculty-portal.db:v2</p>
           </>
         }
       />

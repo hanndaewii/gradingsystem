@@ -1,12 +1,12 @@
-# Faculty Grading Portal
+﻿# Faculty Grading Portal
 
-A front-end-only faculty grading portal for two roles (professor, department-head admin) across two semesters and four grading periods per section. Vite 6 + React 18 + TypeScript (strict). All persistence goes through one async `api` layer (`src/api/`) backed by **localStorage**, shaped so every method can later be swapped for a supabase-js call with zero UI changes — see `supabase/schema.sql` for the corresponding SQL schema, RLS policies and submitted-period trigger.
+A front-end-only faculty grading portal for two roles (professor, department-head admin) across two semesters and four grading periods per section. Vite 6 + React 18 + TypeScript (strict). All persistence goes through one async `api` layer (`src/api/`) backed by **localStorage**, shaped so every method can later be swapped for a supabase-js call with zero UI changes â€” see `supabase/schema.sql` for the corresponding SQL schema, RLS policies and submitted-period trigger.
 
 ## Run it (Windows / PowerShell)
 
 ```powershell
 npm install
-npm run dev        # → http://localhost:5173
+npm run dev        # â†’ http://localhost:5173
 npm run build      # type-checks (tsc --noEmit) then bundles with vite
 npm run preview    # serves the production build (hash routing, deep links work)
 ```
@@ -17,16 +17,16 @@ Passwords are identical (`demo1234`). The login page has quick-fill chips for al
 
 | Label | Email | Password | Role |
 |---|---|---|---|
-| Dr. Marisol Reyes · Admin | `admin@northstate.edu` | `demo1234` | admin (department head) |
+| Dr. Marisol Reyes Â· Admin | `admin@northstate.edu` | `demo1234` | admin (department head) |
 | Prof. Antonio Cruz | `acruz@northstate.edu` | `demo1234` | professor |
 | Prof. Liza Bautista | `lbautista@northstate.edu` | `demo1234` | professor |
 
 ## Dev-only preview pages
 
-Two extra HTML entries exist for development verification (they are **kept** in the repo — orchestrator decision; they are not part of `vite build`, which only reads `index.html`, and `tsc` type-checks their modules like every other source file):
+Two extra HTML entries exist for development verification (they are **kept** in the repo â€” orchestrator decision; they are not part of `vite build`, which only reads `index.html`, and `tsc` type-checks their modules like every other source file):
 
-- `http://localhost:5173/kit-preview.html` — UI kit gallery (design-system primitives in every state, light/dim toggle)
-- `http://localhost:5173/seedcheck.html` — seed + pure-logic assertion page (seed counts, grading math, CSV parsing, lock rules, api scoping)
+- `http://localhost:5173/kit-preview.html` â€” UI kit gallery (design-system primitives in every state, light/dim toggle)
+- `http://localhost:5173/seedcheck.html` â€” seed + pure-logic assertion page (seed counts, grading math, CSV parsing, lock rules, api scoping)
 
 `vite build` output contains only the app entry (`dist/index.html` + hashed assets). `npm run preview` serves it with SPA fallback, and because routing is a `HashRouter`, deep links such as `/#/sections/sec-cs101-a` reload correctly from any static host.
 
@@ -34,20 +34,20 @@ Two extra HTML entries exist for development verification (they are **kept** in 
 
 | Key | Contents |
 |---|---|
-| `faculty-portal.db:v1` | the whole demo database (one JSON document) |
+| `faculty-portal.db:v2` | the whole demo database (one JSON document) |
 | `faculty-portal.session:v1` | signed-in profile id |
 | `faculty-portal.theme:v1` | light/dim preference |
 | `faculty-portal.term:v1` | selected term preference |
 
-**Reset demo data:** profile modal → "Reset demo data" (asks for confirmation, reseeds, keeps you signed in), or DevTools → Application → Local Storage → delete `faculty-portal.db:v1` and reload (a corrupt or missing doc is reseeded automatically).
+**Reset demo data:** profile modal â†’ "Reset demo data" (asks for confirmation, reseeds, keeps you signed in), or DevTools â†’ Application â†’ Local Storage â†’ delete `faculty-portal.db:v2` and reload (a corrupt or missing doc is reseeded automatically).
 
 ## Architecture
 
 ```
 src/
-  main.tsx            entry — imports ./styles/index.css FIRST, then App
-  App.tsx             provider nesting (Toast → Auth → Term → HashRouter) + routes/guards
-  types.ts            §3.1 domain types + the `Api` interface (§3.2) — the contract
+  main.tsx            entry â€” imports ./styles/index.css FIRST, then App
+  App.tsx             provider nesting (Toast â†’ Auth â†’ Term â†’ HashRouter) + routes/guards
+  types.ts            Â§3.1 domain types + the `Api` interface (Â§3.2) â€” the contract
   api/
     index.ts          the ONLY module pages import: exports the `api` singleton,
                       the Supabase swap recipe, and the dev `window.__dbg` hook
@@ -56,18 +56,18 @@ src/
   lib/
     grades.ts         ALL grading math (pure): periodGrade, semesterGrade,
                       countCompleteness/buildPeriodProgress, isPeriodEditable,
-                      scaleLookup, classAveragePct — components never re-derive
+                      scaleLookup, classAveragePct â€” components never re-derive
                       weighted/period/semester results inline
-    format.ts         pure display helpers + DEFAULT_SCALE_TABLE (§3.5)
+    format.ts         pure display helpers + DEFAULT_SCALE_TABLE (Â§3.5)
     csv.ts            parseCsv / parseRoster (never throw)
     useAsync.ts       fetch hook with stale/cancellation guards (StrictMode-safe)
     useTheme.ts       light/dim preference (owns faculty-portal.theme:v1)
   data/seed.ts        deterministic demo seed (mulberry32), TERMS, DEMO_ACCOUNTS
   context/            AuthContext, TermContext (term persistence)
   components/ui/      WO-1 primitives (.ui-* classes in styles/components.css)
-  components/…        domain components per area (courses / section / admin / layout)
+  components/â€¦        domain components per area (courses / section / admin / layout)
   pages/              LoginPage, ProfessorHome, CoursePage, SectionPage, AdminHome, NotFound
-  styles/             tokens → base → components (index.css import order = load order);
+  styles/             tokens â†’ base â†’ components (index.css import order = load order);
                       domain stylesheets use only tokens + their .prof-/.sec-/.adm-/.sh- prefixes
 supabase/schema.sql   runnable-later DDL twin: tables, cascade FKs, indexes,
                       RLS policies, submitted-period trigger
@@ -75,26 +75,26 @@ supabase/schema.sql   runnable-later DDL twin: tables, cascade FKs, indexes,
 
 **Rules that keep the layers honest:** only `src/api/local.ts`, `src/lib/useTheme.ts` and `src/context/TermContext.tsx` touch localStorage (the latter two own UI-pref keys only); pages never import another page's folder (they navigate by URL string); `useToast()` outside the provider throws; every mutation reports through the toast system, and every destructive action runs through a `ConfirmDialog` with concrete counts.
 
-**Backend swap recipe:** implement `Api` from `src/types.ts` 1:1 against supabase-js (schema + RLS in `supabase/schema.sql`), then change the single export line in `src/api/index.ts`. Zero UI changes — see "Swapping localStorage for Supabase" below.
+**Backend swap recipe:** implement `Api` from `src/types.ts` 1:1 against supabase-js (schema + RLS in `supabase/schema.sql`), then change the single export line in `src/api/index.ts`. Zero UI changes â€” see "Swapping localStorage for Supabase" below.
 
 ## Verified behaviour
 
-Results of the §5 acceptance audit (WO-7). "Fixed" marks a gap closed in the final pass.
+Results of the Â§5 acceptance audit (WO-7). "Fixed" marks a gap closed in the final pass.
 
 | Area | Requirement | Result |
 |---|---|---|
 | Visual | light default + warm-charcoal dim, persisted (`faculty-portal.theme:v1`) | Pass |
 | Visual | serif prose, mono numerals/IDs/statuses (`.num`, `.mono-label`) | Pass |
 | Visual | hairlines everywhere, no box-shadow, no blue/indigo anywhere | Pass |
-| Visual | gold only on ticks / submitted states / focus ring / celebration | Pass (fixed: own-comment highlight de-golded; trace flash chip retained — see Deviations) |
+| Visual | gold only on ticks / submitted states / focus ring / celebration | Pass (fixed: own-comment highlight de-golded; trace flash chip retained â€” see Deviations) |
 | Visual | reduced-motion: durations zeroed, tick draw + flash animation skipped | Pass |
-| Hierarchy | AY → Semester → Course → Section → Students/grades; header switcher filters home/course/admin | Pass |
+| Hierarchy | AY â†’ Semester â†’ Course â†’ Section â†’ Students/grades; header switcher filters home/course/admin | Pass |
 | Hierarchy | four periods everywhere; submit locks only that period | Pass |
 | Roles | professor scoped to own courses/sections + own profile; admin read-only + comments | Pass (api-enforced, verified via runtime tests) |
 | Roles | email/password login, inline error state, 3 demo quick-fill chips | Pass |
 | Period flow | tabs per period; assessments name/max/weight; computed period grade | Pass |
-| Period flow | semester grade from configurable weights (default 25×4, ±0.01 gate) | Pass (epsilon verified) |
-| Period flow | percent+letter / 1.0–5.0 with editable conversion table + live preview | Pass |
+| Period flow | semester grade from configurable weights (default 25Ã—4, Â±0.01 gate) | Pass (epsilon verified) |
+| Period flow | percent+letter / 1.0â€“5.0 with editable conversion table + live preview | Pass |
 | Period flow | in-order entry, manual unlock, Not started/Draft/Submitted | Pass |
 | Pages | login; professor home (hero + submitted-this-week + course grid + empty state); admin home (5 stats + sections table + 3 filters); course page; section page (scroll-spy nav, tabs, roster, assessments, summary, history, discussion); profile modal | Pass |
 | CRUD | course create (unique code per professor+semester, inline validation); section create with copy (assessments + roster, new ids, states reset); edit/delete with count-stating confirms | Pass |
@@ -107,35 +107,35 @@ Results of the §5 acceptance audit (WO-7). "Fixed" marks a gap closed in the fi
 | Interactions | scroll-spy side nav with anchor links | Pass |
 | Interactions | CSV import: name-matched columns with remap, applied/skipped report | Pass |
 | Interactions | submit gated at 100% + ConfirmDialog; reopen confirmed + recorded in history | Pass |
-| Interactions | history tagged by period, clickable old→new trace with cell flash | Pass |
+| Interactions | history tagged by period, clickable oldâ†’new trace with cell flash | Pass |
 | Interactions | celebration chime (AudioContext born in the click handler) + longer Finals/semester variant | Pass |
 | Interactions | period-tagged comments shared by professor and admin | Pass |
-| Supabase readiness | single async api with the full §3.2 surface; schema.sql with cascades, indexes, RLS, submitted-trigger; localStorage stands in | Pass |
-| Robustness | corrupted/missing/legacy `faculty-portal.db:v1` → reseed (48/48 runtime checks) | Pass |
-| Robustness | stale session id → clean logout (verified) | Pass |
+| Supabase readiness | single async api with the full Â§3.2 surface; schema.sql with cascades, indexes, RLS, submitted-trigger; localStorage stands in | Pass |
+| Robustness | corrupted/missing/legacy `faculty-portal.db:v2` â†’ reseed (48/48 runtime checks) | Pass |
+| Robustness | stale session id â†’ clean logout (verified) | Pass |
 | Robustness | `npm run build` clean; `npm run preview` serves with SPA fallback; hash deep links reload | Pass |
 
 ### Known deviations (deliberate)
 
-- **No per-cell "Score saved" toast.** Autocommit grade entry is confirmed by the optimistic cell update and the live footers instead — a submitted column would otherwise stack one toast per cell. The invalid-input warn toast, the save-failure toast and all other mutation toasts remain.
-- **History rows carry no actor names.** The pinned `Api` surface has no profile-name lookup (adding one purely for display would extend the §3.2 contract), so rows show the kind·period tag; history tracing and old→new transitions are unaffected.
-- **The history-trace flash + "85 → 92" chip use the gold wash.** The locked palette reserves gold for ticks/submitted; the trace chip is the one accepted extension (a momentary "scored change" marker, not chrome).
-- **`kit-preview.html` / `seedcheck.html` ship in the repo** (orchestrator decision) — dev-only, excluded from the build.
+- **No per-cell "Score saved" toast.** Autocommit grade entry is confirmed by the optimistic cell update and the live footers instead â€” a submitted column would otherwise stack one toast per cell. The invalid-input warn toast, the save-failure toast and all other mutation toasts remain.
+- **History rows carry no actor names.** The pinned `Api` surface has no profile-name lookup (adding one purely for display would extend the Â§3.2 contract), so rows show the kindÂ·period tag; history tracing and oldâ†’new transitions are unaffected.
+- **The history-trace flash + "85 â†’ 92" chip use the gold wash.** The locked palette reserves gold for ticks/submitted; the trace chip is the one accepted extension (a momentary "scored change" marker, not chrome).
+- **`kit-preview.html` / `seedcheck.html` ship in the repo** (orchestrator decision) â€” dev-only, excluded from the build.
 
 ## Feature map
 
-- **Roles** — professors see and edit only their own courses/sections; the admin reads everything (both semesters) and may only write comments and their own profile.
-- **Hierarchy** — Academic Year → Semester → Course → Section → Students/grades. The header switcher filters every view; AY 2026-2027 is intentionally empty so the "add your first course" empty state is reachable.
-- **Periods** — Prelim / Midterm / Semi-finals / Finals per section, each with its own assessments, roster, status (Not started / Draft / Submitted) and submit/reopen flow. Submitting locks only that period (server-enforced in the api layer, not just the UI).
-- **Grading math** — a period grade is weighted when any assessment has a weight > 0, otherwise an equal-weight average; missing scores count as 0 (provisional). The semester grade = Σ(period weight × period grade) / Σ(period weights over periods that have assessments). Weights must total 100 (± 0.01).
-- **Scales** — per-section display as percent+letter or Philippine 1.0–5.0, with an editable conversion table (default in `src/lib/format.ts` → `DEFAULT_SCALE_TABLE`).
-- **In-order entry** — by default each period unlocks when the previous one is submitted; `enforceOrder` can be turned off per section, and individual periods can be manually unlocked.
-- **CSV** — roster paste/import and per-period grade import (see formats below).
-- **History & discussion** — every grade change, submit, reopen and CSV import is recorded; a per-section comment thread is shared between professor and admin (the admin's main write path).
+- **Roles** â€” professors see and edit only their own courses/sections; the admin reads everything (both semesters) and may only write comments and their own profile.
+- **Hierarchy** â€” Academic Year â†’ Semester â†’ Course â†’ Section â†’ Students/grades. The header switcher filters every view; AY 2026-2027 is intentionally empty so the "add your first course" empty state is reachable.
+- **Periods** â€” Prelim / Midterm / Semi-finals / Finals per section, each with its own assessments, roster, status (Not started / Draft / Submitted) and submit/reopen flow. Submitting locks only that period (server-enforced in the api layer, not just the UI).
+- **Grading math** â€” a period grade is weighted when any assessment has a weight > 0, otherwise an equal-weight average; missing scores count as 0 (provisional). The semester grade = Î£(period weight Ã— period grade) / Î£(period weights over periods that have assessments). Weights must total 100 (Â± 0.01).
+- **Scales** â€” per-section display as percent+letter or Philippine 1.0â€“5.0, with an editable conversion table (default in `src/lib/format.ts` â†’ `DEFAULT_SCALE_TABLE`).
+- **In-order entry** â€” by default each period unlocks when the previous one is submitted; `enforceOrder` can be turned off per section, and individual periods can be manually unlocked.
+- **CSV** â€” roster paste/import and per-period grade import (see formats below).
+- **History & discussion** â€” every grade change, submit, reopen and CSV import is recorded; a per-section comment thread is shared between professor and admin (the admin's main write path).
 
 ### CSV formats
 
-Roster paste (tab or comma, either column order, one student per line). The Student ID is optional — students added without one get an auto-generated `AUTO-####` number, and the roster table hides the ID column when nobody has a real one:
+Roster paste (tab or comma, either column order, one student per line). The Student ID is optional â€” students added without one get an auto-generated `AUTO-####` number, and the roster table hides the ID column when nobody has a real one:
 
 ```
 Anna Cruz	2023-10457
@@ -157,13 +157,13 @@ The import preview lets you remap or ignore columns; unmatched rows are skipped 
 
 1. `npm i @supabase/supabase-js`
 2. Run `supabase/schema.sql` in your project (tables, indexes, RLS policies, submitted-period trigger).
-3. Create `src/api/supabase.ts` implementing the `Api` interface from `src/types.ts` 1:1 — one method per table call, throwing `ApiError` with the same codes (`PERIOD_SUBMITTED`, `DUPLICATE_CODE`, `WEIGHTS_NOT_100`, `INCOMPLETE`, `NOT_FOUND`, `BAD_CREDENTIALS`, `FORBIDDEN`).
+3. Create `src/api/supabase.ts` implementing the `Api` interface from `src/types.ts` 1:1 â€” one method per table call, throwing `ApiError` with the same codes (`PERIOD_SUBMITTED`, `DUPLICATE_CODE`, `WEIGHTS_NOT_100`, `INCOMPLETE`, `NOT_FOUND`, `BAD_CREDENTIALS`, `FORBIDDEN`).
 4. Change the single export line in `src/api/index.ts` from `createLocalApi()` to your new factory. No UI code changes.
 
 Nothing outside `src/api/` imports the localStorage backend, and no page touches localStorage directly.
 
 ## Caveats (demo-only, deliberate)
 
-- **Passwords are stored in plaintext** inside `localStorage` (`faculty-portal.db:v1`). This is acceptable only because the app is a front-end demo with pinned demo accounts; the Supabase schema deliberately has no password column (Supabase Auth owns credentials).
-- **RLS is documented, not enforced, client-side.** The policies in `supabase/schema.sql` describe the intended server-side enforcement. In the localStorage demo, role scoping is enforced only inside `src/api/local.ts` — there is no real security boundary.
+- **Passwords are stored in plaintext** inside `localStorage` (`faculty-portal.db:v2`). This is acceptable only because the app is a front-end demo with pinned demo accounts; the Supabase schema deliberately has no password column (Supabase Auth owns credentials).
+- **RLS is documented, not enforced, client-side.** The policies in `supabase/schema.sql` describe the intended server-side enforcement. In the localStorage demo, role scoping is enforced only inside `src/api/local.ts` â€” there is no real security boundary.
 - All data lives in one browser profile's localStorage; there is no cross-device or multi-tab sync guarantee beyond the browser's own `storage` event behaviour (not relied upon).
