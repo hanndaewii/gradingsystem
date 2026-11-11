@@ -7,11 +7,14 @@
 import { useCallback, useEffect, useState } from "react";
 import { createTeacher, listFaculty, resetPassword, setCredential } from "../../api/adminApi";
 import type { FacultyMember } from "../../api/adminApi";
-import { Button, Field, Input, Panel, PasswordInput, Spinner, useToast } from "../../components/ui";
+import { Button, Field, Input, Menu, Panel, PasswordInput, Spinner, useToast } from "../../components/ui";
+import { useAuth } from "../../context/AuthContext";
 import "../../styles/admin.css";
 
 export default function FacultyPage(): JSX.Element {
   const toast = useToast();
+  const auth = useAuth();
+  const selfEmail = auth.profile?.email ?? null;
   const [members, setMembers] = useState<FacultyMember[]>([]);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
@@ -153,6 +156,7 @@ export default function FacultyPage(): JSX.Element {
             <ul className="adm-faclist">
               {members.map((m) => {
                 const isEditing = editing !== null && editing.email === m.email;
+                const isSelf = m.email.toLowerCase() === (selfEmail ?? "").toLowerCase();
                 return (
                   <li key={m.id} className="adm-faclist__row">
                     <span className="adm-faclist__name">{m.name}</span>
@@ -230,17 +234,33 @@ export default function FacultyPage(): JSX.Element {
                         >
                           Professor password
                         </Button>
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          disabled={busy}
-                          onClick={() => {
-                            setEditing({ email: m.email, role: "admin" });
-                            setNewPass("");
-                          }}
-                        >
-                          Head password
-                        </Button>
+                        {isSelf ? (
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            disabled={busy}
+                            onClick={() => {
+                              setEditing({ email: m.email, role: "admin" });
+                              setNewPass("");
+                            }}
+                          >
+                            Head password
+                          </Button>
+                        ) : (
+                          <Menu
+                            ariaLabel={`More actions for ${m.name}`}
+                            items={[
+                              {
+                                key: "head",
+                                label: "Grant head access",
+                                onSelect: () => {
+                                  setEditing({ email: m.email, role: "admin" });
+                                  setNewPass("");
+                                },
+                              },
+                            ]}
+                          />
+                        )}
                         <Button size="sm" variant="ghost" disabled={busy} onClick={() => void handleReset(m)}>
                           Reset
                         </Button>

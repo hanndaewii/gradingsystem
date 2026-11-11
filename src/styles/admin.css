@@ -338,7 +338,9 @@
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: var(--space-4);
-  align-items: end;
+  /* start-aligned so the inputs line up across a row — a field with a hint
+     underneath must not push its input up out of line with its neighbour */
+  align-items: start;
 }
 
 .adm-faculty__form > button {
