@@ -148,14 +148,40 @@ export default {
 
       const credRes = await adminFetch(
         env,
-        `/rest/v1/faculty_credentials?select=id,email,role,password_hash&email=eq.${encodeURIComponent(email)}&role=eq.${role}`,
+        `/rest/v1/faculty_credentials?select=id,email,role,password_hash&email=eq.${encodeURIComponent(email)}`,
       );
-      const creds = (await credRes.json()) as { id: string; password_hash: string }[];
-      if (!Array.isArray(creds) || creds.length === 0) {
-        return json({ error: "That email has no account for that role." }, 401, echo);
+      const allCreds = (await credRes.json()) as { id: string; role: string; password_hash: string }[];
+      const cred = allCreds.find((c) => c.role === role);
+      if (!cred) {
+        // Tell the caller which roles this email actually has.
+        const roles = allCreds.map((c) => c.role);
+        if (roles.length === 0) {
+          return json(
+            { error: "That email has no account yet — ask the department head to add you." },
+            401,
+            echo,
+          );
+        }
+        return json(
+          {
+            error: `This email has no ${role === "admin" ? "Department head" : "Professor"} account.`,
+            available_roles: roles,
+          },
+          401,
+          echo,
+        );
       }
-      if (!(await verifyPassword(password, creds[0].password_hash))) {
-        return json({ error: "Email or password is incorrect." }, 401, echo);
+      if (!(await verifyPassword(password, cred.password_hash))) {
+        const roles = allCreds.map((c) => c.role);
+        const label = role === "admin" ? "Department head" : "Professor";
+        return json(
+          {
+            error: `That password is not the ${label.toLowerCase()} password for this email. Switch to the other role, or ask the department head to reset it.`,
+            available_roles: roles,
+          },
+          401,
+          echo,
+        );
       }
 
       // The auth user must exist (a credential can outlive it).

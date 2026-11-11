@@ -411,8 +411,14 @@ export function createSupabaseApi(): Api {
         if (otpError) throw new ApiError("Email or password is incorrect.", { code: "BAD_CREDENTIALS" });
       } catch (err) {
         if (err instanceof ApiError) throw err;
-        // The faculty service is unreachable — fall back to the plain
-        // Supabase password sign-in (the auth password is kept in step).
+        // A credential problem (wrong password / wrong role) is reported
+        // verbatim; only a network failure falls back to plain Supabase sign-in.
+        const status = (err as { status?: number }).status;
+        if (status === 401 || status === 400) {
+          throw new ApiError(err instanceof Error ? err.message : "Email or password is incorrect.", {
+            code: "BAD_CREDENTIALS",
+          });
+        }
         return api.signIn(email, password);
       }
       const { data: userData } = await supabase.auth.getUser();

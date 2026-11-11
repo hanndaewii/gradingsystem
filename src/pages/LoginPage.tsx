@@ -110,7 +110,8 @@ export default function LoginPage(): JSX.Element {
         .catch((err: unknown) => {
           setSubmitting(false);
           if (err instanceof ApiError && err.code === "BAD_CREDENTIALS") {
-            setFormError("Email or password is incorrect.");
+            // The message may name the roles this email can use.
+            setFormError(err.message);
           } else {
             setFormError(err instanceof Error ? err.message : "Sign-in failed. Please try again.");
           }

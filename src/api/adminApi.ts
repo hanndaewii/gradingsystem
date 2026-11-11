@@ -100,9 +100,18 @@ export async function verifyCredential(input: {
     email?: string;
     role?: string;
     error?: string;
+    available_roles?: string[];
   };
   if (!res.ok || !body.token_hash) {
-    throw new Error(body.error ?? "The faculty service did not respond.");
+    const roles = (body.available_roles ?? [])
+      .map((r) => (r === "admin" ? "Department head" : "Professor"))
+      .join(", ");
+    const hint = roles ? ` This email can sign in as: ${roles}.` : "";
+    const err = new Error(`${body.error ?? "The faculty service did not respond."}${hint}`) as Error & {
+      status?: number;
+    };
+    err.status = res.status;
+    throw err;
   }
   return { token_hash: body.token_hash, email: body.email ?? input.email, role: body.role ?? input.role };
 }
