@@ -183,8 +183,6 @@ export function RosterTable({
   }
 
   const flashKey = flash ? cellKey(flash.assessmentId, flash.studentRowId) : null;
-  // Hide the ID column when every student was added without one (AUTO-####).
-  const idsSynthetic = students.every((s) => /^AUTO-/i.test(s.studentNo.trim()));
 
   // Class-record math (the professor's Excel sheet): each standalone
   // assessment is followed by its weighted contribution; consecutive
@@ -203,7 +201,6 @@ export function RosterTable({
       <table className="sec-table">
         <thead>
           <tr>
-            {!idsSynthetic ? <th scope="col" className="sec-table__id mono-label">Student ID</th> : null}
             <th scope="col" className="sec-table__name mono-label">Name</th>
             {sheetCols.map((col) => {
               if (col.kind === "raw") {
@@ -275,8 +272,9 @@ export function RosterTable({
               assessments.every((a) => (gradesByCell.get(cellKey(a.id, student.id))?.score ?? null) != null);
             return (
               <tr key={student.id} className={cx(complete && "sec-row--complete")}>
-                {!idsSynthetic ? <td className="sec-table__id num">{student.studentNo}</td> : null}
-                <td className="sec-table__name">{student.name}</td>
+                <td className="sec-table__name" title={`Student ID: ${student.studentNo}`}>
+                  {student.name}
+                </td>
                 {sheetCols.map((col) => {
                   if (col.kind === "raw") {
                     const a = col.assessment;
@@ -385,7 +383,6 @@ export function RosterTable({
         </tbody>
         <tfoot>
           <tr className="sec-table__foot">
-            {!idsSynthetic ? <td className="sec-table__id" /> : null}
             <td className="sec-table__name">
               <span className="mono-label">Averages{provisional ? " · provisional" : ""}</span>
             </td>
@@ -428,9 +425,8 @@ export function RosterTable({
             {!readOnly ? <td className="sec-table__actions" /> : null}
           </tr>
           <tr className="sec-table__foot sec-table__foot--semester">
-            {!idsSynthetic ? <td className="sec-table__id" /> : null}
             <td
-              colSpan={1 + assessments.length * 2 + 2 + (readOnly ? 0 : 1)}
+              colSpan={1 + sheetCols.length + 2 + (readOnly ? 0 : 1)}
               className="sec-table__semester"
             >
               <span className="mono-label">Running semester grade</span>

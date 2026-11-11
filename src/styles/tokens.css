@@ -28,9 +28,9 @@
   --surface: #ffffff;
   --rule: #d9e5d1;
   --rule-strong: #b7c9ad;
-  --ink: #1f2b22;
-  --ink-2: #44553f;
-  --ink-3: #63755f;
+  --ink: #000000;
+  --ink-2: #161d18;
+  --ink-3: #2e3a31;
   --brand: #3a7d54;         /* calm green — primary buttons, active states */
   --brand-hover: #336e4a;
   --accent: #3a7d54;        /* green — ticks / submitted / focus */

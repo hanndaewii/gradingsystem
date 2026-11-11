@@ -416,6 +416,17 @@
   border-top-color: var(--accent);
 }
 
+@media (max-width: 1500px) {
+  .sec-layout {
+    grid-template-columns: 176px minmax(0, 1fr);
+    gap: var(--space-4);
+  }
+
+  .sec-sidenav {
+    padding-right: var(--space-3);
+  }
+}
+
 /* ---- spreadsheet grid: the grading table looks like the Excel sheet ---- */
 
 .sec-table th,
@@ -487,6 +498,90 @@
 
 .sec-table td.sec-cell {
   text-align: center;
+}
+
+/* ---- fit the whole sheet on screen (no sideways scrolling) ---- */
+
+.sec-table thead th,
+.sec-table td {
+  padding-left: 6px;
+  padding-right: 6px;
+}
+
+.sec-table tbody td {
+  padding-top: 10px;
+  padding-bottom: 10px;
+}
+
+.sec-table thead th {
+  font-size: var(--text-xs);
+}
+
+.sec-table th.sec-table__name,
+.sec-table td.sec-table__name {
+  min-width: 150px;
+  padding-left: 10px;
+}
+
+.sec-table th.sec-table__pcthead,
+.sec-table td.sec-table__contrib {
+  min-width: 46px;
+  font-size: var(--text-xs);
+}
+
+.sec-table td.sec-table__total,
+.sec-table td.sec-table__periodgrade {
+  font-size: var(--text-sm);
+}
+
+/* the Name column never scrolls away, even if a very small screen overflows */
+.sec-table th.sec-table__name,
+.sec-table td.sec-table__name {
+  position: sticky;
+  left: 0;
+  z-index: 1;
+  background: var(--surface);
+}
+
+.sec-table tbody tr:hover td.sec-table__name {
+  background: var(--paper-2);
+}
+
+.sec-row--complete > td.sec-table__name {
+  background: var(--paper-2);
+}
+
+.sec-table tfoot td {
+  background: var(--paper);
+}
+
+.sec-table tfoot td.sec-table__name {
+  background: var(--paper);
+}
+
+.sec-table__foot--semester td {
+  position: sticky;
+  left: 0;
+  background: var(--paper-2);
+}
+
+/* ---- highlighted grade-input boxes ---- */
+
+.sec-table td.sec-cell .sec-cell__input {
+  border: 1.5px solid var(--brand);
+  border-radius: 4px;
+  min-height: 32px;
+  padding: 2px 4px;
+  text-align: center;
+  background: var(--surface);
+  font-size: var(--text-sm);
+  font-weight: 700;
+  color: var(--ink);
+}
+
+.sec-table td.sec-cell .sec-cell__input:focus {
+  border-color: var(--brand);
+  box-shadow: 0 0 0 2px var(--accent-soft);
 }
 
 .sec-panelactions {

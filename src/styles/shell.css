@@ -327,3 +327,16 @@
 .sh-notfound__link:hover {
   color: var(--ink);
 }
+
+/* slim the chrome on smaller screens so the grading sheet fits */
+@media (max-width: 1500px) {
+  .sh-main {
+    padding-left: var(--space-4);
+    padding-right: var(--space-4);
+  }
+
+  .sh-header__inner {
+    padding-left: var(--space-4);
+    padding-right: var(--space-4);
+  }
+}
