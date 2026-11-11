@@ -19,7 +19,7 @@ export async function createTempUser(
     email_confirm: true,
   });
   if (error || !data.user) throw new Error(`could not create ${email}: ${error?.message}`);
-  await admin.from("faculty_profiles").insert({
+  const { error: profileError } = await admin.from("faculty_profiles").insert({
     id: data.user.id,
     email,
     name: `Temp ${role}`,
@@ -27,6 +27,7 @@ export async function createTempUser(
     bio: "",
     role,
   });
+  if (profileError) throw new Error(`could not create the profile for ${email}: ${profileError.message}`);
   return { id: data.user.id, email, password };
 }
 

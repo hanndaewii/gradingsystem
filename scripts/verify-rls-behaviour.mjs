@@ -31,12 +31,23 @@ void apiFor;
 
 try {
   // 1. anonymous
-  const anon = await client.auth.signInWithPassword({ email: "nobody@test.local", password: "x" }).catch(() => null);
-  ok(anon === null, "anonymous → cannot sign in");
+  const anon = await client.auth
+    .signInWithPassword({ email: "nobody@test.local", password: "x" })
+    .catch(() => null);
+  ok(anon === null || anon.data?.session === null, "anonymous → cannot sign in");
 
   // 2. each professor creates a course
   const cruzToken = await signIn(cruz.email, cruz.password);
   const bautToken = await signIn(baut.email, baut.password);
+
+  const termsRes = await fetch(`${process.env.SUPABASE_URL}/rest/v1/faculty_terms?select=id&limit=1`, {
+    headers: { apikey: process.env.VITE_SUPABASE_ANON_KEY, Authorization: `Bearer ${cruzToken}` },
+  });
+  const termId = (await termsRes.json())[0]?.id;
+  if (!termId) {
+    console.log("no term row found — run scripts/ensure-terms.mjs first");
+    process.exit(1);
+  }
 
   const createCourse = async (token, code) => {
     const res = await fetch(
@@ -46,7 +57,7 @@ try {
     return res.json();
   };
 
-  const insertCourse = async (token, code, title) => {
+  const insertCourse = async (token, professorId, code, title) => {
     const res = await fetch(`${process.env.SUPABASE_URL}/rest/v1/faculty_courses`, {
       method: "POST",
       headers: {
@@ -55,14 +66,14 @@ try {
         "Content-Type": "application/json",
         Prefer: "return=representation",
       },
-      body: JSON.stringify({ code, title }),
+      body: JSON.stringify({ code, title, professor_id: professorId, term_id: termId }),
     });
     return { status: res.status, body: await res.json() };
   };
 
-  const c1 = await insertCourse(cruzToken, "RLS1", "RLS one");
+  const c1 = await insertCourse(cruzToken, cruz.id, "RLS1", "RLS one");
   ok(c1.status === 201 || c1.status === 200, `professor creates a course → ${c1.status}`);
-  const c2 = await insertCourse(bautToken, "RLS2", "RLS two");
+  const c2 = await insertCourse(bautToken, baut.id, "RLS2", "RLS two");
   ok(c2.status === 201 || c2.status === 200, `second professor creates a course → ${c2.status}`);
 
   // 3. each professor sees only their own course
@@ -74,12 +85,18 @@ try {
   const bautSeesOther = Array.isArray(bautView) && bautView.some((c) => c.code === "RLS2");
   ok(bautSeesOther, "RLS: Bautista sees their own course");
 
-  // 4. the admin sees both
+  // 4. the admin sees every course (no filter — list them all)
   const head = await createTempUser("admin", "rls.head");
   const headToken = await signIn(head.email, head.password);
-  const headView = await createCourse(headToken, "RLS1");
-  const headCodes = Array.isArray(headView) ? headView.map((c) => c.code) : [];
-  ok(headCodes.includes("RLS1") && headCodes.includes("RLS2"), `RLS: the head sees both courses (${headCodes.join(", ")})`);
+  const headRes = await fetch(`${process.env.SUPABASE_URL}/rest/v1/faculty_courses?select=code`, {
+    headers: { apikey: process.env.VITE_SUPABASE_ANON_KEY, Authorization: `Bearer ${headToken}` },
+  });
+  const headRows = await headRes.json();
+  const headCodes = Array.isArray(headRows) ? headRows.map((c) => c.code) : [];
+  ok(
+    headCodes.includes("RLS1") && headCodes.includes("RLS2"),
+    `RLS: the head sees both courses (${headCodes.join(", ")})`,
+  );
   await removeTempUser(head.id);
 } finally {
   await removeTempUser(cruz.id);
