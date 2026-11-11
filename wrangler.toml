@@ -1,10 +1,20 @@
-# Cloudflare Pages configuration (WO-C).
+# Cloudflare Pages configuration.
 #
-# Deploys come from the Cloudflare dashboard (Git integration) or manually
-# via `npx wrangler pages deploy dist`.
-#   • Build command:      npm run build
-#   • Build output dir:   dist (pages_build_output_dir below)
-#   • Root directory:     / (repo root)
+# Build settings (Cloudflare Pages → your project → Settings → Builds):
+#   • Build command:       npm run build
+#   • Build output dir:    dist   (pages_build_output_dir below)
+#   • Root directory:      /  (repo root)
+#   • Deploy command:      LEAVE EMPTY  ← important
+#
+# Why "leave empty": Cloudflare Pages deploys the build output itself. If you
+# set a deploy command, it must be the PAGES flavour:
+#     npx wrangler pages deploy dist
+# NOT `npx wrangler deploy` — that is the Workers flavour, which fails with
+# "Missing entry-point to Worker script or to assets directory" because there
+# is no Worker script (only static assets).
+#
+# If you prefer the CLI, `name` below must match your Pages project name
+# (Dashboard → your project → the project name in the URL / overview).
 #
 # Build-time environment variables — set BOTH in Dashboard → Pages project →
 # Settings → Environment variables (Production + Preview):

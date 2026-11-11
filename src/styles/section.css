@@ -290,8 +290,7 @@
 }
 
 /* class-record layout: each assessment pairs a raw score with its weighted
-   contribution (the professor's Excel sheet), then PG and PG × weight */
-.sec-table__assesspair {
+   contribution (the professor's Excel sheet), then PG and PG × weight */.sec-table__assesspair {
   display: flex;
   align-items: center;
   gap: var(--space-3);

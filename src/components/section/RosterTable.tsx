@@ -8,7 +8,7 @@ import { Button, EmptyState, Menu, useToast } from "../../components/ui";
 import { PERIODS, PERIOD_LABELS } from "../../types";
 import type { Assessment, Grade, PeriodId, PeriodState, Section, Student } from "../../types";
 import { buildPeriodProgress, classAveragePct, isPeriodEditable, periodGrade } from "../../lib/grades";
-import { buildSheetColumns } from "../../lib/classRecord";
+import { buildSheetColumns } from "../../lib/sheetColumns";
 import type { AssessmentScore } from "../../lib/grades";
 import { clampScore, formatGrade, formatPercent, parseScoreInput } from "../../lib/format";
 import { cx } from "./cx";
