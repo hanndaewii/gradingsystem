@@ -177,56 +177,6 @@
   padding: var(--space-2) var(--space-3);
 }
 
-.sh-login__hint {
-  margin-top: var(--space-4);
-  font-family: var(--font-mono);
-  font-size: var(--text-xs);
-  color: var(--ink-3);
-}
-
-.sh-login__demo {
-  margin-top: var(--space-4);
-  padding-top: var(--space-4);
-  border-top: 1px solid var(--rule);
-  display: grid;
-  gap: var(--space-2);
-}
-
-.sh-chips {
-  display: grid;
-  gap: var(--space-2);
-}
-
-.sh-chip {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: var(--space-3);
-  width: 100%;
-  text-align: left;
-  font: inherit;
-  color: var(--ink);
-  background: var(--surface);
-  border: 1px solid var(--rule);
-  border-radius: var(--radius);
-  padding: var(--space-2) var(--space-3);
-  cursor: pointer;
-}
-
-.sh-chip:hover {
-  background: var(--paper-2);
-}
-
-.sh-chip__name {
-  font-size: var(--text-sm);
-}
-
-.sh-chip__email {
-  font-family: var(--font-mono);
-  font-size: var(--text-xs);
-  color: var(--ink-2);
-}
-
 /* ---- profile modal ---- */
 
 .sh-profile__list {

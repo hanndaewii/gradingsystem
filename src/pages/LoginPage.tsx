@@ -1,12 +1,10 @@
 // LoginPage (WO-3) — centered paper card. Inline role="alert" form error
-// (BAD_CREDENTIALS → a plain honest message), field-level validation,
-// mono demo-password hint, quick-fill chips from DEMO_ACCOUNTS (D8) and
+// (BAD_CREDENTIALS → a plain honest message), field-level validation and
 // `?next=` honouring. A live session redirects to `/`.
 import { useState } from "react";
 import type { FormEvent } from "react";
 import { Navigate, useNavigate, useSearchParams } from "react-router-dom";
 import { ApiError } from "../types";
-import { DEMO_ACCOUNTS } from "../data/seed";
 import { Button, Field, Input, Spinner } from "../components/ui";
 import { useAuth } from "../context/AuthContext";
 
@@ -64,13 +62,6 @@ export default function LoginPage(): JSX.Element {
       });
   }
 
-  function fill(accountEmail: string, accountPassword: string): void {
-    setEmail(accountEmail);
-    setPassword(accountPassword);
-    setFieldErrors({});
-    setFormError(null);
-  }
-
   return (
     <div className="sh-login">
       <div className="sh-login__card">
@@ -113,27 +104,6 @@ export default function LoginPage(): JSX.Element {
             Sign in
           </Button>
         </form>
-
-        <p className="sh-login__hint">
-          Demo password for every account: <span className="num">demo1234</span>
-        </p>
-
-        <div className="sh-login__demo">
-          <span className="mono-label">Quick fill — demo accounts</span>
-          <div className="sh-chips">
-            {DEMO_ACCOUNTS.map((account) => (
-              <button
-                key={account.email}
-                type="button"
-                className="sh-chip"
-                onClick={() => fill(account.email, account.password)}
-              >
-                <span className="sh-chip__name">{account.label}</span>
-                <span className="sh-chip__email">{account.email}</span>
-              </button>
-            ))}
-          </div>
-        </div>
       </div>
     </div>
   );
