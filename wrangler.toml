@@ -1,0 +1,19 @@
+# Cloudflare Pages configuration (WO-C).
+#
+# Deploys come from the Cloudflare dashboard (Git integration) or manually
+# via `npx wrangler pages deploy dist`.
+#   • Build command:      npm run build
+#   • Build output dir:   dist (pages_build_output_dir below)
+#   • Root directory:     / (repo root)
+#
+# Build-time environment variables — set BOTH in Dashboard → Pages project →
+# Settings → Environment variables (Production + Preview):
+#   • VITE_SUPABASE_URL
+#   • VITE_SUPABASE_ANON_KEY
+# These are baked into the bundle at build time; changing them requires a
+# rebuild. NEVER set SUPABASE_SECRET_KEY or DATABASE_URL as a Pages build
+# variable — they are server-side only and would ship to every browser.
+
+name = "faculty-grading-portal"
+compatibility_date = "2024-11-01"
+pages_build_output_dir = "dist"

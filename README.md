@@ -8,7 +8,7 @@ A front-end-only faculty grading portal for two roles (professor, department-hea
 npm install
 npm run dev        # â†’ http://localhost:5173
 npm run build      # type-checks (tsc --noEmit) then bundles with vite
-npm run preview    # serves the production build (hash routing, deep links work)
+npm run preview    # serves the production build (clean URLs, deep links work)
 ```
 
 ## Demo accounts
@@ -28,7 +28,7 @@ Two extra HTML entries exist for development verification (they are **kept** in 
 - `http://localhost:5173/kit-preview.html` â€” UI kit gallery (design-system primitives in every state, light/dim toggle)
 - `http://localhost:5173/seedcheck.html` â€” seed + pure-logic assertion page (seed counts, grading math, CSV parsing, lock rules, api scoping)
 
-`vite build` output contains only the app entry (`dist/index.html` + hashed assets). `npm run preview` serves it with SPA fallback, and because routing is a `HashRouter`, deep links such as `/#/sections/sec-cs101-a` reload correctly from any static host.
+`vite build` output contains only the app entry (`dist/index.html` + hashed assets). `npm run preview` serves it with SPA fallback, and routing is a `BrowserRouter` (clean URLs) — on Cloudflare Pages the `public/_redirects` SPA fallback makes deep links such as `/sections/sec-cs101-a` reload correctly.
 
 ## Data & storage
 
@@ -46,7 +46,7 @@ Two extra HTML entries exist for development verification (they are **kept** in 
 ```
 src/
   main.tsx            entry â€” imports ./styles/index.css FIRST, then App
-  App.tsx             provider nesting (Toast â†’ Auth â†’ Term â†’ HashRouter) + routes/guards
+  App.tsx             provider nesting (Toast â†’ Auth â†’ Term â†’ BrowserRouter) + routes/guards
   types.ts            Â§3.1 domain types + the `Api` interface (Â§3.2) â€” the contract
   api/
     index.ts          the ONLY module pages import: exports the `api` singleton,
@@ -167,3 +167,43 @@ Nothing outside `src/api/` imports the localStorage backend, and no page touches
 - **Passwords are stored in plaintext** inside `localStorage` (`faculty-portal.db:v3`). This is acceptable only because the app is a front-end demo with pinned demo accounts; the Supabase schema deliberately has no password column (Supabase Auth owns credentials).
 - **RLS is documented, not enforced, client-side.** The policies in `supabase/schema.sql` describe the intended server-side enforcement. In the localStorage demo, role scoping is enforced only inside `src/api/local.ts` â€” there is no real security boundary.
 - All data lives in one browser profile's localStorage; there is no cross-device or multi-tab sync guarantee beyond the browser's own `storage` event behaviour (not relied upon).
+
+## Launching on Cloudflare Pages
+
+The portal deploys as a static site on Cloudflare Pages with clean URLs (`BrowserRouter`; the `public/_redirects` SPA fallback serves deep links like `/sections/<id>`).
+
+**Project settings (Dashboard → Workers & Pages → Create → Pages → Connect to Git):**
+
+| Setting | Value |
+|---|---|
+| Build command | `npm run build` |
+| Build output directory | `dist` |
+| Root directory | `/` |
+
+**Environment variables (Settings → Environment variables, set for Production *and* Preview):**
+
+| Variable | Value |
+|---|---|
+| `VITE_SUPABASE_URL` | your project URL (`https://<ref>.supabase.co`) |
+| `VITE_SUPABASE_ANON_KEY` | the publishable anon key |
+
+> **Warning:** `SUPABASE_SECRET_KEY` and `DATABASE_URL` must NEVER be set as Pages build variables. Anything prefixed `VITE_` is baked into the public bundle and readable by every visitor — those two credentials are server-side only and belong exclusively in your local `.env` for `scripts/*`.
+
+**One Dashboard step still required in Supabase:** Project Settings → API → Exposed schemas → add `faculty` (our tables live in a dedicated `faculty` Postgres schema; without this the REST endpoints return 404).
+
+**Local setup against your Supabase project** (run from the repo root, with `VITE_SUPABASE_URL` / anon key / secret in `.env`):
+
+```powershell
+node --env-file=.env scripts/apply-schema.mjs     # create tables, RLS, trigger
+node --env-file=.env scripts/seed-supabase.mjs    # seed demo courses/sections
+```
+
+**Commands:**
+
+```powershell
+npm run dev       # dev server (localStorage demo when the VITE_ vars are absent)
+npm run build     # type-checks (tsc --noEmit) then bundles to dist/
+npm run preview   # serves the production build locally
+```
+
+Manual deploys are also possible with `npx wrangler pages deploy dist`; `wrangler.toml` in the repo root holds the Pages project config (`name = "faculty-grading-portal"`, output dir `dist`), and `public/_headers` ships the security headers (CSP, frame-ancestors, nosniff, etc.).

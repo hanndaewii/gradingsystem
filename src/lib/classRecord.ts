@@ -2,7 +2,9 @@
 // professor's sheet: NAME | A | 10% | R-1 | R-2 | R-3 | Total | 30% | … |
 // PG | PG w%, plus an averages row. Values are computed here (not formulas)
 // so the file always agrees with the app.
-import * as XLSX from "xlsx";
+// WO-C: `xlsx` (~400KB) is imported lazily inside exportClassRecord so it
+// lands in its own chunk, fetched only when a professor exports — the rest
+// of this module (buildSheetColumns) stays eagerly available without it.
 import { PERIOD_LABELS } from "../types";
 import type { Assessment, Course, Grade, PeriodId, Section, Student } from "../types";
 import { periodGrade } from "./grades";
@@ -49,15 +51,16 @@ export function buildSheetColumns(assessments: Assessment[]): SheetColumn[] {
   return cols;
 }
 
-export function exportClassRecord(input: {
+export async function exportClassRecord(input: {
   course: Course;
   section: Section;
   period: PeriodId;
   students: Student[];
   assessments: Assessment[];
   grades: Grade[];
-}): void {
+}): Promise<void> {
   const { course, section, period, students, assessments, grades } = input;
+  const XLSX = await import("xlsx");
   const semWeight = section.periodWeights[period];
   const eqW = assessments.length > 0 ? 100 / assessments.length : 0;
   const weightOf = (a: Assessment): number => (a.weight ?? eqW);

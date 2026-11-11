@@ -15,7 +15,6 @@ import type { Assessment, HistoryEntry, PeriodId, Section, Student } from "../..
 import { useAuth } from "../../context/AuthContext";
 import { useAsync } from "../../lib/useAsync";
 import { termLabel } from "../../lib/format";
-import { exportClassRecord } from "../../lib/classRecord";
 import { useSectionData, statesFromProgress, errMessage } from "../../components/section/useSectionData";
 import type { SectionView } from "../../components/section/useSectionData";
 import { PeriodTabs } from "../../components/section/PeriodTabs";
@@ -381,16 +380,27 @@ export default function SectionPage(): JSX.Element {
     );
   }
 
-  function handleExportClassRecord(): void {
+  // WO-C: the Excel export is loaded on demand — the ~400KB xlsx chunk is
+  // fetched only when the professor clicks "Export .xlsx".
+  async function handleExportClassRecord(): Promise<void> {
     if (course === null || section === null) return;
-    exportClassRecord({
-      course,
-      section,
-      period,
-      students,
-      assessments: periodAssessments,
-      grades,
-    });
+    try {
+      const { exportClassRecord } = await import("../../lib/classRecord");
+      await exportClassRecord({
+        course,
+        section,
+        period,
+        students,
+        assessments: periodAssessments,
+        grades,
+      });
+    } catch (err) {
+      toast.push({
+        tone: "danger",
+        title: "Could not export the class record",
+        description: errMessage(err),
+      });
+    }
   }
 
   if (notFound) {

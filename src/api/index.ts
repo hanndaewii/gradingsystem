@@ -2,23 +2,28 @@
 // API facade — the ONLY module the app imports for data access.
 // ─────────────────────────────────────────────────────────────────────────────
 // Every page talks to the async `api` singleton below — never to localStorage
-// and never to `./local` directly (nothing outside `src/api/` imports
-// `local.ts`; that rule is what keeps the backend swappable).
+// and never to `./local` or `./supabase` directly (nothing outside `src/api/`
+// imports them; that rule is what keeps the backend swappable).
 //
-// Supabase swap recipe (zero UI changes):
-//   1. npm i @supabase/supabase-js
-//   2. Create `src/api/supabase.ts` implementing the `Api` interface from
-//      `src/types.ts` 1:1 — one method per supabase-js call. `supabase/schema.sql`
-//      has the tables, RLS policies and the submitted-period trigger that mirror
-//      the ApiError codes (PERIOD_SUBMITTED, FORBIDDEN, …).
-//   3. Change exactly one line here:
-//        export const api: Api = createLocalApi();
-//      →  export const api: Api = createSupabaseApi(client);
+// Backend switch (zero UI changes — the swap recipe from v1, now automatic):
+//   • VITE_SUPABASE_URL + VITE_SUPABASE_ANON_KEY both set → Supabase
+//     (`src/api/supabase.ts`: the `faculty` schema, RLS + the
+//     submitted-period trigger act as the bouncer).
+//   • either variable missing → the localStorage demo (`src/api/local.ts`),
+//     so the app still runs without a backend.
+// Only the publishable anon key may ship to browsers — the secret key belongs
+// to scripts/ and Cloudflare server-side settings only (see .env.example).
 // ─────────────────────────────────────────────────────────────────────────────
 import { createLocalApi } from "./local";
+import { createSupabaseApi } from "./supabase";
 import type { Api } from "../types";
 
-export const api: Api = createLocalApi();
+export type { Api };
+
+const env = import.meta.env as Record<string, string | undefined>;
+
+export const api: Api =
+  env.VITE_SUPABASE_URL && env.VITE_SUPABASE_ANON_KEY ? createSupabaseApi() : createLocalApi();
 
 // D20 — dev console hook: exercise data + auth from DevTools without UI.
 if (import.meta.env.DEV) {

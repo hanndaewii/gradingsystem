@@ -1,9 +1,11 @@
 // App (WO-3) — provider nesting exactly per spec §3.7:
-// <ToastProvider><AuthProvider><TermProvider><HashRouter> …
+// <ToastProvider><AuthProvider><TermProvider><BrowserRouter> …
 // Route table: /login; / (role-switched); /courses/:courseId (professor
 // only); /sections/:sectionId (both roles — WO-5's admin readOnly depends
 // on it); * → NotFound. Everything renders inside the AppShell.
-import { HashRouter, Navigate, Outlet, Route, Routes, useLocation } from "react-router-dom";
+// Clean URLs on Cloudflare Pages (WO-C): deep links are served by the
+// public/_redirects SPA fallback.
+import { BrowserRouter, Navigate, Outlet, Route, Routes, useLocation } from "react-router-dom";
 import { Spinner, ToastProvider } from "./components/ui";
 import { AppShell } from "./components/layout/AppShell";
 import { AuthProvider, useAuth } from "./context/AuthContext";
@@ -76,9 +78,9 @@ export default function App(): JSX.Element {
     <ToastProvider>
       <AuthProvider>
         <TermProvider>
-          <HashRouter>
+          <BrowserRouter>
             <AppRoutes />
-          </HashRouter>
+          </BrowserRouter>
         </TermProvider>
       </AuthProvider>
     </ToastProvider>
