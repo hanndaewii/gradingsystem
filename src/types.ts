@@ -12,7 +12,7 @@ export type DisplayScale = "percent-letter" | "scale5";
 
 export const PERIODS: PeriodId[] = ["prelim", "midterm", "semifinals", "finals"];
 export const PERIOD_LABELS: Record<PeriodId, string> = {
-  prelim: "Prelim", midterm: "Midterm", semifinals: "Semi-finals", finals: "Finals",
+  prelim: "Prelim", midterm: "Midterm", semifinals: "Semi-Finals", finals: "Finals",
 };
 export const PERIOD_SHORT: Record<PeriodId, string> = {
   prelim: "Prelim", midterm: "Mid", semifinals: "Semi", finals: "Finals",
@@ -65,6 +65,16 @@ export interface AttendanceSave {
   score: number | null;
   /** The Attendance criterion that carries the score (null when there is none). */
   assessmentId: string | null;
+}
+
+/** Each term's window in the school calendar. */
+export type TermDates = Record<PeriodId, { startDate: string | null; endDate: string | null }>;
+
+/** A group of marks that would move from one term to another. */
+export interface TermDateMove {
+  from: PeriodId;
+  to: PeriodId;
+  count: number;
 }
 
 /** A milestone on the section calendar: classes started, exam, holiday, note. */
@@ -159,6 +169,23 @@ export interface Api {
   ): Promise<CalendarEvent[]>;
   /** Removes a calendar milestone. */
   clearCalendarEvent(sectionId: string, eventDate: string): Promise<CalendarEvent[]>;
+  /** The school calendar: each term's own start and end date. A class date
+   *  belongs to the first term whose window contains it. */
+  listTermDates(sectionId: string): Promise<TermDates>;
+  /** What would move if a term's window changed (nothing is written). */
+  previewTermDates(
+    sectionId: string,
+    period: PeriodId,
+    startDate: string | null,
+    endDate: string | null,
+  ): Promise<TermDateMove[]>;
+  /** Saves a term's window and moves the marks that now belong elsewhere. */
+  setTermDates(
+    sectionId: string,
+    period: PeriodId,
+    startDate: string | null,
+    endDate: string | null,
+  ): Promise<TermDateMove[]>;
   updateProfile(id: string, patch: Partial<Pick<Profile, "name" | "department" | "bio">>): Promise<Profile>;
 
   // reads

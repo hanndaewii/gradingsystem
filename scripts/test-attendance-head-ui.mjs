@@ -125,7 +125,9 @@ try {
         rendered: document.querySelector(".sec-att__table") != null,
         disabled: el ? el.disabled : null,
         notice: notice ? notice.textContent.trim().slice(0, 80) : null,
-        terms: [...document.querySelectorAll(".sec-att__term")].map((b) => b.textContent.trim()),
+        innerTerms: document.querySelectorAll(".sec-att__term").length,
+        terms: [...document.querySelectorAll('[aria-label="Grading periods"] button, [aria-label="Grading periods"] [role=tab]')]
+          .map((b) => (b.textContent.trim().match(/^(Prelim|Midterm|Semi-Finals|Finals)/) ?? [""])[0]),
       };
     })()
   `);
@@ -137,8 +139,12 @@ try {
   ok(state?.disabled === true, `the cells are read-only for the head (disabled=${state?.disabled})`);
   ok(/department head/i.test(state?.notice ?? ""), `the read-only notice is shown ("${state?.notice}")`);
   ok(
-    JSON.stringify(state?.terms) === JSON.stringify(["Prelim", "Midterm", "Pre-Finals", "Finals"]),
-    "the term headers are there for the head too",
+    state?.innerTerms === 0,
+    "the attendance panel has no term buttons of its own",
+  );
+  ok(
+    JSON.stringify(state?.terms) === JSON.stringify(["Prelim", "Midterm", "Semi-Finals", "Finals"]),
+    `the page's period tabs carry the terms (${JSON.stringify(state?.terms)})`,
   );
   console.log(failures === 0 ? "\nhead view verified" : `\n${failures} CHECK(S) FAILED`);
 } catch (err) {

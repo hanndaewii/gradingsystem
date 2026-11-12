@@ -13,7 +13,7 @@ import { api } from "../../api";
 import { PERIODS, PERIOD_LABELS } from "../../types";
 import type {
   Assessment, AttendanceSave, AttendanceStatus, CalendarEvent, HistoryEntry, PeriodId, Section,
-  Student,
+  Student, TermDateMove, TermDates,
 } from "../../types";
 import { useAuth } from "../../context/AuthContext";
 import { useAsync } from "../../lib/useAsync";
@@ -83,6 +83,19 @@ export default function SectionPage(): JSX.Element {
   const eventsQ = useAsync(
     async () => (view === "gradebook" || searchParams.get("view") === "attendance" ? api.listCalendarEvents(sectionId) : []),
     [sectionId, view, searchParams],
+  );
+  // Each term's window in the school calendar — the attendance calendar
+  // follows these dates.
+  const termDatesQ = useAsync(async () => api.listTermDates(sectionId), [sectionId]);
+  const termDates = useMemo<TermDates>(
+    () =>
+      termDatesQ.data ?? {
+        prelim: { startDate: null, endDate: null },
+        midterm: { startDate: null, endDate: null },
+        semifinals: { startDate: null, endDate: null },
+        finals: { startDate: null, endDate: null },
+      },
+    [termDatesQ.data],
   );
   const period = parsePeriod(searchParams.get("period")) ?? defaultPeriod(progress);
   const states = useMemo(() => statesFromProgress(progress), [progress]);
@@ -480,6 +493,74 @@ export default function SectionPage(): JSX.Element {
     [sectionId, toast, eventsQ],
   );
 
+  // ── term dates ────────────────────────────────────────────────────────────
+  // Saving a term's dates can move marks into another term, so the page asks
+  // first and says how many marks would move.
+  const [termDateSave, setTermDateSave] = useState<{
+    period: PeriodId;
+    startDate: string | null;
+    endDate: string | null;
+    moves: TermDateMove[];
+  } | null>(null);
+  const [termDatesBusy, setTermDatesBusy] = useState(false);
+
+  const handleTermDatesChange = useCallback(
+    async (period: PeriodId, startDate: string | null, endDate: string | null) => {
+      setTermDatesBusy(true);
+      try {
+        const moves = await api.previewTermDates(sectionId, period, startDate, endDate);
+        if (moves.length === 0) {
+          await api.setTermDates(sectionId, period, startDate, endDate);
+          termDatesQ.reload();
+          toast.push({ tone: "success", title: `${PERIOD_LABELS[period]} dates saved` });
+          return;
+        }
+        setTermDateSave({ period, startDate, endDate, moves });
+      } catch (err: unknown) {
+        toast.push({
+          tone: "danger",
+          title: "Could not save the term dates",
+          description: errMessage(err),
+        });
+      } finally {
+        setTermDatesBusy(false);
+      }
+    },
+    [sectionId, termDatesQ, toast],
+  );
+
+  const confirmTermDates = useCallback(async () => {
+    if (!termDateSave) return;
+    setTermDatesBusy(true);
+    try {
+      const moved = await api.setTermDates(
+        sectionId,
+        termDateSave.period,
+        termDateSave.startDate,
+        termDateSave.endDate,
+      );
+      setTermDateSave(null);
+      termDatesQ.reload();
+      attendanceQ.reload();
+      reload();
+      const total = moved.reduce((sum, m) => sum + m.count, 0);
+      toast.push({
+        tone: "success",
+        title: `${PERIOD_LABELS[termDateSave.period]} dates saved`,
+        description:
+          total > 0 ? `${total} mark${total === 1 ? "" : "s"} moved to another term.` : undefined,
+      });
+    } catch (err: unknown) {
+      toast.push({
+        tone: "danger",
+        title: "Could not save the term dates",
+        description: errMessage(err),
+      });
+    } finally {
+      setTermDatesBusy(false);
+    }
+  }, [termDateSave, sectionId, termDatesQ, attendanceQ, reload, toast]);
+
   // ── roster/CSV modals ──────────────────────────────────────────────────────
   const [addOpen, setAddOpen] = useState(false);
   const [csvOpen, setCsvOpen] = useState(false);
@@ -752,6 +833,7 @@ export default function SectionPage(): JSX.Element {
                 <Panel label={`Attendance · ${PERIOD_LABELS[period]}`}>
                   <AttendancePanel
                     period={period}
+                    termDates={termDates}
                     onPeriodChange={(p) => updateQuery({ period: p })}
                     students={students}
                     rows={attendanceQ.data ?? []}
@@ -801,7 +883,11 @@ export default function SectionPage(): JSX.Element {
               assessmentsByPeriod={assessmentsByPeriod}
               grades={grades}
               progress={progress}
+              termDates={termDates}
+              attendanceRows={attendanceQ.data ?? []}
               readOnly={readOnly}
+              termDatesBusy={termDatesBusy}
+              onTermDatesChange={(p, s, e) => void handleTermDatesChange(p, s, e)}
               onSectionChange={(updated: Section) => {
                 applySectionLocal(updated);
                 reload();
@@ -868,6 +954,32 @@ export default function SectionPage(): JSX.Element {
             {PERIOD_LABELS[period]} was submitted, so its scores are locked. Reopening lets you edit them
             again — the reopen is recorded in the history.
           </p>
+        }
+      />
+
+      <ConfirmDialog
+        open={termDateSave != null}
+        title="These dates move attendance marks"
+        confirmLabel="Move the marks"
+        busy={termDatesBusy}
+        onCancel={() => (termDatesBusy ? undefined : setTermDateSave(null))}
+        onConfirm={() => void confirmTermDates()}
+        body={
+          termDateSave ? (
+            <>
+              Changing the {PERIOD_LABELS[termDateSave.period]} dates moves these marks into
+              another term:
+              <ul className="sec-termdates__moves">
+                {termDateSave.moves.map((m) => (
+                  <li key={`${m.from}-${m.to}`}>
+                    <strong>{m.count}</strong> mark{m.count === 1 ? "" : "s"} from{" "}
+                    {PERIOD_LABELS[m.from]} to {PERIOD_LABELS[m.to]}
+                  </li>
+                ))}
+              </ul>
+              The Attendance score of both terms changes. Continue?
+            </>
+          ) : null
         }
       />
 

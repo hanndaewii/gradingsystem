@@ -1,15 +1,21 @@
 // AttendancePanel — the professor's attendance calendar.
 //
-// One clickable header per term (Prelim → Finals). Picking a term shows that
-// term's month: a calendar of milestones (when classes started, when the
-// exam is, holidays, notes) and, below it, the attendance sheet — every
-// student against every day of the month. The professor types P (present),
+// The term comes from the section page (one selector, at the top), so the
+// sheet always shows that term's records. Each term has its own window in the
+// school calendar (see the term dates in Summary); a class date belongs to
+// the first term whose window contains it, and a date belonging to another
+// term is shown greyed with a tag that takes you there.
+//
+// Above the sheet is a calendar of milestones (when classes started, when
+// the exam is, no-class days, notes). The professor types P (present),
 // A (absent) or L (late); each mark is also encoded into the section's
 // "Attendance" criterion score, so the class record and the gradebook always
-// agree.
-import { useEffect, useMemo, useRef, useState } from "react";
-import { PERIODS } from "../../types";
-import type { AttendanceRow, AttendanceStatus, CalendarEvent, PeriodId, Student } from "../../types";
+// agree. A day marked "no class" counts for nothing — not as an absence.
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { PERIODS, PERIOD_LABELS } from "../../types";
+import type {
+  AttendanceRow, AttendanceStatus, CalendarEvent, PeriodId, Student, TermDates,
+} from "../../types";
 import { ATTENDANCE_CREDIT, ATTENDANCE_LABEL, parseAttendance } from "../../lib/attendance";
 import {
   WEEKDAY_INITIALS, WEEKDAY_NAMES, dayNumber, daysInMonth, isoDate, longDate,
@@ -22,9 +28,12 @@ export interface AttendancePanelProps {
   rows: AttendanceRow[];
   events: CalendarEvent[];
   readOnly: boolean;
-  /** Active period (e.g. from the Gradebook). */
+  /** Active period (the section page's own term selector). */
   period?: PeriodId;
-  /** Reports when the professor picks a different term. */
+  /** Each term's window in the school calendar — a date belongs to the first
+   *  term whose window contains it. */
+  termDates?: TermDates;
+  /** Reports when the professor jumps to a different term. */
   onPeriodChange?(period: PeriodId): void;
   /** Writes one mark; the parent reloads the list afterwards. */
   onSet(
@@ -50,14 +59,6 @@ export interface AttendancePanelProps {
   onClearEvent(eventDate: string): Promise<void>;
 }
 
-/** The term headers — the wording used in the class record. */
-const TERM_LABELS: Record<PeriodId, string> = {
-  prelim: "Prelim",
-  midterm: "Midterm",
-  semifinals: "Pre-Finals",
-  finals: "Finals",
-};
-
 const EVENT_KINDS: Array<{ kind: CalendarEvent["kind"]; label: string }> = [
   { kind: "start", label: "Classes started" },
   { kind: "exam", label: "Exam" },
@@ -75,7 +76,8 @@ export function AttendancePanel({
   rows,
   events,
   readOnly,
-  period: propPeriod,
+  period: propPeriod = "prelim",
+  termDates,
   onPeriodChange,
   onSet,
   onSetMany,
@@ -83,19 +85,7 @@ export function AttendancePanel({
   onClearEvent,
 }: AttendancePanelProps): JSX.Element {
   const today = isoDate(new Date());
-  const [internalPeriod, setInternalPeriod] = useState<PeriodId>(propPeriod ?? "prelim");
-  const period = propPeriod ?? internalPeriod;
-
-  useEffect(() => {
-    if (propPeriod) {
-      setInternalPeriod(propPeriod);
-    }
-  }, [propPeriod]);
-
-  function handlePeriodChange(p: PeriodId): void {
-    setInternalPeriod(p);
-    onPeriodChange?.(p);
-  }
+  const period = propPeriod;
   const [month, setMonth] = useState(() => {
     const now = new Date();
     return { year: now.getFullYear(), month: now.getMonth() };
@@ -113,6 +103,10 @@ export function AttendancePanel({
   const [savingEvent, setSavingEvent] = useState(false);
   const [bulkBusy, setBulkBusy] = useState(false);
   const [focusDay, setFocusDay] = useState<string | null>(null);
+  /** "Mark a no-class day" — the next calendar click opens the milestone
+   *  editor pre-set to "No class". */
+  const [pickingNoClass, setPickingNoClass] = useState(false);
+  const noClassPickRef = useRef(false);
 
   // The latest rows/events, readable from the term-jump effect without
   // re-running it whenever the server answers.
@@ -136,6 +130,39 @@ export function AttendancePanel({
     if (key in marks) return marks[key];
     return rowMap.get(key) ?? null;
   };
+
+  /** The term each marked date was filed under. */
+  const dayTermMap = useMemo(() => {
+    const map = new Map<string, PeriodId>();
+    for (const r of rows) {
+      if (!map.has(r.sessionDate)) map.set(r.sessionDate, r.period);
+    }
+    return map;
+  }, [rows]);
+
+  /** The dates the class did not meet (typhoon, suspension, holiday). */
+  const noClassDates = useMemo(() => {
+    const set = new Set<string>();
+    for (const e of events) {
+      if (e.kind === "holiday") set.add(e.eventDate);
+    }
+    return set;
+  }, [events]);
+
+  /**
+   * The term a class date belongs to: the first term whose window in the
+   * school calendar contains it, else the term its mark was filed under.
+   */
+  const ownerOf = useCallback(
+    (date: string): PeriodId | null => {
+      for (const p of PERIODS) {
+        const w = termDates?.[p];
+        if (w?.startDate && w?.endDate && date >= w.startDate && date <= w.endDate) return p;
+      }
+      return dayTermMap.get(date) ?? null;
+    },
+    [termDates, dayTermMap],
+  );
 
   const monthDays = useMemo(() => daysInMonth(month.year, month.month), [month]);
   const visibleDays = useMemo(
@@ -171,26 +198,40 @@ export function AttendancePanel({
     tableWrapRef.current?.scrollBy({ left: offset, behavior: "smooth" });
   };
 
-  // Picking a term jumps to that term's month — the month holding its first
-  // milestone, or its most recent attendance, else today.
+  // Picking a term jumps to that term's month: the month its school-calendar
+  // window opens in, else the month holding its first milestone, else its most
+  // recent attendance.
   useEffect(() => {
     const { rows: allRows, events: allEvents } = latest.current;
-    const ev = allEvents.filter((e) => e.period === period).map((e) => e.eventDate).sort()[0];
-    const row = allRows
-      .filter((r) => r.period === period)
-      .map((r) => r.sessionDate)
-      .sort()
-      .pop();
-    const target = ev ?? row;
+    const window = termDates?.[period];
+    let target: string | null = null;
+    if (window?.startDate) {
+      target = window.startDate;
+    } else {
+      const ev = allEvents.filter((e) => e.period === period).map((e) => e.eventDate).sort()[0];
+      const row = allRows
+        .filter((r) => r.period === period)
+        .map((r) => r.sessionDate)
+        .sort()
+        .pop();
+      target = ev ?? row ?? null;
+    }
     if (!target) return;
     const d = parseIsoDate(target);
     setMonth({ year: d.getFullYear(), month: d.getMonth() });
-  }, [period]);
+  }, [period, termDates]);
 
-  // Selecting a day loads its milestone into the editor.
+  // Selecting a day loads its milestone into the editor. A day picked with
+  // the "no class" button opens the editor already set to "No class".
   useEffect(() => {
     if (!eventDay) return;
     const existing = eventMap.get(`${period}|${eventDay}`);
+    if (noClassPickRef.current) {
+      noClassPickRef.current = false;
+      setEventKind("holiday");
+      setEventLabel("No class");
+      return;
+    }
     setEventKind(existing?.kind ?? "start");
     setEventLabel(existing?.label ?? "");
   }, [eventDay, period, eventMap]);
@@ -317,13 +358,19 @@ export function AttendancePanel({
     }
   }
 
+  /** The days of this month that belong to the term on screen. */
+  const termDaysOnScreen = useMemo(
+    () => displayedDays.filter((d) => ownerOf(d) === period && !noClassDates.has(d)),
+    [displayedDays, ownerOf, period, noClassDates],
+  );
+
   // ── totals for the visible month ──────────────────────────────────────────
   const totals = useMemo(() => {
     let p = 0;
     let a = 0;
     let l = 0;
     let marked = 0;
-    for (const day of visibleDays) {
+    for (const day of termDaysOnScreen) {
       for (const student of students) {
         const status = markOf(student.id, day);
         if (!status) continue; // a blank day is simply not counted
@@ -333,8 +380,9 @@ export function AttendancePanel({
         else if (status === "l") l += 1;
       }
     }
-    return { p, a, l, marked };
-  }, [visibleDays, students, marks, rowMap]);
+    const noClass = displayedDays.filter((d) => noClassDates.has(d)).length;
+    return { p, a, l, marked, noClass };
+  }, [termDaysOnScreen, displayedDays, students, marks, rowMap, noClassDates]);
 
   /** How many students still have no mark on a day (0 = the day is done). */
   const unmarkedOn = (day: string): number => {
@@ -345,10 +393,12 @@ export function AttendancePanel({
     return n;
   };
 
-  const rateFor = (student: Student): number | null => {
+  /** The attendance rate over the given days: only marked days count, and
+   *  a "no class" day is left out of both the total and the credit. */
+  const rateOver = (student: Student, days: string[]): number | null => {
     let sum = 0;
     let n = 0;
-    for (const day of visibleDays) {
+    for (const day of days) {
       const status = markOf(student.id, day);
       if (!status) continue;
       sum += ATTENDANCE_CREDIT[status];
@@ -357,6 +407,23 @@ export function AttendancePanel({
     if (n === 0) return null;
     return Math.round((sum / n) * 100);
   };
+
+  /** Every marked day of the term, whatever month it falls in. */
+  const termMarkedDays = useMemo(() => {
+    const days = new Set<string>();
+    for (const r of rows) {
+      if (r.period !== period) continue;
+      if (noClassDates.has(r.sessionDate)) continue;
+      days.add(r.sessionDate);
+    }
+    return [...days];
+  }, [rows, period, noClassDates]);
+
+  /** This month's rate for one student. */
+  const rateFor = (student: Student): number | null => rateOver(student, termDaysOnScreen);
+
+  /** The whole term's rate for one student. */
+  const termRateFor = (student: Student): number | null => rateOver(student, termMarkedDays);
 
   // ── the month grid ───────────────────────────────────────────────────────
   const gridCells = useMemo(() => {
@@ -372,21 +439,6 @@ export function AttendancePanel({
 
   return (
     <div className="sec-att">
-      {/* ── term headers ─────────────────────────────────────────────── */}
-      <div className="sec-att__terms" role="group" aria-label="Term">
-        {PERIODS.map((p) => (
-          <button
-            key={p}
-            type="button"
-            className={cx("sec-att__term", period === p && "is-active")}
-            aria-pressed={period === p}
-            onClick={() => handlePeriodChange(p)}
-          >
-            {TERM_LABELS[p]}
-          </button>
-        ))}
-      </div>
-
       {readOnly ? (
         <p className="sec-att__notice">
           You are signed in as the department head — attendance is read-only. Sign out and
@@ -436,7 +488,24 @@ export function AttendancePanel({
           />
           Include Sundays
         </label>
+        {!readOnly ? (
+          <button
+            type="button"
+            className={cx("sec-att__noclass", pickingNoClass && "is-active")}
+            onClick={() => setPickingNoClass((v) => !v)}
+            title="Mark a day as no class — typhoon, suspension or holiday. It is left out of the rate entirely."
+          >
+            {pickingNoClass ? "Pick a date…" : "+ No class"}
+          </button>
+        ) : null}
       </div>
+
+      {pickingNoClass ? (
+        <p className="sec-att__notice">
+          Click the date in the calendar that had no class — it will be left out of the rate,
+          and it never counts as an absence.
+        </p>
+      ) : null}
 
       {/* ── milestone calendar ───────────────────────────────────────── */}
       <div className="sec-cal">
@@ -463,10 +532,18 @@ export function AttendancePanel({
                   ev && `has-${ev.kind}`,
                 )}
                 onClick={() => {
-                  setEventDay(day === eventDay ? null : day);
-                  setFocusDay(day);
                   const dNum = parseIsoDate(day).getDate();
                   const w = Math.min(maxWeeks, Math.ceil(dNum / 7));
+                  if (pickingNoClass) {
+                    setPickingNoClass(false);
+                    noClassPickRef.current = true;
+                    setEventDay(day);
+                    setFocusDay(day);
+                    setActiveWeek(w);
+                    return;
+                  }
+                  setEventDay(day === eventDay ? null : day);
+                  setFocusDay(day);
                   setActiveWeek(w);
                   window.setTimeout(() => focusCell(students[0]?.id, day), 80);
                 }}
@@ -598,6 +675,9 @@ export function AttendancePanel({
                 </th>
                 {displayedDays.map((day) => {
                   const ev = eventMap.get(`${period}|${day}`);
+                  const owner = ownerOf(day);
+                  const isNoClass = noClassDates.has(day);
+                  const otherTerm = owner && owner !== period ? owner : null;
                   return (
                     <th
                       key={day}
@@ -606,15 +686,22 @@ export function AttendancePanel({
                         "sec-att__day",
                         focusDay === day && "is-focus",
                         ev && `has-${ev.kind}`,
+                        isNoClass && "is-noclass",
+                        otherTerm && "is-other",
                       )}
                     >
                       <button
                         type="button"
                         className="sec-att__daybtn"
+                        disabled={isNoClass || otherTerm != null}
                         title={
-                          ev
-                            ? `${ev.label || ev.kind} — ${unmarkedOn(day)} of ${students.length} not marked yet`
-                            : `${unmarkedOn(day)} of ${students.length} not marked yet — click to mark the whole day present`
+                          isNoClass
+                            ? "No class on this day — it is not counted at all"
+                            : otherTerm
+                              ? `This day belongs to ${PERIOD_LABELS[otherTerm]}`
+                              : ev
+                                ? `${ev.label || ev.kind} — ${unmarkedOn(day)} of ${students.length} not marked yet`
+                                : `${unmarkedOn(day)} of ${students.length} not marked yet — click to mark the whole day present`
                         }
                         onClick={() => {
                           setFocusDay(day);
@@ -624,21 +711,39 @@ export function AttendancePanel({
                         <span className="sec-att__dow">{WEEKDAY_INITIALS[weekdayIndex(day)]}</span>
                         <span className="sec-att__dom">{dayNumber(day)}</span>
                       </button>
+                      {otherTerm ? (
+                        <button
+                          type="button"
+                          className="sec-att__daytag"
+                          title={`This day belongs to ${PERIOD_LABELS[otherTerm]} — click to go there`}
+                          onClick={() => onPeriodChange?.(otherTerm)}
+                        >
+                          {PERIOD_LABELS[otherTerm]}
+                        </button>
+                      ) : null}
                     </th>
                   );
                 })}
                 <th
                   scope="col"
                   className="sec-att__rate mono-label"
-                  title="The average over the days you marked — blank days are not counted as absences."
+                  title="This month's rate — the marked days only. Blank days are never counted as absences."
                 >
                   Rate
+                </th>
+                <th
+                  scope="col"
+                  className="sec-att__rate mono-label"
+                  title="The whole term's rate — every marked day of the term, no-class days left out."
+                >
+                  Term
                 </th>
               </tr>
             </thead>
             <tbody>
               {students.map((student) => {
                 const rate = rateFor(student);
+                const termRate = termRateFor(student);
                 return (
                   <tr key={student.id}>
                     <td className="sec-table__name">{student.name}</td>
@@ -646,6 +751,9 @@ export function AttendancePanel({
                       const status = markOf(student.id, day);
                       const key = markKey(student.id, day);
                       const isPending = pending[key] === true;
+                      const owner = ownerOf(day);
+                      const isNoClass = noClassDates.has(day);
+                      const isOther = owner != null && owner !== period;
                       return (
                         <td
                           key={day}
@@ -653,6 +761,8 @@ export function AttendancePanel({
                             "sec-att__cell",
                             focusDay === day && "is-focus",
                             isPending && "is-pending",
+                            isNoClass && "is-noclass",
+                            isOther && "is-other",
                           )}
                         >
                           <input
@@ -660,11 +770,19 @@ export function AttendancePanel({
                             className={cx("sec-att__input", status && `is-${status}`)}
                             value={status ?? ""}
                             maxLength={1}
-                            disabled={readOnly}
+                            disabled={readOnly || isNoClass || isOther}
                             autoComplete="off"
                             spellCheck={false}
                             aria-label={`${student.name} — ${longDate(day)}`}
-                            title={status ? ATTENDANCE_LABEL[status] : "Not marked"}
+                            title={
+                              isNoClass
+                                ? "No class on this day — not counted"
+                                : isOther
+                                  ? `This day belongs to ${PERIOD_LABELS[owner as PeriodId]}`
+                                  : status
+                                    ? ATTENDANCE_LABEL[status]
+                                    : "Not marked"
+                            }
                             onFocus={(e) => e.currentTarget.select()}
                             onChange={(e) => void handleType(student.id, day, e.target.value)}
                             onKeyDown={(e) => {
@@ -678,6 +796,9 @@ export function AttendancePanel({
                       );
                     })}
                     <td className="sec-att__rate num">{rate === null ? "—" : `${rate}%`}</td>
+                    <td className="sec-att__rate num">
+                      {termRate === null ? "—" : `${termRate}%`}
+                    </td>
                   </tr>
                 );
               })}
@@ -689,13 +810,14 @@ export function AttendancePanel({
       {students.length > 0 ? (
         <>
           <p className="sec-att__totals mono-label">
-            {monthLabel(month.year, month.month)} · {TERM_LABELS[period]} — {totals.marked} marked
+            {monthLabel(month.year, month.month)} · {PERIOD_LABELS[period]} — {totals.marked} marked
             days · {totals.p} present · {totals.a} absent · {totals.l} late
             {bulkBusy ? " · saving…" : ""}
           </p>
           <p className="sec-att__note mono-label">
-            The Attendance criterion averages every day marked in {TERM_LABELS[period]} — blank
-            days are not counted, so a day with no class never counts as an absence.
+            The Attendance criterion averages every day marked in {PERIOD_LABELS[period]} — blank
+            days are not counted, and a day marked no class is left out entirely, so it never
+            counts as an absence.
           </p>
         </>
       ) : null}

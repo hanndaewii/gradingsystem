@@ -77,7 +77,7 @@ const SEGS_ALL_SUBMITTED: ProgressSegment[] = [
 const PERIOD_TABS: TabItem[] = [
   { key: "prelim", label: "Prelim", tick: true },
   { key: "midterm", label: "Midterm", badge: "12/20" },
-  { key: "semifinals", label: "Semi-finals" },
+  { key: "semifinals", label: "Semi-Finals" },
   { key: "finals", label: "Finals", disabled: true, disabledReason: "Prelim must be submitted before Finals opens." },
 ];
 

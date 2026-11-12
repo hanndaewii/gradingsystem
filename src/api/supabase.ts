@@ -25,7 +25,7 @@ import type {
   Api, Assessment, AttendanceRow, AttendanceStatus, CalendarEvent, Comment, Course, Grade,
   HistoryEntry, PeriodId,
   PeriodProgress, PeriodState, Profile, ScaleRow, Section, SectionOverview,
-  Student, Term,
+  Student, Term, TermDateMove, TermDates,
 } from "../types";
 import { buildPeriodProgress, classAveragePct, isPeriodEditable } from "../lib/grades";
 import { clampScore, DEFAULT_SCALE_TABLE } from "../lib/format";
@@ -71,6 +71,9 @@ interface AttendanceDbRow {
 }
 interface CalendarEventRow {
   id: string; section_id: string; period: string; event_date: string; kind: string; label: string;
+}
+interface TermDateRow {
+  period: string; start_date: string | null; end_date: string | null;
 }
 
 // ── pure helpers (module scope) ──────────────────────────────────────────────
@@ -573,6 +576,55 @@ export function createSupabaseApi(): Api {
       };
     },
 
+    async listTermDates(sectionId) {
+      const user = await actor();
+      const section = await readableSection(sectionId, user);
+      if (!section) throw new ApiError("Section not found.", { code: "NOT_FOUND" });
+      const rows = await list<TermDateRow>(
+        tbl("periods").select("period, start_date, end_date").eq("section_id", sectionId),
+        "Could not load the term dates.",
+      );
+      const dates = {} as TermDates;
+      for (const p of PERIODS) {
+        const row = rows.find((r) => asPeriod(r.period) === p);
+        dates[p] = {
+          startDate: row?.start_date ?? null,
+          endDate: row?.end_date ?? null,
+        };
+      }
+      return dates;
+    },
+
+    async previewTermDates(sectionId, period, startDate, endDate) {
+      const user = await actor();
+      const section = await ownedSection(sectionId, user);
+      void section;
+      const { data, error } = await supabase.rpc("faculty_preview_term_dates", {
+        p_section_id: sectionId,
+        p_period: period,
+        p_start: startDate,
+        p_end: endDate,
+      });
+      if (error) throw new ApiError(error.message);
+      const moves = ((data ?? {}) as { moves?: TermDateMove[] }).moves ?? [];
+      return moves.filter((m) => m.from != null && m.to != null);
+    },
+
+    async setTermDates(sectionId, period, startDate, endDate) {
+      const user = await actor();
+      const section = await ownedSection(sectionId, user);
+      void section;
+      const { data, error } = await supabase.rpc("faculty_apply_term_dates", {
+        p_section_id: sectionId,
+        p_period: period,
+        p_start: startDate,
+        p_end: endDate,
+      });
+      if (error) throw new ApiError(error.message);
+      const moves = ((data ?? {}) as { moves?: TermDateMove[] }).moves ?? [];
+      return moves.filter((m) => m.from != null && m.to != null);
+    },
+
     async listCalendarEvents(sectionId) {
       const user = await actor();
       const section = await readableSection(sectionId, user);
@@ -594,10 +646,15 @@ export function createSupabaseApi(): Api {
       );
       if (existing) {
         assertEditable(section, asPeriod(existing.period) ?? "prelim", periodRows);
-        await exec(
-          tbl("calendar_events").delete().eq("section_id", sectionId).eq("event_date", eventDate),
-          "Could not remove the calendar entry.",
-        );
+        const { error } = await supabase.rpc("faculty_set_calendar_event", {
+          p_section_id: sectionId,
+          p_period: asPeriod(existing.period) ?? "prelim",
+          p_event_date: eventDate,
+          p_kind: "event",
+          p_label: "",
+          p_delete: true,
+        });
+        if (error) throw new ApiError(error.message);
       }
       return calendarEventsFor(sectionId);
     },
@@ -607,31 +664,18 @@ export function createSupabaseApi(): Api {
       const section = await ownedSection(sectionId, user);
       const periodRows = await fetchPeriodRows(sectionId);
       assertEditable(section, event.period, periodRows);
-      const at = new Date().toISOString();
-      const payload = {
-        section_id: sectionId,
-        period: event.period,
-        event_date: event.eventDate,
-        kind: event.kind,
-        label: event.label.trim(),
-        updated_at: at,
-      };
-      const existing = await single<CalendarEventRow>(
-        tbl("calendar_events")
-          .select("id, section_id, period, event_date, kind, label")
-          .eq("section_id", sectionId)
-          .eq("event_date", event.eventDate)
-          .maybeSingle(),
-        "Could not load the calendar entry.",
-      );
-      if (existing) {
-        await exec(
-          tbl("calendar_events").update(payload).eq("id", existing.id),
-          "Could not save the calendar entry.",
-        );
-      } else {
-        await exec(tbl("calendar_events").insert(payload), "Could not save the calendar entry.");
-      }
+      // One round trip: the milestone is saved and the Attendance score of
+      // every student marked that day is re-averaged (a "no class" day must
+      // leave the rate at once).
+      const { error } = await supabase.rpc("faculty_set_calendar_event", {
+        p_section_id: sectionId,
+        p_period: event.period,
+        p_event_date: event.eventDate,
+        p_kind: event.kind,
+        p_label: event.label.trim(),
+        p_delete: false,
+      });
+      if (error) throw new ApiError(error.message);
       return calendarEventsFor(sectionId);
     },
 

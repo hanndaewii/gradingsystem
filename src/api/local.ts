@@ -6,6 +6,7 @@ import { ApiError, PERIODS } from "../types";
 import type {
   Api, Assessment, CalendarEvent, Comment, Course, Grade,
   HistoryEntry, PeriodId, PeriodProgress, PeriodState, Profile, Section, SectionOverview, Term,
+  TermDateMove, TermDates,
 } from "../types";
 import { buildSeed, DEMO_REGISTRATION_CODE, TERMS } from "../data/seed";
 import type { DbShape } from "../data/seed";
@@ -273,6 +274,32 @@ export function createLocalApi(): Api {
         score,
         assessmentId: criterion ? criterion.id : null,
       };
+    },
+
+    async listTermDates(sectionId) {
+      await delay(LATENCY_MS);
+      requireActor();
+      if (!readableSection(sectionId)) throw new ApiError("Section not found.", { code: "NOT_FOUND" });
+      const dates = {} as TermDates;
+      for (const p of PERIODS) {
+        dates[p] = { startDate: null, endDate: null };
+      }
+      return dates;
+    },
+
+    async previewTermDates(sectionId) {
+      await delay(LATENCY_MS);
+      const user = requireActor();
+      ownedSection(sectionId, user);
+      // The demo store has no school calendar, so nothing would move.
+      return [] as TermDateMove[];
+    },
+
+    async setTermDates(sectionId) {
+      await delay(LATENCY_MS);
+      const user = requireActor();
+      ownedSection(sectionId, user);
+      return [] as TermDateMove[];
     },
 
     async listCalendarEvents(sectionId) {

@@ -284,27 +284,27 @@ try {
     `the marks are in the live database (${dbMarks.length} marks)`,
   );
 
-  // ── the term headers switch the calendar ─────────────────────────────────
+  // ── one term selector: the page's period tabs ─────────────────────────────
+  const innerTerms = await evaluate(`document.querySelectorAll(".sec-att__term").length`);
+  ok(innerTerms === 0, `the attendance panel has no term buttons of its own (${innerTerms})`);
   const terms = await evaluate(`
-    [...document.querySelectorAll(".sec-att__term")].map((b) => b.textContent.trim())
+    [...document.querySelectorAll('[aria-label="Grading periods"] button, [aria-label="Grading periods"] [role=tab]')]
+      .map((b) => (b.textContent.trim().match(/^(Prelim|Midterm|Semi-Finals|Finals)/) ?? [""])[0])
   `);
   ok(
-    JSON.stringify(terms) === JSON.stringify(["Prelim", "Midterm", "Pre-Finals", "Finals"]),
-    `the term headers are ${JSON.stringify(terms)}`,
+    JSON.stringify(terms) === JSON.stringify(["Prelim", "Midterm", "Semi-Finals", "Finals"]),
+    `the page's period tabs carry the terms ${JSON.stringify(terms)}`,
   );
-  await evaluate(`document.querySelectorAll(".sec-att__term")[1].click(); true`);
-  await sleep(800);
-  const activeTerm = await evaluate(
-    `document.querySelector(".sec-att__term.is-active")?.textContent.trim()`,
+  const activeTerm = await evaluate(`location.search`);
+  ok(
+    activeTerm.includes("period=") || activeTerm.includes("view="),
+    `the page is on one term at a time (${activeTerm})`,
   );
-  ok(activeTerm === "Midterm", `clicking a term header switches to it (${activeTerm})`);
 
   const calCells = await evaluate(`document.querySelectorAll(".sec-cal__cell:not(.is-empty)").length`);
   ok(calCells >= 28, `the month calendar is drawn (${calCells} days)`);
 
   // ── put the cells back exactly as they were ──────────────────────────────
-  await evaluate(`document.querySelectorAll(".sec-att__term")[0].click(); true`);
-  await sleep(800);
   for (let i = 0; i < TOUCHED.length; i += 1) {
     const want = original[i] ?? "";
     if (want === "") await clearCell(i);

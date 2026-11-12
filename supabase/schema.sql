@@ -59,8 +59,9 @@ create table if not exists public.faculty_credentials (
 -- One row per student per class date: 'p' present, 'a' absent, 'l' late.
 -- The mark is the source of truth; it is also encoded into the "Attendance"
 -- criterion's score (see src/lib/attendance.ts).
-drop table if exists public.faculty_attendance;
-create table public.faculty_attendance (
+-- Applying the schema must never wipe the marks: the table is only
+-- created when it is missing.
+create table if not exists public.faculty_attendance (
   id           uuid primary key default gen_random_uuid(),
   section_id   uuid not null references public.faculty_sections (id) on delete cascade,
   student_id   uuid not null references public.faculty_students (id) on delete cascade,
@@ -74,8 +75,7 @@ create table public.faculty_attendance (
 -- ── faculty.calendar_events ────────────────────────────────────────────────
 -- Milestones on the calendar: when classes started, when the exam is, and any
 -- other note for that day.
-drop table if exists public.faculty_calendar_events;
-create table public.faculty_calendar_events (
+create table if not exists public.faculty_calendar_events (
   id         uuid primary key default gen_random_uuid(),
   section_id uuid not null references public.faculty_sections (id) on delete cascade,
   period     text not null check (period in ('prelim', 'midterm', 'semifinals', 'finals')),
@@ -129,8 +129,17 @@ create table if not exists public.faculty_periods (
   period       text not null check (period in ('prelim', 'midterm', 'semifinals', 'finals')),
   status       text not null default 'not_started' check (status in ('not_started', 'draft', 'submitted')),
   submitted_at timestamptz,
+  -- The term's own window in the school calendar. A class date belongs to
+  -- the first term whose window contains it; the attendance calendar follows
+  -- these dates, so the school calendar can shift from year to year.
+  start_date   date,
+  end_date     date,
   unique (section_id, period)
 );
+
+alter table public.faculty_periods
+  add column if not exists start_date date,
+  add column if not exists end_date date;
 
 -- ── public.faculty_assessments ──────────────────────────────────────────────────────
 create table if not exists public.faculty_assessments (
@@ -330,22 +339,26 @@ create policy "students_admin_read" on public.faculty_students
   for select to authenticated using (public.faculty_current_role_is_admin());
 
 -- attendance: owned like the rest of the section (professor rows only).
+drop policy if exists "attendance_professor_all" on public.faculty_attendance;
 create policy "attendance_professor_all" on public.faculty_attendance
   for all to authenticated
   using (exists (select 1 from public.faculty_courses c join public.faculty_sections s on s.course_id = c.id
                  where s.id = section_id and c.professor_id = auth.uid()))
   with check (exists (select 1 from public.faculty_courses c join public.faculty_sections s on s.course_id = c.id
                  where s.id = section_id and c.professor_id = auth.uid()));
+drop policy if exists "attendance_admin_read" on public.faculty_attendance;
 create policy "attendance_admin_read" on public.faculty_attendance
   for select to authenticated using (public.faculty_current_role_is_admin());
 
 -- calendar events: owned like the rest of the section.
+drop policy if exists "calendar_events_professor_all" on public.faculty_calendar_events;
 create policy "calendar_events_professor_all" on public.faculty_calendar_events
   for all to authenticated
   using (exists (select 1 from public.faculty_courses c join public.faculty_sections s on s.course_id = c.id
                  where s.id = section_id and c.professor_id = auth.uid()))
   with check (exists (select 1 from public.faculty_courses c join public.faculty_sections s on s.course_id = c.id
                  where s.id = section_id and c.professor_id = auth.uid()));
+drop policy if exists "calendar_events_admin_read" on public.faculty_calendar_events;
 create policy "calendar_events_admin_read" on public.faculty_calendar_events
   for select to authenticated using (public.faculty_current_role_is_admin());
 
@@ -545,51 +558,20 @@ begin
    limit 1;
   v_has_criterion := found;
 
-  -- 3 - the average credit over the MARKED days only: a blank day is simply
-  --     not counted, never treated as an absence.
-  select count(*),
-         coalesce(sum(case when status = 'p' then 1
-                          when status = 'l' then 0.75
-                          else 0 end), 0)
-    into v_count, v_credit
-    from public.faculty_attendance
-   where section_id = p_section_id
-     and student_id = p_student_id
-     and period = p_period;
-
+  -- 3 - re-average the criterion: only the MARKED days count, and a day
+  --     marked "no class" is left out of both the total and the credit.
   if v_has_criterion then
-    if v_count = 0 then
-      v_score := null;                     -- nothing marked -> no score at all
-    else
-      v_score := round((v_credit / v_count) * v_criterion.max_score, 2);
-    end if;
+    perform public.faculty_refresh_attendance_score(
+      p_section_id, p_student_id, p_period,
+      case when p_status is null then 'Attendance cleared'
+           else 'Attendance: ' || p_status end
+    );
 
-    -- 4 - write the score (and record it in the history)
-    select g.score into v_old
+    -- The score the refresh just wrote, so the app can show it at once.
+    select g.score into v_score
       from public.faculty_grades g
      where g.assessment_id = v_criterion.id
        and g.student_id = p_student_id;
-
-    if v_old is distinct from v_score then
-      if v_score is null then
-        delete from public.faculty_grades
-         where assessment_id = v_criterion.id and student_id = p_student_id;
-      else
-        insert into public.faculty_grades
-          (section_id, assessment_id, student_id, score, updated_at)
-        values (p_section_id, v_criterion.id, p_student_id, v_score, now())
-        on conflict (assessment_id, student_id)
-        do update set score = excluded.score, updated_at = now();
-      end if;
-
-      insert into public.faculty_grade_history
-        (section_id, kind, period, assessment_id, student_id, old_score, new_score, at, actor_id, detail)
-      values
-        (p_section_id, 'grade', p_period, v_criterion.id, p_student_id, v_old, v_score,
-         now(), auth.uid(),
-         case when p_status is null then 'Attendance cleared'
-              else 'Attendance: ' || p_status end);
-    end if;
   end if;
 
   return jsonb_build_object(
@@ -609,6 +591,323 @@ $$;
 
 revoke execute on function public.faculty_set_attendance(uuid, uuid, text, date, text) from public;
 grant execute on function public.faculty_set_attendance(uuid, uuid, text, date, text) to authenticated;
+
+-- --------------------------------------------------------------------------------
+-- faculty.term_of_date
+--
+-- The term a class date belongs to: the first term whose window contains it.
+-- A date outside every window falls back to the term its mark was filed
+-- under, so a day is never orphaned.
+create or replace function public.faculty_term_of_date(p_section_id uuid, p_date date)
+returns text
+language sql
+stable
+set search_path = public
+as $$
+  select p.period
+    from public.faculty_periods p
+   where p.section_id = p_section_id
+     and p.start_date is not null
+     and p.end_date is not null
+     and p_date between p.start_date and p.end_date
+   order by case p.period
+              when 'prelim' then 1 when 'midterm' then 2
+              when 'semifinals' then 3 else 4 end
+   limit 1;
+$$;
+
+-- --------------------------------------------------------------------------------
+-- faculty.refresh_attendance_score
+--
+-- Re-averages the Attendance criterion for one student in one term. Only the
+-- days that were actually marked count, and a day marked "no class" is left
+-- out of both the total and the credit (it is never an absence).
+-- The earlier three-argument version is replaced, not overloaded.
+drop function if exists public.faculty_refresh_attendance_score(uuid, uuid, text);
+create or replace function public.faculty_refresh_attendance_score(
+  p_section_id uuid,
+  p_student_id uuid,
+  p_period text,
+  p_detail text default 'Attendance: term dates changed'
+) returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_criterion public.faculty_assessments%rowtype;
+  v_count     int := 0;
+  v_credit    numeric := 0;
+  v_score     numeric;
+  v_old       numeric;
+begin
+  select a.* into v_criterion
+    from public.faculty_assessments a
+    join public.faculty_periods p on p.id = a.period_id
+   where p.section_id = p_section_id
+     and p.period = p_period
+     and lower(btrim(a.name)) = 'attendance'
+   limit 1;
+  if not found then return; end if;
+
+  select count(*),
+         coalesce(sum(case when a.status = 'p' then 1
+                          when a.status = 'l' then 0.75
+                          else 0 end), 0)
+    into v_count, v_credit
+    from public.faculty_attendance a
+   where a.section_id = p_section_id
+     and a.student_id = p_student_id
+     and a.period = p_period
+     and not exists (
+       select 1 from public.faculty_calendar_events e
+        where e.section_id = p_section_id
+          and e.event_date = a.session_date
+          and e.kind = 'holiday'
+     );
+
+  if v_count = 0 then
+    v_score := null;                 -- nothing marked -> no score at all
+  else
+    v_score := round((v_credit / v_count) * v_criterion.max_score, 2);
+  end if;
+
+  select g.score into v_old
+    from public.faculty_grades g
+   where g.assessment_id = v_criterion.id
+     and g.student_id = p_student_id;
+
+  if v_old is distinct from v_score then
+    if v_score is null then
+      delete from public.faculty_grades
+       where assessment_id = v_criterion.id and student_id = p_student_id;
+    else
+      insert into public.faculty_grades
+        (section_id, assessment_id, student_id, score, updated_at)
+      values (p_section_id, v_criterion.id, p_student_id, v_score, now())
+      on conflict (assessment_id, student_id)
+      do update set score = excluded.score, updated_at = now();
+    end if;
+
+    insert into public.faculty_grade_history
+      (section_id, kind, period, assessment_id, student_id, old_score, new_score, at, actor_id, detail)
+    values
+      (p_section_id, 'grade', p_period, v_criterion.id, p_student_id, v_old, v_score,
+       now(), auth.uid(), p_detail);
+  end if;
+end;
+$$;
+
+-- --------------------------------------------------------------------------------
+-- faculty.preview_term_dates
+--
+-- What would change if this term's window were changed: which marks would
+-- move to another term, and how many. Nothing is written.
+create or replace function public.faculty_preview_term_dates(
+  p_section_id uuid,
+  p_period text,
+  p_start date,
+  p_end date
+) returns jsonb
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_moves jsonb;
+begin
+  if not exists (
+    select 1 from public.faculty_courses c
+      join public.faculty_sections s on s.course_id = c.id
+     where s.id = p_section_id and c.professor_id = auth.uid()
+  ) then
+    raise exception 'Only the section''s professor can do that.';
+  end if;
+
+  with windows as (
+    select p.period,
+           case when p.period = p_period then p_start else p.start_date end as s,
+           case when p.period = p_period then p_end   else p.end_date   end as e
+      from public.faculty_periods p
+     where p.section_id = p_section_id
+  ),
+  proposed as (
+    select a.period as old_period,
+           (select w.period
+              from windows w
+             where w.s is not null and w.e is not null
+               and a.session_date between w.s and w.e
+             order by case w.period
+                        when 'prelim' then 1 when 'midterm' then 2
+                        when 'semifinals' then 3 else 4 end
+             limit 1) as new_period
+      from public.faculty_attendance a
+     where a.section_id = p_section_id
+  )
+  select coalesce(
+           jsonb_agg(jsonb_build_object('from', m.old_period, 'to', m.new_period, 'count', m.cnt)),
+           '[]'::jsonb)
+    into v_moves
+    from (
+      select old_period, new_period, count(*)::int as cnt
+        from proposed
+       where new_period is not null and new_period <> old_period
+       group by old_period, new_period
+    ) m;
+
+  return jsonb_build_object('moves', v_moves);
+end;
+$$;
+
+-- --------------------------------------------------------------------------------
+-- faculty.apply_term_dates
+--
+-- Saves the term's window, moves the marks that now belong to another term
+-- and re-averages the Attendance score for every student affected.
+create or replace function public.faculty_apply_term_dates(
+  p_section_id uuid,
+  p_period text,
+  p_start date,
+  p_end date
+) returns jsonb
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_moved  int := 0;
+  v_moves  jsonb;
+  v_pairs  record;
+begin
+  if not exists (
+    select 1 from public.faculty_courses c
+      join public.faculty_sections s on s.course_id = c.id
+     where s.id = p_section_id and c.professor_id = auth.uid()
+  ) then
+    raise exception 'Only the section''s professor can do that.';
+  end if;
+
+  -- What moves, and where.
+  with windows as (
+    select p.period,
+           case when p.period = p_period then p_start else p.start_date end as s,
+           case when p.period = p_period then p_end   else p.end_date   end as e
+      from public.faculty_periods p
+     where p.section_id = p_section_id
+  ),
+  proposed as (
+    select a.id, a.student_id, a.period as old_period,
+           (select w.period
+              from windows w
+             where w.s is not null and w.e is not null
+               and a.session_date between w.s and w.e
+             order by case w.period
+                        when 'prelim' then 1 when 'midterm' then 2
+                        when 'semifinals' then 3 else 4 end
+             limit 1) as new_period
+      from public.faculty_attendance a
+     where a.section_id = p_section_id
+  )
+  update public.faculty_attendance a
+     set period = pr.new_period, updated_at = now()
+    from proposed pr
+   where a.id = pr.id and pr.new_period is not null and pr.new_period <> a.period;
+
+  get diagnostics v_moved = row_count;
+
+  -- Save the window.
+  update public.faculty_periods
+     set start_date = p_start, end_date = p_end
+   where section_id = p_section_id and period = p_period;
+
+  -- Re-average every student whose marks changed term.
+  for v_pairs in
+    select distinct a.student_id, a.period
+      from public.faculty_attendance a
+     where a.section_id = p_section_id
+  loop
+    perform public.faculty_refresh_attendance_score(p_section_id, v_pairs.student_id, v_pairs.period);
+  end loop;
+
+  v_moves := public.faculty_preview_term_dates(p_section_id, p_period, p_start, p_end)
+                -> 'moves';
+  return jsonb_build_object('moved', v_moved, 'moves', v_moves);
+end;
+$$;
+
+revoke execute on function public.faculty_term_of_date(uuid, date) from public;
+grant execute on function public.faculty_term_of_date(uuid, date) to authenticated;
+revoke execute on function public.faculty_refresh_attendance_score(uuid, uuid, text, text) from public;
+grant execute on function public.faculty_refresh_attendance_score(uuid, uuid, text, text) to authenticated;
+revoke execute on function public.faculty_preview_term_dates(uuid, text, date, date) from public;
+grant execute on function public.faculty_preview_term_dates(uuid, text, date, date) to authenticated;
+revoke execute on function public.faculty_apply_term_dates(uuid, text, date, date) from public;
+grant execute on function public.faculty_apply_term_dates(uuid, text, date, date) to authenticated;
+
+-- --------------------------------------------------------------------------------
+-- faculty.set_calendar_event
+--
+-- Saves (or removes) a milestone and re-averages the Attendance score of every
+-- student marked on that date — a "no class" day must leave the rate at once.
+create or replace function public.faculty_set_calendar_event(
+  p_section_id uuid,
+  p_period text,
+  p_event_date date,
+  p_kind text,
+  p_label text,
+  p_delete boolean default false
+) returns jsonb
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_student record;
+  v_detail text;
+begin
+  if not exists (
+    select 1 from public.faculty_courses c
+      join public.faculty_sections s on s.course_id = c.id
+     where s.id = p_section_id and c.professor_id = auth.uid()
+  ) then
+    raise exception 'Only the section''s professor can do that.';
+  end if;
+
+  if p_delete then
+    delete from public.faculty_calendar_events
+     where section_id = p_section_id and event_date = p_event_date;
+    v_detail := 'Attendance: a no-class day was removed';
+  else
+    if p_kind not in ('start', 'exam', 'holiday', 'event') then
+      raise exception 'Unknown event kind.';
+    end if;
+    insert into public.faculty_calendar_events
+      (section_id, period, event_date, kind, label, updated_at)
+    values (p_section_id, p_period, p_event_date, p_kind, coalesce(p_label, ''), now())
+    on conflict (section_id, period, event_date)
+    do update set kind = excluded.kind,
+                  label = excluded.label,
+                  updated_at = now();
+    v_detail := 'Attendance: a no-class day was marked';
+  end if;
+
+  -- Re-average every student marked on that date.
+  for v_student in
+    select distinct a.student_id, a.period
+      from public.faculty_attendance a
+     where a.section_id = p_section_id and a.session_date = p_event_date
+  loop
+    perform public.faculty_refresh_attendance_score(
+      p_section_id, v_student.student_id, v_student.period, v_detail
+    );
+  end loop;
+
+  return jsonb_build_object('ok', true);
+end;
+$$;
+
+revoke execute on function public.faculty_set_calendar_event(uuid, text, date, text, text, boolean) from public;
+grant execute on function public.faculty_set_calendar_event(uuid, text, date, text, text, boolean) to authenticated;
 
 -- Grants
 -- --------------------------------------------------------------------------------

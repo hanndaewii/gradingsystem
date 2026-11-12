@@ -4,12 +4,15 @@
 // ScaleTableEditor. Admin sees everything read-only.
 import { StatusPill, TickIcon } from "../../components/ui";
 import { PERIODS, PERIOD_LABELS } from "../../types";
-import type { PeriodId, PeriodProgress, PeriodStatus, Section, Student } from "../../types";
+import type {
+  AttendanceRow, PeriodId, PeriodProgress, PeriodStatus, Section, Student, TermDates,
+} from "../../types";
 import type { Assessment, Grade } from "../../types";
 import { classAveragePct, semesterGrade } from "../../lib/grades";
 import { formatGrade, formatPercent, plural } from "../../lib/format";
 import { WeightsEditor } from "./WeightsEditor";
 import { ScaleTableEditor } from "./ScaleTableEditor";
+import { TermDatesEditor } from "./TermDatesEditor";
 
 export interface SummaryPanelProps {
   section: Section;
@@ -17,8 +20,15 @@ export interface SummaryPanelProps {
   assessmentsByPeriod: Record<PeriodId, Assessment[]>;
   grades: Grade[];
   progress: PeriodProgress[];
+  /** Each term's window in the school calendar. */
+  termDates: TermDates;
+  /** The attendance marks, so a term can be filled in from them. */
+  attendanceRows: AttendanceRow[];
   readOnly: boolean;
+  termDatesBusy?: boolean;
   onSectionChange(section: Section): void;
+  /** Save one term's window (the page checks what it would move first). */
+  onTermDatesChange(period: PeriodId, startDate: string | null, endDate: string | null): void;
 }
 
 const pillTone = (status: PeriodStatus): "neutral" | "progress" | "done" =>
@@ -28,7 +38,8 @@ const pillLabel = (status: PeriodStatus): string =>
   status === "submitted" ? "Submitted" : status === "draft" ? "Draft" : "Not started";
 
 export function SummaryPanel({
-  section, students, assessmentsByPeriod, grades, progress, readOnly, onSectionChange,
+  section, students, assessmentsByPeriod, grades, progress, termDates, attendanceRows,
+  readOnly, termDatesBusy = false, onSectionChange, onTermDatesChange,
 }: SummaryPanelProps): JSX.Element {
   const periodGrades = progress.map((p) => ({
     period: p.period,
@@ -116,6 +127,16 @@ export function SummaryPanel({
         <section className="sec-summary__editor">
           <h3 className="mono-label">Grading scale & order</h3>
           <ScaleTableEditor section={section} progress={progress} readOnly={readOnly} onSectionChange={onSectionChange} />
+        </section>
+        <section className="sec-summary__editor">
+          <h3 className="mono-label">Term dates</h3>
+          <TermDatesEditor
+            termDates={termDates}
+            rows={attendanceRows}
+            readOnly={readOnly}
+            busy={termDatesBusy}
+            onSave={onTermDatesChange}
+          />
         </section>
       </div>
 
