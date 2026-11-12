@@ -173,6 +173,16 @@
   padding: 0 var(--space-2);
 }
 
+/* "All 7 criteria graded" — one quiet line when there is nothing to do */
+.sec-sidenav__alldone {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: 0 var(--space-2);
+  font-size: var(--text-xs);
+  color: var(--accent-ink);
+}
+
 .sec-sidenav__check {
   display: flex;
   align-items: center;

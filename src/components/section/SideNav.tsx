@@ -65,6 +65,9 @@ export function SideNav({ view, period, assessments, progress, onNavigate, grade
 
   const active = progress.find((p) => p.period === period);
 
+  // The criteria that are not finished yet — the only ones worth listing.
+  const pending = assessments.filter((a) => !(active?.perAssessment[a.id] ?? false));
+
   return (
     <nav className="sec-sidenav" aria-label="Section navigation">
       <div className="sec-sidenav__group">
@@ -112,41 +115,47 @@ export function SideNav({ view, period, assessments, progress, onNavigate, grade
         </div>
       ) : null}
 
+      {/* The checklist lists only what is still missing. A wall of ticks
+          says nothing the sheet does not already say, but "still to grade"
+          is worth seeing — and each row jumps straight to that criterion. */}
       <div className="sec-sidenav__group sec-sidenav__checklist">
-        <span className="sec-sidenav__label mono-label">{PERIOD_LABELS[period]} checklist</span>
-        {active ? (
-          <span className="sec-sidenav__count num">
-            {active.gradedCells} of {active.totalCells} graded
-          </span>
-        ) : null}
         {assessments.length === 0 ? (
-          <span className="sec-sidenav__empty">No assessments yet</span>
+          <>
+            <span className="sec-sidenav__label mono-label">{PERIOD_LABELS[period]} checklist</span>
+            <span className="sec-sidenav__empty">No assessments yet</span>
+          </>
+        ) : pending.length === 0 ? (
+          <span className="sec-sidenav__alldone">
+            <TickIcon size={12} className="sec-sidenav__tick" />
+            All {assessments.length} criteria graded
+          </span>
         ) : (
-          assessments.map((a) => {
-            const done = active?.perAssessment[a.id] ?? false;
-            const count = gradedCounts?.[a.id] ?? 0;
-            return (
-              <button
-                key={a.id}
-                type="button"
-                className="sec-sidenav__check"
-                title={`Go to ${a.name}`}
-                onClick={() => onNavigate({ view: "gradebook", anchor: `sec-assess-${a.id}` })}
-              >
-                {done ? (
-                  <TickIcon size={12} className="sec-sidenav__tick" />
-                ) : (
+          <>
+            <span className="sec-sidenav__label mono-label">{PERIOD_LABELS[period]} checklist</span>
+            <span className="sec-sidenav__count num">
+              {assessments.length - pending.length} of {assessments.length} graded
+            </span>
+            {pending.map((a) => {
+              const count = gradedCounts?.[a.id] ?? 0;
+              return (
+                <button
+                  key={a.id}
+                  type="button"
+                  className="sec-sidenav__check"
+                  title={`Go to ${a.name}`}
+                  onClick={() => onNavigate({ view: "gradebook", anchor: `sec-assess-${a.id}` })}
+                >
                   <span className="sec-sidenav__box" aria-hidden="true" />
-                )}
-                <span className="sec-sidenav__checkname">{a.name}</span>
-                {studentCount != null && studentCount > 0 ? (
-                  <span className="sec-sidenav__checkcount num" title={`${count} of ${studentCount} students graded`}>
-                    {count}/{studentCount}
-                  </span>
-                ) : null}
-              </button>
-            );
-          })
+                  <span className="sec-sidenav__checkname">{a.name}</span>
+                  {studentCount != null && studentCount > 0 ? (
+                    <span className="sec-sidenav__checkcount num" title={`${count} of ${studentCount} students graded`}>
+                      {count}/{studentCount}
+                    </span>
+                  ) : null}
+                </button>
+              );
+            })}
+          </>
         )}
       </div>
     </nav>
