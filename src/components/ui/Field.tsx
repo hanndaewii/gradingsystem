@@ -2,20 +2,27 @@ import type { InputHTMLAttributes, ReactNode, SelectHTMLAttributes, TextareaHTML
 import { cx } from "./cx";
 
 export interface FieldProps {
-  label: string;
+  label: ReactNode;
   htmlFor?: string;
   hint?: ReactNode;
   error?: string | null;
+  /** Marks the field required with a visible asterisk. */
+  required?: boolean;
   children: ReactNode;
   className?: string;
 }
 
 /** Mono small-caps label + control + hint (or error, which wins). */
-export function Field({ label, htmlFor, hint, error, children, className }: FieldProps): JSX.Element {
+export function Field({ label, htmlFor, hint, error, required = false, children, className }: FieldProps): JSX.Element {
   return (
     <div className={cx("ui-field", className)}>
       <label className="ui-field__label mono-label" htmlFor={htmlFor}>
         {label}
+        {required ? (
+          <span className="ui-field__req" title="required">
+            {" *"}
+          </span>
+        ) : null}
       </label>
       {children}
       {error ? (

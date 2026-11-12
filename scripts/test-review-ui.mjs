@@ -168,14 +168,19 @@ try {
         tag: el.tagName,
         bg: cs.backgroundColor,
         color: cs.color,
+        border: cs.borderTopColor,
+        borderWidth: cs.borderTopWidth,
         rowCursor: getComputedStyle(document.querySelector(".adm-table__row")).cursor,
       };
     })()
   `);
-  ok(open?.tag === "A" && open?.text === "Review", `it is a button labelled "Review" (${open?.text})`);
+  ok(open?.tag === "A" && open?.text === "Open", `it is a button labelled "Open" (${open?.text})`);
   ok(
-    open?.bg !== "rgba(0, 0, 0, 0)" && open?.bg !== "transparent",
-    `it is filled, not a bare link (${open?.bg})`,
+    (open?.bg === "rgba(0, 0, 0, 0)" || open?.bg === "transparent") &&
+      open?.color === "rgb(58, 125, 84)" &&
+      open?.border === "rgb(58, 125, 84)" &&
+      open?.borderWidth === "1px",
+    `it is outlined green, not a bare link (bg ${open?.bg}, text ${open?.color}, border ${open?.border})`,
   );
   ok(open?.rowCursor === "pointer", "the whole row is clickable");
 
@@ -281,7 +286,7 @@ try {
       return {
         has: document.body.innerText.includes("No sections match"),
         text: es ? es.textContent.replace(/\\s+/g, " ").trim().slice(0, 90) : null,
-        clearButton: [...document.querySelectorAll("button")].some((b) => b.textContent.includes("Clear the filters")),
+        clearButton: [...document.querySelectorAll("button")].some((b) => b.textContent.trim() === "Clear filters"),
       };
     })()
   `);

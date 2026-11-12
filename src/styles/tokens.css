@@ -43,6 +43,8 @@
   --warn-soft: #fdf3e3;
   --danger-soft: #fbeae6;
   --focus-ring: #3a7d54;
+  /* placeholder text: readable, but never mistaken for a typed value */
+  --placeholder: #6f7e74;
 
   /* elevation — barely-there, just enough to separate floats */
   --shadow-card: 0 1px 2px rgba(31, 43, 34, 0.04);
@@ -105,6 +107,7 @@
   --warn-soft: #33291a;
   --danger-soft: #33201c;
   --focus-ring: #7ab88f;
+  --placeholder: #7f9187;
 
   --shadow-card: 0 1px 2px rgba(0, 0, 0, 0.3);
   --shadow-pop: 0 8px 24px rgba(0, 0, 0, 0.4);

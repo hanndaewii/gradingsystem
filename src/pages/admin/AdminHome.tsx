@@ -74,9 +74,7 @@ export default function AdminHome(): JSX.Element {
             Department review
             <span className="adm-mast__term mono-label"> · {termLabel(term)}</span>
           </h1>
-          <p className="adm-mast__sub">
-            Review grade submissions across all sections, and open any section read-only.
-          </p>
+          <p className="adm-mast__sub">Review grade submissions across all sections.</p>
         </div>
       </header>
 

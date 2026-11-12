@@ -34,7 +34,7 @@ export function SectionsTable({
         action={
           onClearFilters ? (
             <Button variant="secondary" onClick={onClearFilters}>
-              Clear the filters
+              Clear filters
             </Button>
           ) : undefined
         }
@@ -109,7 +109,7 @@ export function SectionsTable({
                   to={`/sections/${row.section.id}`}
                   onClick={(e) => e.stopPropagation()}
                 >
-                  Review
+                  Open
                 </Link>
               </td>
             </tr>

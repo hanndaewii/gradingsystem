@@ -1,6 +1,7 @@
-// Live test of the faculty-admin Worker: sign in as the head, list faculty,
-// create an account, reset a password, check that a professor is blocked —
-// then clean up.
+// Live test of the faculty-admin Worker: sign in as the head, list faculty
+// (with hasAccess), create an account, reset a password, remove and restore
+// access, check that a professor is blocked and that the head cannot lock
+// themselves out — then clean up. Every account it makes is deleted.
 //   node --env-file=.env scripts/test-admin-worker.mjs
 import { createClient } from "@supabase/supabase-js";
 import { createTempUser, headCredentials, removeTempUser } from "./test-fixtures.mjs";
@@ -23,6 +24,8 @@ const headers = { Authorization: `Bearer ${data.session.access_token}`, "Content
 const listRes = await fetch(`${WORKER}/teachers`, { headers });
 const listBody = await listRes.json();
 ok(listRes.ok, `GET /teachers → ${listRes.status} (${listBody.teachers?.length ?? 0} faculty)`);
+const hasAccessShape = (listBody.teachers ?? []).every((t) => typeof t.hasAccess === "boolean");
+ok(hasAccessShape, "GET /teachers → every entry carries hasAccess");
 
 // 2. no token → rejected
 const anon = await fetch(`${WORKER}/teachers`);
@@ -67,6 +70,56 @@ const resetRes = await fetch(`${WORKER}/reset-password`, {
 const reset = await resetRes.json();
 ok(resetRes.ok && reset.password, `POST /reset-password → ${resetRes.status} (new password issued)`);
 
+// 6b. the head cannot lock themselves out of their own desk
+const selfRevoke = await fetch(`${WORKER}/revoke-access`, {
+  method: "POST",
+  headers,
+  body: JSON.stringify({ email: head.email }),
+});
+ok(selfRevoke.status === 400, `POST /revoke-access for the head → ${selfRevoke.status} (400 = refused)`);
+
+// 6c. remove sign-in access: the account stays, the door does not
+const revokeRes = await fetch(`${WORKER}/revoke-access`, {
+  method: "POST",
+  headers,
+  body: JSON.stringify({ email }),
+});
+const revoked = await revokeRes.json();
+ok(revokeRes.ok && revoked.ok === true, `POST /revoke-access → ${revokeRes.status}`);
+
+const blocked = await fetch(`${WORKER}/signin`, {
+  method: "POST",
+  headers: { "Content-Type": "application/json" },
+  body: JSON.stringify({ email, password: reset.password }),
+});
+const blockedBody = await blocked.json();
+ok(
+  blocked.status === 401,
+  `a revoked account cannot sign in → ${blocked.status} (${blockedBody.error ?? "no error"})`,
+);
+
+const afterList = await fetch(`${WORKER}/teachers`, { headers });
+const afterBody = await afterList.json();
+const entry = (afterBody.teachers ?? []).find((t) => t.email === email);
+ok(
+  entry != null && entry.hasAccess === false,
+  `but it stays on the list, marked no access (hasAccess: ${entry?.hasAccess})`,
+);
+
+// 6d. setting a password brings it straight back
+const restoreRes = await fetch(`${WORKER}/credentials`, {
+  method: "POST",
+  headers,
+  body: JSON.stringify({ email, role: "professor", name: "Smoke Test", department: "Testing" }),
+});
+const restored = await restoreRes.json();
+ok(restoreRes.ok && restored.password, `POST /credentials restores access → ${restoreRes.status}`);
+
+const backList = await fetch(`${WORKER}/teachers`, { headers });
+const backBody = await backList.json();
+const backEntry = (backBody.teachers ?? []).find((t) => t.email === email);
+ok(backEntry?.hasAccess === true, `and hasAccess is true again (${backEntry?.hasAccess})`);
+
 // 7. cleanup
 const admin = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SECRET_KEY, {
   auth: { persistSession: false, autoRefreshToken: false },
@@ -77,5 +130,8 @@ if (victim) {
   await admin.auth.admin.deleteUser(victim.id);
   await admin.from("faculty_profiles").delete().eq("id", victim.id);
 }
+await admin.from("faculty_credentials").delete().eq("email", email);
+const left = await admin.from("faculty_credentials").select("id").eq("email", email);
 ok(victim != null, "cleanup → the test account was removed");
+ok((left.data ?? []).length === 0, "cleanup → its credentials were removed too");
 await removeTempUser(prof.id);

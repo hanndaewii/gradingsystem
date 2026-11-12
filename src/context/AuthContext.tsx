@@ -3,7 +3,7 @@
 // goes through the `api` layer; this file only mirrors results into state.
 import { createContext, useContext, useEffect, useMemo, useState } from "react";
 import type { ReactNode } from "react";
-import { api } from "../api";
+import { api, onSessionExpired } from "../api";
 import type { Profile } from "../types";
 
 export interface AuthContextValue {
@@ -42,6 +42,11 @@ export function AuthProvider({ children }: { children: ReactNode }): JSX.Element
       cancelled = true;
     };
   }, []);
+
+  // A 401 (or a token that is already gone) clears the profile here, and
+  // RequireAuth turns that into /login?next=<the page you were on> — so an
+  // expired session never leaves a signed-in shell with dead cards in it.
+  useEffect(() => onSessionExpired(() => setProfile(null)), []);
 
   const value = useMemo<AuthContextValue>(
     () => ({

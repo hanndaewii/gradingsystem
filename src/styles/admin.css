@@ -256,15 +256,15 @@
   color: var(--ink-3);
 }
 
-/* the main action of the row: a small green button */
+/* the main action of the row: a small outlined green button */
 .adm-table__open {
   display: inline-flex;
   align-items: center;
   padding: 4px 14px;
   border: 1px solid var(--brand);
   border-radius: var(--radius);
-  background: var(--brand);
-  color: var(--surface);
+  background: transparent;
+  color: var(--brand);
   font-family: var(--font-serif);
   font-size: var(--text-xs);
   font-weight: 700;
@@ -272,11 +272,12 @@
   text-transform: none;
   text-decoration: none;
   white-space: nowrap;
+  transition: background-color var(--dur-fast) var(--ease), color var(--dur-fast) var(--ease);
 }
 
 .adm-table__open:hover {
-  background: var(--brand-hover);
-  border-color: var(--brand-hover);
+  background: var(--brand);
+  border-color: var(--brand);
   color: var(--surface);
 }
 
@@ -348,31 +349,6 @@
 }
 
 /* ---- faculty accounts (department head) ---- */
-
-.adm-mast__link {
-  margin-left: auto;
-  font-family: var(--font-mono);
-  font-size: var(--text-xs);
-  letter-spacing: var(--label-tracking);
-  text-transform: uppercase;
-  color: var(--ink-2);
-  text-decoration: none;
-  border-bottom: 1px solid var(--rule-strong);
-  padding-bottom: 2px;
-  white-space: nowrap;
-}
-
-.adm-mast__link:hover {
-  color: var(--ink);
-}
-
-/* the page you are on */
-.adm-mast__link[aria-current="page"] {
-  color: var(--brand);
-  font-weight: 700;
-  border-bottom-color: var(--brand);
-  border-bottom-width: 2px;
-}
 
 .adm-faculty {
   display: grid;
@@ -463,19 +439,109 @@
 }
 
 .adm-issued {
-  display: flex;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
   align-items: center;
-  gap: var(--space-3);
-  flex-wrap: wrap;
+  gap: var(--space-2) var(--space-4);
   margin-bottom: var(--space-5);
   padding: var(--space-4);
   border: 1.5px solid var(--brand);
   background: var(--accent-soft);
 }
 
+.adm-issued__head {
+  grid-column: 1 / -1;
+  display: grid;
+  gap: 2px;
+}
+
+.adm-issued__title {
+  margin: 0;
+  font-size: var(--text-base);
+  font-weight: 700;
+  color: var(--ink);
+}
+
+/* the warning that makes "shown once" mean it */
+.adm-issued__note {
+  margin: 0;
+  font-size: var(--text-sm);
+  color: var(--ink-2);
+}
+
 .adm-issued__line {
+  margin: 0;
   font-size: var(--text-base);
   font-weight: 600;
   color: var(--ink);
   word-break: break-all;
+}
+
+.adm-issued__actions {
+  display: flex;
+  gap: var(--space-2);
+}
+
+/* the count waits for a real response */
+.adm-skeleton {
+  display: grid;
+  gap: var(--space-3);
+}
+
+.adm-skeleton__row {
+  display: block;
+  height: 38px;
+  border-radius: var(--radius);
+  background: linear-gradient(90deg, var(--paper-2) 25%, var(--surface) 50%, var(--paper-2) 75%);
+  background-size: 200% 100%;
+  animation: adm-skeleton 1.2s ease-in-out infinite;
+}
+
+@keyframes adm-skeleton {
+  from {
+    background-position: 200% 0;
+  }
+  to {
+    background-position: -200% 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .adm-skeleton__row {
+    animation: none;
+    background: var(--paper-2);
+  }
+}
+
+/* the list is genuinely empty — not an error, not a zero */
+.adm-empty {
+  display: grid;
+  justify-items: center;
+  gap: var(--space-2);
+  padding: var(--space-7) var(--space-4);
+  text-align: center;
+}
+
+.adm-empty__icon {
+  width: 32px;
+  height: 32px;
+  color: var(--rule-strong);
+}
+
+.adm-empty__title {
+  margin: 0;
+  font-size: var(--text-base);
+  font-weight: 600;
+  color: var(--ink-2);
+}
+
+.adm-empty__body {
+  margin: 0;
+  font-size: var(--text-sm);
+  color: var(--ink-3);
+}
+
+/* a failed list fetch offers the way out, not just the bad news */
+.adm-faculty__recovery {
+  margin-top: var(--space-3);
 }

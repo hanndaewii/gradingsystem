@@ -6,8 +6,10 @@
 // admin (faculty_profiles.role = 'admin').
 //
 // Routes:
-//   GET  /teachers        → list faculty profiles
+//   GET  /teachers        → list faculty profiles (with hasAccess)
 //   POST /teachers        → create a teacher account {email, password, name, department}
+//   POST /revoke-access   → remove sign-in access {email} — credentials and the
+//                           Supabase password only; courses and grades are never touched
 //   POST /reset-password  → set a new professor password for an account {email, password}
 //   POST /credentials     → set a ROLE-SCOPED password {email, role, password, name?, department?}
 //   POST /signin          → verify a credential {email, password} and return a one-time
@@ -29,6 +31,8 @@ interface Teacher {
   name: string;
   department: string;
   role: string;
+  /** False once the head has removed this account's sign-in access. */
+  hasAccess?: boolean;
 }
 
 interface AuthUser {
@@ -265,8 +269,8 @@ export default {
     if (!userRes.ok) return json({ error: "Your session has expired — sign in again." }, 401, echo);
     const user = (await userRes.json()) as { id: string; email?: string };
 
-    const meRes = await adminFetch(env, `/rest/v1/faculty_profiles?select=role&id=eq.${user.id}`);
-    const me = (await meRes.json()) as { role?: string }[];
+    const meRes = await adminFetch(env, `/rest/v1/faculty_profiles?select=role,email&id=eq.${user.id}`);
+    const me = (await meRes.json()) as { role?: string; email?: string }[];
     if (!Array.isArray(me) || me.length === 0 || me[0].role !== "admin") {
       return json({ error: "Only the department head can manage faculty accounts." }, 403, echo);
     }
@@ -278,7 +282,21 @@ export default {
         "/rest/v1/faculty_profiles?select=id,email,name,department,role&order=role,email",
       );
       const rows = (await res.json()) as Teacher[];
-      return json({ teachers: rows }, 200, echo);
+      // Access = a role-scoped credential exists for the email. That is exactly
+      // what portal sign-in checks, so it is also exactly what the list shows.
+      const credRes = await adminFetch(env, "/rest/v1/faculty_credentials?select=email");
+      const creds = (await credRes.json()) as { email?: string }[];
+      const withAccess = new Set(creds.map((c) => (c.email ?? "").toLowerCase()));
+      return json(
+        {
+          teachers: rows.map((t) => ({
+            ...t,
+            hasAccess: withAccess.has((t.email ?? "").toLowerCase()),
+          })),
+        },
+        200,
+        echo,
+      );
     }
 
     // ── create a teacher account (also sets their professor credential) ───
@@ -338,6 +356,54 @@ export default {
       });
 
       return json({ ok: true, id: created.id, email, password }, 200, echo);
+    }
+
+    // ── remove sign-in access ─────────────────────────────────────────────
+    // Nothing academic is touched: the profile, the courses, the grades and
+    // the list entry all stay. Only the two ways in — the role-scoped
+    // credential and the Supabase password — are taken away, and setting a
+    // new password brings them straight back.
+    if (request.method === "POST" && url.pathname === "/revoke-access") {
+      const body = (await request.json()) as { email?: string };
+      const email = (body.email ?? "").trim().toLowerCase();
+      if (!email || !email.includes("@")) return json({ error: "A valid email is required." }, 400, echo);
+      // The head must not be able to lock themselves out of their own desk.
+      // Checked against the profile row (which always has the email) as well
+      // as the auth user, so a missing email field cannot slip past it.
+      const callerEmail = (me[0]?.email ?? user.email ?? "").toLowerCase();
+      if (callerEmail === email) {
+        return json({ error: "You cannot remove your own access." }, 400, echo);
+      }
+
+      // 1 · every role-scoped credential goes — that is the portal's front door.
+      await adminFetch(env, `/rest/v1/faculty_credentials?email=eq.${encodeURIComponent(email)}`, {
+        method: "DELETE",
+        headers: { Prefer: "return=minimal" },
+      });
+
+      // 2 · randomise the Supabase password too, so the fallback sign-in path
+      // is closed as well. The auth user itself must survive: deleting it
+      // cascades to the profile and would take every course, section and
+      // grade with it.
+      const users = await listAuthUsers(env);
+      const target = users.find((u) => (u.email ?? "").toLowerCase() === email);
+      if (target) {
+        const updateRes = await fetch(`${env.SUPABASE_URL}/auth/v1/admin/users/${target.id}`, {
+          method: "PUT",
+          headers: {
+            apikey: env.SUPABASE_SECRET_KEY,
+            Authorization: `Bearer ${env.SUPABASE_SECRET_KEY}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ password: makePassword() }),
+        });
+        if (!updateRes.ok) {
+          const err = (await updateRes.json()) as { message?: string };
+          return json({ error: err.message ?? "Could not remove access." }, 400, echo);
+        }
+      }
+
+      return json({ ok: true, email }, 200, echo);
     }
 
     // ── set a role-scoped password ────────────────────────────────────────

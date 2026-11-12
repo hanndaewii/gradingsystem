@@ -72,7 +72,7 @@ export function Header(): JSX.Element {
               ? profile.role === "admin"
                 ? "Department head"
                 : "Professor"
-              : "North State University"}
+              : "CWPC"}
           </span>
         </div>
 

@@ -28,6 +28,10 @@ export const API_MODE: "supabase" | "demo" =
 
 export const api: Api = API_MODE === "supabase" ? createSupabaseApi() : createLocalApi();
 
+// The faculty-admin Worker's 401s: the app clears the profile and the router
+// sends the user to /login?next=<where they were>.
+export { onSessionExpired } from "./adminApi";
+
 // D20 — dev console hook: exercise data + auth from DevTools without UI.
 if (import.meta.env.DEV) {
   (window as unknown as Record<string, unknown>).__dbg = api;
