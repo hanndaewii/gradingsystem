@@ -5,23 +5,42 @@
 // code then section name; the sticky header rides under the app header;
 // hairline row rules, mono numerals, no zebra. Read-only — no edit
 // affordances anywhere.
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import type { PeriodId, SectionOverview } from "../../types";
 import { PERIODS, PERIOD_SHORT } from "../../types";
 import { formatPercent, formatDateTime } from "../../lib/format";
+import { Button, EmptyState } from "../ui";
 import { PeriodStatusCell } from "./PeriodStatusCell";
-
-const COL_COUNT = 3 + PERIODS.length + 3;
 
 export function SectionsTable({
   rows,
   activePeriod,
+  onClearFilters,
 }: {
   rows: SectionOverview[];
   activePeriod: PeriodId | null;
+  /** Shown by the empty state so a dead end is never a dead end. */
+  onClearFilters?: () => void;
 }): JSX.Element {
+  const navigate = useNavigate();
   const cellActive = (period: PeriodId): string | undefined =>
     activePeriod === period ? "is-active" : undefined;
+
+  if (rows.length === 0) {
+    return (
+      <EmptyState
+        title="No sections match these filters"
+        body="Nothing in this term matches the professor, course or period you picked."
+        action={
+          onClearFilters ? (
+            <Button variant="secondary" onClick={onClearFilters}>
+              Clear the filters
+            </Button>
+          ) : undefined
+        }
+      />
+    );
+  }
 
   return (
     <table className="adm-table">
@@ -47,15 +66,12 @@ export function SectionsTable({
         </tr>
       </thead>
       <tbody>
-        {rows.length === 0 ? (
-          <tr>
-            <td className="adm-table__empty" colSpan={COL_COUNT}>
-              No sections match the current filters.
-            </td>
-          </tr>
-        ) : (
-          rows.map((row) => (
-            <tr key={row.section.id}>
+        {rows.map((row) => (
+            <tr
+              key={row.section.id}
+              className="adm-table__row"
+              onClick={() => navigate(`/sections/${row.section.id}`)}
+            >
               <td className="adm-table__cell-prof">{row.professorName}</td>
               <td className="adm-table__cell-course">
                 <span className="adm-table__code">{row.course.code}</span>
@@ -88,13 +104,16 @@ export function SectionsTable({
                 )}
               </td>
               <td>
-                <Link className="adm-table__open" to={`/sections/${row.section.id}`}>
-                  Open
+                <Link
+                  className="adm-table__open"
+                  to={`/sections/${row.section.id}`}
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  Review
                 </Link>
               </td>
             </tr>
-          ))
-        )}
+        ))}
       </tbody>
     </table>
   );

@@ -48,7 +48,10 @@ interface SectionRow {
   display_scale?: string | null; scale_table?: unknown; period_weights?: unknown;
   enforce_order?: boolean | null; unlocked_periods?: unknown; created_at: string;
 }
-interface PeriodRow { id: string; section_id?: string; period: string; status: string; submitted_at: string | null }
+interface PeriodRow {
+  id: string; section_id?: string; period: string; status: string; submitted_at: string | null;
+  start_date?: string | null; end_date?: string | null;
+}
 interface AssessmentRow {
   id: string; section_id: string; period_id: string; name: string;
   max_score: number | string; weight: number | string | null;
@@ -923,7 +926,9 @@ export function createSupabaseApi(): Api {
           list<AssessmentRow>(tbl("assessments").select("*", { count: "estimated" }).in("section_id", sectionIds), "Could not load assessments."),
           list<GradeRow>(tbl("grades").select("*", { count: "estimated" }).in("section_id", sectionIds), "Could not load grades."),
           list<PeriodRow>(
-            tbl("periods").select("id, section_id, period, status, submitted_at", { count: "estimated" }).in("section_id", sectionIds),
+            tbl("periods")
+              .select("id, section_id, period, status, submitted_at, start_date, end_date", { count: "estimated" })
+              .in("section_id", sectionIds),
             "Could not load period states.",
           ),
         ]);
@@ -951,16 +956,34 @@ export function createSupabaseApi(): Api {
           const assessments = assessmentsBySection.get(section.id) ?? [];
           const grades = gradesBySection.get(section.id) ?? [];
           const states = statesFromRows(periodRowsBySection.get(section.id) ?? []);
-          const periods = PERIODS.map((p) =>
-            buildPeriodProgress({ period: p, students, assessments, grades, state: states[p] }),
-          );
+          const periodRows = periodRowsBySection.get(section.id) ?? [];
+          const today = new Date().toISOString().slice(0, 10);
+          const periods = PERIODS.map((p) => {
+            const progress = buildPeriodProgress({
+              period: p, students, assessments, grades, state: states[p],
+            });
+            // A period whose school-calendar window has passed and that is
+            // not submitted is late.
+            const window = periodRows.find((r) => r.period === p);
+            const ended = window?.end_date != null && window.end_date < today;
+            return {
+              ...progress,
+              endedAt: window?.end_date ?? null,
+              overdue: ended === true && progress.status !== "submitted",
+            };
+          });
           const lastSubmitAt = periods.reduce<string | null>(
             (acc, p) => (p.submittedAt != null && (acc == null || p.submittedAt > acc) ? p.submittedAt : acc),
             null,
           );
+          // A class average only means something once a period has actually
+          // been submitted — before that it is just a guess.
+          const anySubmitted = periods.some((p) => p.status === "submitted");
           overview.push({
             section, course, professorName, studentCount: students.length, periods,
-            classAverage: classAveragePct({ students, assessments, grades, weights: section.periodWeights }),
+            classAverage: anySubmitted
+              ? classAveragePct({ students, assessments, grades, weights: section.periodWeights })
+              : null,
             lastSubmitAt,
           });
         }

@@ -12,7 +12,6 @@ import { useTerm } from "../../context/TermContext";
 import { Button, EmptyState, Panel, Spinner } from "../../components/ui";
 import { StatsRow } from "../../components/admin/StatsRow";
 import { SectionsTable } from "../../components/admin/SectionsTable";
-import { AdminMastLinks } from "../../components/admin/AdminMastLinks";
 import { AdminFilters, EMPTY_FILTERS, hasPeriodActivity } from "../../components/admin/AdminFilters";
 import type { AdminFilterState } from "../../components/admin/AdminFilters";
 import "../../styles/admin.css";
@@ -70,11 +69,15 @@ export default function AdminHome(): JSX.Element {
   return (
     <>
       <header className="adm-mast">
-        <h1 className="adm-mast__title">
-          Department review
-          <span className="adm-mast__term mono-label"> · {termLabel(term)}</span>
-        </h1>
-        <AdminMastLinks />
+        <div className="adm-mast__head">
+          <h1 className="adm-mast__title">
+            Department review
+            <span className="adm-mast__term mono-label"> · {termLabel(term)}</span>
+          </h1>
+          <p className="adm-mast__sub">
+            Review grade submissions across all sections, and open any section read-only.
+          </p>
+        </div>
       </header>
 
       {overview.length === 0 ? (
@@ -87,7 +90,11 @@ export default function AdminHome(): JSX.Element {
           <StatsRow rows={overview} />
           <Panel label="Sections" dense>
             <AdminFilters rows={overview} value={filters} shownCount={rows.length} onChange={setFilters} />
-            <SectionsTable rows={rows} activePeriod={filters.period} />
+            <SectionsTable
+              rows={rows}
+              activePeriod={filters.period}
+              onClearFilters={() => setFilters(EMPTY_FILTERS)}
+            />
           </Panel>
         </>
       )}

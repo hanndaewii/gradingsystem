@@ -1,7 +1,7 @@
-// StatsRow (WO-6) — five term-level stat cells in a hairline row inside
-// ONE Panel (never shadowed cards). All values are mono; labels are the
-// mono small-caps utility. "Submitted this week" = D9: submittedAt
-// within the last 7 days.
+// StatsRow (WO-6) — a compact strip of term-level tiles inside ONE Panel
+// (never shadowed cards). The numbers carry the meaning: green for what is
+// submitted, amber for what is in draft or still waiting, grey for the
+// plain counts. "Submitted this week" = D9: submittedAt within 7 days.
 import type { SectionOverview } from "../../types";
 import { isWithinLastDays } from "../../lib/format";
 import { Panel } from "../ui";
@@ -23,19 +23,29 @@ export function StatsRow({ rows }: { rows: SectionOverview[] }): JSX.Element {
     }
   }
 
-  const cells: { label: string; value: number }[] = [
-    { label: "Courses", value: courses },
-    { label: "Sections", value: sections },
-    { label: "Periods submitted", value: submitted },
-    { label: "Periods in draft", value: drafts },
-    { label: "Submitted this week", value: thisWeek },
+  // Sections where nothing has been submitted yet — the actionable one.
+  let awaiting = 0;
+  for (const row of rows) {
+    if (!row.periods.some((p) => p.status === "submitted")) awaiting += 1;
+  }
+
+  const cells: { label: string; value: number; tone: "plain" | "done" | "warn" }[] = [
+    { label: "Courses", value: courses, tone: "plain" },
+    { label: "Sections", value: sections, tone: "plain" },
+    { label: "Periods submitted", value: submitted, tone: "done" },
+    { label: "Periods in draft", value: drafts, tone: "warn" },
+    { label: "Submitted this week", value: thisWeek, tone: "done" },
+    { label: "Awaiting a submission", value: awaiting, tone: "warn" },
   ];
 
   return (
     <Panel label="Term summary" className="adm-stats">
       <div className="adm-stats__row">
         {cells.map((c) => (
-          <div className="adm-stats__cell" key={c.label}>
+          <div
+            className={`adm-stats__cell is-${c.tone}${c.value > 0 ? " has-value" : ""}`}
+            key={c.label}
+          >
             <span className="adm-stats__value">{c.value}</span>
             <span className="mono-label">{c.label}</span>
           </div>

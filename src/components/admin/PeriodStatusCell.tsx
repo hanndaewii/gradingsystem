@@ -18,13 +18,27 @@ function toneFor(status: PeriodStatus): "neutral" | "progress" | "done" {
   return status === "submitted" ? "done" : status === "draft" ? "progress" : "neutral";
 }
 
+/** The date a period's window closes — a period past it is overdue. */
+function windowEnd(progress: PeriodProgress): string | null {
+  return progress.overdue === true ? progress.endedAt ?? null : null;
+}
+
 export function PeriodStatusCell({ progress }: { progress: PeriodProgress }): JSX.Element {
   const { period, status, submittedAt, gradedCells, totalCells, periodGrade } = progress;
-  const label = `${PERIOD_LABELS[period]} — ${PILL_LABEL[status]}`;
+  const overdue = progress.overdue === true;
+  const pillLabel = overdue ? "Overdue" : PILL_LABEL[status];
+  const tone = overdue ? "late" : toneFor(status);
+  const label = `${PERIOD_LABELS[period]} — ${pillLabel}`;
 
   let title = label;
   let detail: string | null = null;
-  if (status === "submitted" && submittedAt != null) {
+  if (overdue) {
+    const ended = windowEnd(progress);
+    title = ended
+      ? `${label} · the term ended on ${ended} and this period has not been submitted`
+      : `${label} · the term has ended and this period has not been submitted`;
+    detail = status === "draft" ? `${gradedCells}/${totalCells}` : null;
+  } else if (status === "submitted" && submittedAt != null) {
     title = `${label} · ${formatDateTime(submittedAt)}`;
     if (periodGrade != null) title += ` · period grade ${formatPercent(periodGrade)}`;
     detail = relativeDay(submittedAt);
@@ -36,7 +50,7 @@ export function PeriodStatusCell({ progress }: { progress: PeriodProgress }): JS
 
   return (
     <div className="adm-period">
-      <StatusPill tone={toneFor(status)} label={PILL_LABEL[status]} title={title} />
+      <StatusPill tone={tone} label={pillLabel} title={title} />
       {detail != null ? <span className="adm-period__detail">{detail}</span> : null}
     </div>
   );

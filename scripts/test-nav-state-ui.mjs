@@ -218,14 +218,18 @@ try {
     (() => {
       const links = [...document.querySelectorAll(".adm-mast__link")];
       return {
-        labels: links.map((l) => l.textContent.trim()),
+        count: links.length,
         current: links.filter((l) => l.getAttribute("aria-current") === "page").map((l) => l.textContent.trim()),
       };
     })()
   `);
   ok(
-    mast?.current?.includes("Faculty accounts"),
-    `the page's own links mark it too (${JSON.stringify(mast?.current)})`,
+    (mast?.count ?? 1) === 0,
+    `the page does not repeat the nav (${mast?.count} extra links)`,
+  );
+  ok(
+    faculty?.current?.includes("Faculty accounts"),
+    `the top bar marks the page instead (${JSON.stringify(faculty?.current)})`,
   );
 
   const shot2 = await send("Page.captureScreenshot", { format: "png" });

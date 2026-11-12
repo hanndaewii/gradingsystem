@@ -74,9 +74,13 @@
   white-space: nowrap;
 }
 
-/* mono-label utility supplies family/size/tracking/uppercase */
+/* the role line: a small badge, so it never reads as a link */
 .sh-brand__role {
-  color: var(--ink-3);
+  color: var(--ink-2);
+  background: var(--paper-2);
+  border: 1px solid var(--rule);
+  border-radius: 999px;
+  padding: 2px 10px;
   white-space: nowrap;
 }
 
@@ -118,9 +122,13 @@
 }
 
 /* Native button (ui Button doesn't forward aria-pressed) reusing the
-   ghost primitive's classes; only the glyph line-height is adjusted. */
+   ghost primitive's classes; the glyph line-height is adjusted and the
+   target is big enough to hit comfortably. */
 .sh-theme-toggle {
   line-height: 1;
+  min-width: 38px;
+  min-height: 38px;
+  justify-content: center;
 }
 
 /* ---- content column ---- */

@@ -4,7 +4,6 @@
 // existing password, through the faculty-admin Worker. No email codes, no
 // rate limits: the head controls who gets in. The generated password is shown
 // once so it can be shared out of band.
-import { AdminMastLinks } from "../../components/admin/AdminMastLinks";
 import { useCallback, useEffect, useState } from "react";
 import { createTeacher, listFaculty, resetPassword, setCredential } from "../../api/adminApi";
 import type { FacultyMember } from "../../api/adminApi";
@@ -94,7 +93,6 @@ export default function FacultyPage(): JSX.Element {
       <header className="adm-mast">
         <h1 className="adm-mast__title">Faculty accounts</h1>
         <span className="adm-mast__term">Add a professor or reset a password — no email codes needed.</span>
-        <AdminMastLinks />
       </header>
 
       {issued !== null ? (

@@ -94,6 +94,10 @@ export interface PeriodProgress {
   perAssessment: Record<string, boolean>;    // assessmentId -> fully graded
   periodGrade: number | null;                // section average % for this period
   lastGradeUpdateAt: string | null;
+  /** The term's window has passed and this period is not submitted yet. */
+  overdue?: boolean;
+  /** The date the term's window closes (null when no window is set). */
+  endedAt?: string | null;
 }
 
 export interface SectionOverview {

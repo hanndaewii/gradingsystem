@@ -2,7 +2,9 @@ import { cx } from "./cx";
 import { TickIcon } from "./TickIcon";
 
 export interface StatusPillProps {
-  tone: "neutral" | "progress" | "done";
+  /** neutral = nothing yet · progress = in progress · done = finished ·
+   *  late = past its deadline and not finished. */
+  tone: "neutral" | "progress" | "done" | "late";
   label: string;
   title?: string;
 }

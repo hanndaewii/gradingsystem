@@ -112,9 +112,12 @@ export function AdminFilters({
         <span className="adm-filters__count" role="status">
           Showing {shownCount} of {rows.length} {plural(rows.length, "section")}
         </span>
-        <Button variant="ghost" size="sm" disabled={!anyActive} onClick={() => onChange(EMPTY_FILTERS)}>
-          Clear filters
-        </Button>
+        {/* Only offered when there is something to clear. */}
+        {anyActive ? (
+          <Button variant="ghost" size="sm" onClick={() => onChange(EMPTY_FILTERS)}>
+            Clear filters
+          </Button>
+        ) : null}
       </div>
     </div>
   );
