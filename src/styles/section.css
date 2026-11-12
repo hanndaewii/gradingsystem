@@ -658,6 +658,14 @@
   .sec-sidenav__check {
     margin-left: 0;
   }
+
+  /* The criteria checklist would become a second row of chips under the
+     tabs, and it says nothing the gradebook does not already show (the
+     period tabs carry "Prelim 7/7", the sheet carries the ticks). It stays
+     in the vertical rail on wide screens, where it earns its place. */
+  .sec-sidenav__checklist {
+    display: none;
+  }
 }
 
 .sec-panelactions {
