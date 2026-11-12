@@ -1,6 +1,7 @@
 // Header (WO-3) — the ledger masthead: brand + mono small-caps role line,
-// term switcher, theme toggle, profile button (the ONLY ProfileModal mount)
-// and sign-out. Signed out, it degrades to brand + term + theme.
+// the primary nav (which marks the page you are on), the term switcher, the
+// theme toggle, the profile button (the ONLY ProfileModal mount) and
+// sign-out. Signed out, it degrades to brand + term + theme.
 import { useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { Button, Select, useToast } from "../ui";
@@ -21,6 +22,17 @@ export function Header(): JSX.Element {
   const [signingOut, setSigningOut] = useState(false);
 
   const profile = auth.profile;
+
+  // The places this role can go. The one you are on is marked, so the header
+  // always says where you are.
+  const navItems =
+    profile?.role === "admin"
+      ? [
+          { to: "/", label: "Department review" },
+          { to: "/faculty", label: "Faculty accounts" },
+          { to: "/teaching", label: "My courses" },
+        ]
+      : [{ to: "/", label: "Courses" }];
 
   async function handleSignOut(): Promise<void> {
     if (signingOut) return;
@@ -51,26 +63,31 @@ export function Header(): JSX.Element {
   return (
     <header className="sh-header">
       <div className="sh-header__inner">
-        <Link to="/" className="sh-brand">
-          <span className="sh-brand__title">Faculty Grading Portal</span>
+        <div className="sh-brandgroup">
+          <Link to="/" className="sh-brand" aria-label="Faculty Grading Portal home">
+            <span className="sh-brand__title">Faculty Grading Portal</span>
+          </Link>
           <span className="sh-brand__role mono-label">
             {profile
               ? profile.role === "admin"
-                ? "Department review"
+                ? "Department head"
                 : "Professor"
               : "North State University"}
           </span>
-        </Link>
+        </div>
 
         {profile ? (
           <nav className="sh-nav" aria-label="Primary">
-            <Link
-              to={profile.role === "admin" ? "/teaching" : "/"}
-              className="sh-nav__link"
-              aria-current={location.pathname === "/" || location.pathname === "/teaching" ? "page" : undefined}
-            >
-              {profile.role === "admin" ? "My courses" : "Courses"}
-            </Link>
+            {navItems.map((item) => (
+              <Link
+                key={item.to}
+                to={item.to}
+                className="sh-nav__link"
+                aria-current={location.pathname === item.to ? "page" : undefined}
+              >
+                {item.label}
+              </Link>
+            ))}
           </nav>
         ) : null}
 

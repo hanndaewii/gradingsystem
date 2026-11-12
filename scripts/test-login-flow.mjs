@@ -134,9 +134,14 @@ try {
       url: location.pathname,
       brand: document.querySelector(".sh-brand__role")?.textContent.trim() ?? null,
       nav: document.querySelector(".sh-nav__link")?.textContent.trim() ?? null,
+      places: [...document.querySelectorAll(".sh-nav__link")].map((l) => l.textContent.trim()),
     }))()
   `);
   ok(prof?.brand === "Professor", `the professor password shows the Professor view ("${prof?.brand}")`);
+  ok(
+    (prof?.places ?? []).includes("Courses"),
+    `the professor's places are listed (${JSON.stringify(prof?.places)})`,
+  );
   ok(prof?.nav === "Courses", `the nav reads "Courses" ("${prof?.nav}")`);
 
   await signOut();
@@ -150,10 +155,18 @@ try {
       url: location.pathname,
       brand: document.querySelector(".sh-brand__role")?.textContent.trim() ?? null,
       nav: document.querySelector(".sh-nav__link")?.textContent.trim() ?? null,
+      places: [...document.querySelectorAll(".sh-nav__link")].map((l) => l.textContent.trim()),
     }))()
   `);
-  ok(head?.brand === "Department review", `the head password shows the Department review ("${head?.brand}")`);
-  ok(head?.nav === "My courses", `the nav reads "My courses" ("${head?.nav}")`);
+  ok(head?.brand === "Department head", `the head password shows the department head ("${head?.brand}")`);
+  ok(
+    head?.nav === "Department review",
+    `the head lands on the Department review ("${head?.nav}")`,
+  );
+  ok(
+    (head?.places ?? []).includes("Department review"),
+    `the head's places are listed (${JSON.stringify(head?.places)})`,
+  );
 
   const shot1 = await send("Page.captureScreenshot", { format: "png", captureBeyondViewport: true });
   writeFileSync("scripts/tmp-login-head.png", Buffer.from(shot1.data, "base64"));

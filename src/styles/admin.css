@@ -321,6 +321,14 @@
   color: var(--ink);
 }
 
+/* the page you are on */
+.adm-mast__link[aria-current="page"] {
+  color: var(--brand);
+  font-weight: 700;
+  border-bottom-color: var(--brand);
+  border-bottom-width: 2px;
+}
+
 .adm-faculty {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(0, 1.2fr);

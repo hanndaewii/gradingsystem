@@ -5,7 +5,6 @@
 // No edit affordances anywhere: the admin's only writes in this app are
 // comments (on the section page) and their own profile.
 import { useEffect, useMemo, useState } from "react";
-import { Link } from "react-router-dom";
 import { api } from "../../api";
 import { termLabel } from "../../lib/format";
 import { useAsync } from "../../lib/useAsync";
@@ -13,6 +12,7 @@ import { useTerm } from "../../context/TermContext";
 import { Button, EmptyState, Panel, Spinner } from "../../components/ui";
 import { StatsRow } from "../../components/admin/StatsRow";
 import { SectionsTable } from "../../components/admin/SectionsTable";
+import { AdminMastLinks } from "../../components/admin/AdminMastLinks";
 import { AdminFilters, EMPTY_FILTERS, hasPeriodActivity } from "../../components/admin/AdminFilters";
 import type { AdminFilterState } from "../../components/admin/AdminFilters";
 import "../../styles/admin.css";
@@ -74,12 +74,7 @@ export default function AdminHome(): JSX.Element {
           Department review
           <span className="adm-mast__term mono-label"> · {termLabel(term)}</span>
         </h1>
-        <Link to="/faculty" className="adm-mast__link">
-          Faculty accounts
-        </Link>
-        <Link to="/teaching" className="adm-mast__link">
-          My courses
-        </Link>
+        <AdminMastLinks />
       </header>
 
       {overview.length === 0 ? (

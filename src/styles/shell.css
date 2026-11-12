@@ -32,6 +32,14 @@
   flex-wrap: wrap;
 }
 
+/* the brand and the role line sit side by side */
+.sh-brandgroup {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  min-width: 0;
+}
+
 .sh-brand {
   display: flex;
   align-items: center;
@@ -92,9 +100,14 @@
   text-underline-offset: 4px;
 }
 
+/* the page you are on: darker, bolder and underlined in the brand colour */
 .sh-nav__link[aria-current="page"] {
   color: var(--ink);
   font-weight: 600;
+  text-decoration: underline;
+  text-decoration-thickness: 2px;
+  text-underline-offset: 5px;
+  text-decoration-color: var(--brand);
 }
 
 .sh-header__end {
