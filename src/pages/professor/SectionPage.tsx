@@ -10,6 +10,7 @@ import {
   Button, ConfirmDialog, EmptyState, Menu, Panel, Spinner, StatusPill, useToast,
 } from "../../components/ui";
 import { api } from "../../api";
+import { notifyHead } from "../../api/adminApi";
 import { PERIODS, PERIOD_LABELS } from "../../types";
 import type {
   Assessment, AttendanceSave, AttendanceStatus, CalendarEvent, HistoryEntry, PeriodId, Section,
@@ -18,6 +19,7 @@ import type {
 import { useAuth } from "../../context/AuthContext";
 import { useAsync } from "../../lib/useAsync";
 import { termLabel } from "../../lib/format";
+import { isFinalStatus } from "../../lib/grades";
 import { useSectionData, statesFromProgress, errMessage } from "../../components/section/useSectionData";
 import type { SectionView } from "../../components/section/useSectionData";
 import { PeriodTabs } from "../../components/section/PeriodTabs";
@@ -284,6 +286,31 @@ export default function SectionPage(): JSX.Element {
   // ── submit / reopen (D16 gate + celebration, spec step 15) ────────────────
   const [celebration, setCelebration] = useState<{ variant: CelebrationVariant; periodLabel: string } | null>(null);
 
+  /** Tells the department head a period is waiting for sign-off (email ping). */
+  const notifySubmission = useCallback(
+    async (periodLabel: string): Promise<void> => {
+      try {
+        const result = await notifyHead({
+          sectionId,
+          period,
+          sectionName: section?.name ?? "",
+          periodLabel,
+        });
+        if (result.skipped) {
+          toast.push({
+            tone: "info",
+            title: "Sent — no email yet",
+            description: "The head's email notice is not switched on yet; it is waiting in Department review.",
+          });
+        }
+      } catch {
+        // The submission already succeeded — a missing ping must never look
+        // like a failed submission.
+      }
+    },
+    [sectionId, period, section?.name, toast],
+  );
+
   const handleSubmitted = useCallback(async () => {
     if (!section || !auth.profile) return;
     // Predict the variant from current state so the chime's AudioContext can
@@ -310,12 +337,14 @@ export default function SectionPage(): JSX.Element {
       toast.push({ tone: "success", title: `${PERIOD_LABELS[period]} submitted · locked for editing` });
       setCelebration({ variant, periodLabel: PERIOD_LABELS[period] });
       reload();
+      // Fire-and-forget: the head gets a note that something is waiting.
+      void notifySubmission(PERIOD_LABELS[period]);
     } catch (err) {
       chime?.dispose();
       toast.push({ tone: "danger", title: `Could not submit ${PERIOD_LABELS[period]}`, description: errMessage(err) });
       throw err;
     }
-  }, [section, auth.profile, period, states, applyHistoryLocal, toast, reload]);
+  }, [section, auth.profile, period, states, applyHistoryLocal, toast, reload, notifySubmission]);
 
   const handleReopened = useCallback(async () => {
     if (!section || !auth.profile) return;
@@ -338,6 +367,63 @@ export default function SectionPage(): JSX.Element {
       reload();
     } catch (err) {
       toast.push({ tone: "danger", title: `Could not reopen ${PERIOD_LABELS[period]}`, description: errMessage(err) });
+      throw err;
+    }
+  }, [section, auth.profile, period, applyHistoryLocal, toast, reload]);
+
+  // ── the department head's sign-off ────────────────────────────────────────
+  const handleApproved = useCallback(async () => {
+    if (!section || !auth.profile) return;
+    try {
+      await api.approvePeriod(section.id, period);
+      applyHistoryLocal({
+        id: uid("hist"),
+        sectionId: section.id,
+        kind: "approve",
+        period,
+        assessmentId: null,
+        studentRowId: null,
+        oldScore: null,
+        newScore: null,
+        at: new Date().toISOString(),
+        actorId: auth.profile.id,
+        detail: "Approved by the department head",
+      });
+      toast.push({
+        tone: "success",
+        title: `${PERIOD_LABELS[period]} approved · final for the professor`,
+      });
+      reload();
+    } catch (err) {
+      toast.push({ tone: "danger", title: `Could not approve ${PERIOD_LABELS[period]}`, description: errMessage(err) });
+      throw err;
+    }
+  }, [section, auth.profile, period, applyHistoryLocal, toast, reload]);
+
+  const handleUnlocked = useCallback(async () => {
+    if (!section || !auth.profile) return;
+    try {
+      await api.unlockPeriod(section.id, period);
+      applyHistoryLocal({
+        id: uid("hist"),
+        sectionId: section.id,
+        kind: "unlock",
+        period,
+        assessmentId: null,
+        studentRowId: null,
+        oldScore: null,
+        newScore: null,
+        at: new Date().toISOString(),
+        actorId: auth.profile.id,
+        detail: "Approval lifted by the department head",
+      });
+      toast.push({
+        tone: "info",
+        title: `${PERIOD_LABELS[period]} unlocked — back to draft, the professor can edit again`,
+      });
+      reload();
+    } catch (err) {
+      toast.push({ tone: "danger", title: `Could not unlock ${PERIOD_LABELS[period]}`, description: errMessage(err) });
       throw err;
     }
   }, [section, auth.profile, period, applyHistoryLocal, toast, reload]);
@@ -684,16 +770,21 @@ export default function SectionPage(): JSX.Element {
 
   // ── lock notice (safe here: section data confirmed) ────────────────────────
   const submitted = states[period]?.status === "submitted";
+  const approved = states[period]?.status === "approved";
   const orderReason = periodLockReason(states, period, section);
-  const lockMessage = submitted
-    ? `${PERIOD_LABELS[period]} is submitted — locked for editing.`
-    : orderReason;
-  const csvDisabledReason = submitted
-    ? "Reopen the period to import scores."
-    : orderReason;
+  const lockMessage = approved
+    ? `${PERIOD_LABELS[period]} is approved by the department head — final, and unlocked only by them.`
+    : submitted
+      ? `${PERIOD_LABELS[period]} is submitted — locked for editing.`
+      : orderReason;
+  const csvDisabledReason = approved
+    ? "The department head has to unlock the period to import scores."
+    : submitted
+      ? "Reopen the period to import scores."
+      : orderReason;
 
   const scaleLabel = section.displayScale === "scale5" ? "1.00–5.00 scale" : "percent + letter";
-  const semesterComplete = progress.length === PERIODS.length && progress.every((p) => p.status === "submitted");
+  const semesterComplete = progress.length === PERIODS.length && progress.every((p) => isFinalStatus(p.status));
 
   return (
     <div className="sec-page">
@@ -854,11 +945,11 @@ export default function SectionPage(): JSX.Element {
                     period={period}
                     assessments={periodAssessments}
                     readOnly={readOnly}
-                    locked={submitted}
+                    locked={submitted || approved}
                     onSave={handleSaveAssessments}
                     onRemove={setRemovingAssessment}
                     onToggleUnlock={() => void handleUnlock()}
-                    orderLockReason={submitted ? null : orderReason}
+                    orderLockReason={submitted || approved ? null : orderReason}
                   />
                 </Panel>
               </div>
@@ -871,6 +962,9 @@ export default function SectionPage(): JSX.Element {
                   onSubmitted={handleSubmitted}
                   onReopened={handleReopened}
                   readOnly={readOnly}
+                  headMode={readOnly}
+                  onApproved={handleApproved}
+                  onUnlocked={handleUnlocked}
                 />
               ) : null}
             </>

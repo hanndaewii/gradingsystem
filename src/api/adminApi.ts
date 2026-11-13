@@ -87,6 +87,31 @@ export async function revokeAccess(input: { email: string }): Promise<{ email: s
   });
 }
 
+/** What the Worker says about a submission notice. `skipped` means the email
+ *  provider is not configured yet — the submission itself is unaffected. */
+export interface SubmissionNotice {
+  ok: boolean;
+  sent?: number;
+  skipped?: boolean;
+  reason?: string;
+}
+
+/**
+ * Tells the department head a period is waiting for sign-off. Sent after the
+ * submission has already succeeded, so a failure here never breaks it.
+ */
+export async function notifyHead(input: {
+  sectionId: string;
+  period: string;
+  sectionName: string;
+  periodLabel: string;
+}): Promise<SubmissionNotice> {
+  return call<SubmissionNotice>("/notify-submission", {
+    method: "POST",
+    body: JSON.stringify(input),
+  });
+}
+
 export async function createTeacher(input: {
   email: string;
   name: string;

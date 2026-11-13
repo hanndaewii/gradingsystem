@@ -27,7 +27,7 @@ import type {
   PeriodProgress, PeriodState, Profile, ScaleRow, Section, SectionOverview,
   Student, Term, TermDateMove, TermDates,
 } from "../types";
-import { buildPeriodProgress, classAveragePct, isPeriodEditable } from "../lib/grades";
+import { buildPeriodProgress, classAveragePct, isFinalStatus, isPeriodEditable } from "../lib/grades";
 import { clampScore, DEFAULT_SCALE_TABLE } from "../lib/format";
 
 // ── env (browser-safe publishable key; see .env / .env.example) ─────────────
@@ -50,6 +50,7 @@ interface SectionRow {
 }
 interface PeriodRow {
   id: string; section_id?: string; period: string; status: string; submitted_at: string | null;
+  approved_at?: string | null; approved_by?: string | null;
   start_date?: string | null; end_date?: string | null;
 }
 interface AssessmentRow {
@@ -98,15 +99,29 @@ function asPeriod(v: unknown): PeriodId | null {
 }
 
 function asStatus(v: unknown): PeriodState["status"] {
-  return v === "submitted" ? "submitted" : v === "draft" ? "draft" : "not_started";
+  if (v === "approved") return "approved";
+  if (v === "submitted") return "submitted";
+  if (v === "draft") return "draft";
+  return "not_started";
 }
 
 function asKind(v: string): HistoryEntry["kind"] {
-  return v === "submit" || v === "reopen" || v === "import" ? v : "grade";
+  return v === "submit" || v === "reopen" || v === "import" || v === "approve" || v === "unlock"
+    ? v
+    : "grade";
 }
 
 function notStarted(): PeriodState {
-  return { status: "not_started", submittedAt: null };
+  return { status: "not_started", submittedAt: null, approvedAt: null };
+}
+
+/** periods row → PeriodState (approval stamp included). */
+function stateOfRow(r: PeriodRow): PeriodState {
+  return {
+    status: asStatus(r.status),
+    submittedAt: r.submitted_at ? normTs(r.submitted_at) : null,
+    approvedAt: r.approved_at ? normTs(r.approved_at) : null,
+  };
 }
 
 function mapProfile(r: ProfileRow): Profile {
@@ -204,14 +219,14 @@ function statesFromRows(rows: PeriodRow[]): Record<PeriodId, PeriodState> {
   };
   for (const r of rows) {
     const p = asPeriod(r.period);
-    if (p) out[p] = { status: asStatus(r.status), submittedAt: r.submitted_at ? normTs(r.submitted_at) : null };
+    if (p) out[p] = stateOfRow(r);
   }
   return out;
 }
 
 function stateOf(rows: PeriodRow[], period: PeriodId): PeriodState {
   const r = rows.find((x) => asPeriod(x.period) === period);
-  return r ? { status: asStatus(r.status), submittedAt: r.submitted_at ? normTs(r.submitted_at) : null } : notStarted();
+  return r ? stateOfRow(r) : notStarted();
 }
 
 function groupBy<K, V>(pairs: [K, V][]): Map<K, V[]> {
@@ -293,7 +308,7 @@ export function createSupabaseApi(): Api {
 
   const fetchPeriodRows = (sectionId: string): Promise<PeriodRow[]> =>
     list<PeriodRow>(
-      tbl("periods").select("id, period, status, submitted_at", { count: "estimated" }).eq("section_id", sectionId),
+      tbl("periods").select("id, period, status, submitted_at, approved_at", { count: "estimated" }).eq("section_id", sectionId),
       "Could not load the period states.",
     );
 
@@ -347,6 +362,12 @@ export function createSupabaseApi(): Api {
   /** Risk 5 — submitted/locked enforcement mirrors local.ts exactly. */
   const assertEditable = (section: Section, period: PeriodId, rows: PeriodRow[]): void => {
     const state = stateOf(rows, period);
+    if (state.status === "approved") {
+      throw new ApiError(
+        `${period.charAt(0).toUpperCase()}${period.slice(1)} is approved by the department head — ask them to unlock it before making changes.`,
+        { code: "PERIOD_APPROVED" },
+      );
+    }
     if (state.status === "submitted") {
       throw new ApiError("This period is submitted — reopen it before making changes.", { code: "PERIOD_SUBMITTED" });
     }
@@ -364,7 +385,7 @@ export function createSupabaseApi(): Api {
     const found = rows.find((r) => asPeriod(r.period) === period);
     if (found) return found;
     const row = await single<PeriodRow>(
-      tbl("periods").insert({ section_id: sectionId, period }).select("id, period, status, submitted_at").single(),
+      tbl("periods").insert({ section_id: sectionId, period }).select("id, period, status, submitted_at, approved_at").single(),
       "Could not create the period row.",
     );
     if (!row) throw new ApiError("Could not create the period row.");
@@ -927,7 +948,7 @@ export function createSupabaseApi(): Api {
           list<GradeRow>(tbl("grades").select("*", { count: "estimated" }).in("section_id", sectionIds), "Could not load grades."),
           list<PeriodRow>(
             tbl("periods")
-              .select("id, section_id, period, status, submitted_at, start_date, end_date", { count: "estimated" })
+              .select("id, section_id, period, status, submitted_at, approved_at, start_date, end_date", { count: "estimated" })
               .in("section_id", sectionIds),
             "Could not load period states.",
           ),
@@ -977,8 +998,8 @@ export function createSupabaseApi(): Api {
             null,
           );
           // A class average only means something once a period has actually
-          // been submitted — before that it is just a guess.
-          const anySubmitted = periods.some((p) => p.status === "submitted");
+          // been submitted (approved counts — it is further along).
+          const anySubmitted = periods.some((p) => isFinalStatus(p.status));
           overview.push({
             section, course, professorName, studentCount: students.length, periods,
             classAverage: anySubmitted
@@ -1115,7 +1136,7 @@ export function createSupabaseApi(): Api {
 
       const periodRows = await list<PeriodRow>(
         tbl("periods").insert(PERIODS.map((p) => ({ section_id: section.id, period: p })))
-          .select("id, period, status, submitted_at"),
+          .select("id, period, status, submitted_at, approved_at"),
         "Could not create the period rows.",
       );
 
@@ -1202,8 +1223,14 @@ export function createSupabaseApi(): Api {
         if (!def.name.trim()) throw new ApiError("Assessment name is required.", { field: "name" });
       }
       const periodRow = await ensurePeriodRow(sectionId, period);
-      if (asStatus(periodRow.status) === "submitted") {
-        throw new ApiError("This period is submitted — reopen it before editing assessments.", { code: "PERIOD_SUBMITTED" });
+      const periodStatus = asStatus(periodRow.status);
+      if (periodStatus === "submitted" || periodStatus === "approved") {
+        throw new ApiError(
+          periodStatus === "approved"
+            ? "This period is approved by the department head — ask them to unlock it before editing assessments."
+            : "This period is submitted — reopen it before editing assessments.",
+          { code: periodStatus === "approved" ? "PERIOD_APPROVED" : "PERIOD_SUBMITTED" },
+        );
       }
       const existingRows = await list<AssessmentRow>(
         tbl("assessments").select("*").eq("section_id", sectionId).eq("period_id", periodRow.id),
@@ -1440,11 +1467,9 @@ export function createSupabaseApi(): Api {
       const user = await actor();
       await ownedSection(sectionId, user);
       const periodRow = await ensurePeriodRow(sectionId, period);
-      const state = {
-        status: asStatus(periodRow.status),
-        submittedAt: periodRow.submitted_at ? normTs(periodRow.submitted_at) : null,
-      };
-      if (state.status === "submitted") return state;
+      const state = stateOfRow(periodRow);
+      // Already submitted — or already approved, which is further along.
+      if (state.status === "submitted" || state.status === "approved") return state;
       // D16 gate: ≥1 assessment, ≥1 student, every cell non-null.
       const [assessmentRows, studentRows, gradeRows] = await Promise.all([
         list<AssessmentRow>(
@@ -1476,17 +1501,15 @@ export function createSupabaseApi(): Api {
         oldScore: null, newScore: null, at, actorId: user.id,
         detail: `${studentRows.length} students · ${assessmentRows.length} assessments`,
       });
-      return { status: "submitted", submittedAt: at };
+      return { status: "submitted", submittedAt: at, approvedAt: null };
     },
 
     async reopenPeriod(sectionId, period) {
       const user = await actor();
       await ownedSection(sectionId, user);
       const periodRow = await ensurePeriodRow(sectionId, period);
-      const state = {
-        status: asStatus(periodRow.status),
-        submittedAt: periodRow.submitted_at ? normTs(periodRow.submitted_at) : null,
-      };
+      const state = stateOfRow(periodRow);
+      // An approved period is the head's to reopen, not the professor's.
       if (state.status !== "submitted") return state;
       await exec(
         tbl("periods").update({ status: "draft", submitted_at: null }).eq("id", periodRow.id),
@@ -1497,7 +1520,72 @@ export function createSupabaseApi(): Api {
         oldScore: null, newScore: null, at: new Date().toISOString(), actorId: user.id,
         detail: "Reopened for editing — further changes are recorded in history",
       });
-      return { status: "draft", submittedAt: null };
+      return { status: "draft", submittedAt: null, approvedAt: null };
+    },
+
+    // ── the department head's sign-off ───────────────────────────────────────
+    // Both actions are head-only (the actor's current hat must be admin, which
+    // is what the row-level policies also check) and both land in history.
+    async approvePeriod(sectionId, period) {
+      const user = await actor();
+      if (user.role !== "admin") {
+        throw new ApiError("Only the department head can approve a period.", { code: "FORBIDDEN" });
+      }
+      const section = await fetchSectionRow(sectionId);
+      if (!section) throw new ApiError("Section not found.", { code: "NOT_FOUND" });
+      const periodRow = await ensurePeriodRow(sectionId, period);
+      const state = stateOfRow(periodRow);
+      if (state.status === "approved") return state;
+      if (state.status !== "submitted") {
+        throw new ApiError(
+          `${period.charAt(0).toUpperCase()}${period.slice(1)} has not been submitted yet — nothing to approve.`,
+          { code: "PERIOD_STATE" },
+        );
+      }
+      const at = new Date().toISOString();
+      await exec(
+        tbl("periods").update({ status: "approved", approved_at: at, approved_by: user.id }).eq("id", periodRow.id),
+        "Could not approve the period.",
+      );
+      await pushHistory({
+        sectionId, kind: "approve", period, assessmentId: null, studentRowId: null,
+        oldScore: null, newScore: null, at, actorId: user.id,
+        detail: "Approved by the department head",
+      });
+      return { status: "approved", submittedAt: state.submittedAt, approvedAt: at };
+    },
+
+    async unlockPeriod(sectionId, period) {
+      const user = await actor();
+      if (user.role !== "admin") {
+        throw new ApiError("Only the department head can unlock an approved period.", { code: "FORBIDDEN" });
+      }
+      const section = await fetchSectionRow(sectionId);
+      if (!section) throw new ApiError("Section not found.", { code: "NOT_FOUND" });
+      const periodRow = await ensurePeriodRow(sectionId, period);
+      const state = stateOfRow(periodRow);
+      if (state.status !== "approved") {
+        throw new ApiError(
+          `${period.charAt(0).toUpperCase()}${period.slice(1)} is not approved — there is nothing to unlock.`,
+          { code: "PERIOD_STATE" },
+        );
+      }
+      const at = new Date().toISOString();
+      // Back to draft: the professor edits, re-submits, and the head approves
+      // again — so no edit ever sits behind a stale approval. The submission
+      // stamp goes with it (the reopen path clears it the same way).
+      await exec(
+        tbl("periods")
+          .update({ status: "draft", submitted_at: null, approved_at: null, approved_by: null })
+          .eq("id", periodRow.id),
+        "Could not unlock the period.",
+      );
+      await pushHistory({
+        sectionId, kind: "unlock", period, assessmentId: null, studentRowId: null,
+        oldScore: null, newScore: null, at, actorId: user.id,
+        detail: "Approval lifted by the department head — back to draft for corrections",
+      });
+      return { status: "draft", submittedAt: null, approvedAt: null };
     },
 
     async setWeights(sectionId, weights) {

@@ -20,6 +20,8 @@ const KIND_LABEL: Record<HistoryEntry["kind"], string> = {
   grade: "Grade",
   submit: "Submitted",
   reopen: "Reopened",
+  approve: "Approved",
+  unlock: "Unlocked",
   import: "CSV import",
 };
 

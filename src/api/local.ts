@@ -142,6 +142,12 @@ export function createLocalApi(): Api {
   /** Risk 5 — submitted/locked enforcement lives in the api, not only the UI. */
   const assertEditable = (section: Section, period: PeriodId): void => {
     const state = periodStateOf(section.id, period);
+    if (state.status === "approved") {
+      throw new ApiError(
+        `${period.charAt(0).toUpperCase()}${period.slice(1)} is approved by the department head — ask them to unlock it before making changes.`,
+        { code: "PERIOD_APPROVED" },
+      );
+    }
     if (state.status === "submitted") {
       throw new ApiError("This period is submitted — reopen it before making changes.", { code: "PERIOD_SUBMITTED" });
     }
@@ -925,7 +931,7 @@ export function createLocalApi(): Api {
       const user = requireActor();
       ownedSection(sectionId, user);
       const state = periodStateOf(sectionId, period);
-      if (state.status === "submitted") return { ...state };
+      if (state.status === "submitted" || state.status === "approved") return { ...state };
       // D16 gate: ≥1 assessment, ≥1 student, every cell non-null.
       const assessments = db.assessments.filter((a) => a.sectionId === sectionId && a.period === period);
       const students = db.students.filter((s) => s.sectionId === sectionId);
@@ -944,6 +950,7 @@ export function createLocalApi(): Api {
       const at = nowISO();
       state.status = "submitted";
       state.submittedAt = at;
+      state.approvedAt = null;
       pushHistory({
         sectionId, kind: "submit", period, assessmentId: null, studentRowId: null,
         oldScore: null, newScore: null, at, actorId: user.id,
@@ -958,14 +965,72 @@ export function createLocalApi(): Api {
       const user = requireActor();
       ownedSection(sectionId, user);
       const state = periodStateOf(sectionId, period);
+      // An approved period is the head's to reopen, not the professor's.
       if (state.status !== "submitted") return { ...state };
       const at = nowISO();
       state.status = "draft";
       state.submittedAt = null;
+      state.approvedAt = null;
       pushHistory({
         sectionId, kind: "reopen", period, assessmentId: null, studentRowId: null,
         oldScore: null, newScore: null, at, actorId: user.id,
         detail: "Reopened for editing — further changes are recorded in history",
+      });
+      persist();
+      return { ...state };
+    },
+
+    // ── the department head's sign-off (local mirror of the Supabase path) ───
+    async approvePeriod(sectionId, period) {
+      await delay(LATENCY_MS);
+      const user = requireActor();
+      if (user.role !== "admin") {
+        throw new ApiError("Only the department head can approve a period.", { code: "FORBIDDEN" });
+      }
+      if (!readableSection(sectionId)) throw new ApiError("Section not found.", { code: "NOT_FOUND" });
+      const state = periodStateOf(sectionId, period);
+      if (state.status === "approved") return { ...state };
+      if (state.status !== "submitted") {
+        throw new ApiError(
+          `${period.charAt(0).toUpperCase()}${period.slice(1)} has not been submitted yet — nothing to approve.`,
+          { code: "PERIOD_STATE" },
+        );
+      }
+      const at = nowISO();
+      state.status = "approved";
+      state.approvedAt = at;
+      pushHistory({
+        sectionId, kind: "approve", period, assessmentId: null, studentRowId: null,
+        oldScore: null, newScore: null, at, actorId: user.id,
+        detail: "Approved by the department head",
+      });
+      persist();
+      return { ...state };
+    },
+
+    async unlockPeriod(sectionId, period) {
+      await delay(LATENCY_MS);
+      const user = requireActor();
+      if (user.role !== "admin") {
+        throw new ApiError("Only the department head can unlock an approved period.", { code: "FORBIDDEN" });
+      }
+      if (!readableSection(sectionId)) throw new ApiError("Section not found.", { code: "NOT_FOUND" });
+      const state = periodStateOf(sectionId, period);
+      if (state.status !== "approved") {
+        throw new ApiError(
+          `${period.charAt(0).toUpperCase()}${period.slice(1)} is not approved — there is nothing to unlock.`,
+          { code: "PERIOD_STATE" },
+        );
+      }
+      const at = nowISO();
+      // back to draft: edit, re-submit, approve again — no stale approvals
+      state.status = "draft";
+      state.submittedAt = null;
+      state.approvedAt = null;
+      pushHistory({
+        sectionId, kind: "unlock", period, assessmentId: null, studentRowId: null,
+        oldScore: null, newScore: null, at, actorId: user.id,
+        detail: "Approval lifted by the department head — back to draft for corrections",
       });
       persist();
       return { ...state };

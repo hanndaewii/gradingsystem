@@ -5,7 +5,7 @@ import { Tabs } from "../../components/ui";
 import type { TabItem } from "../../components/ui";
 import { PERIODS, PERIOD_LABELS } from "../../types";
 import type { PeriodId, PeriodProgress, Section } from "../../types";
-import { isPeriodEditable } from "../../lib/grades";
+import { isFinalStatus, isPeriodEditable } from "../../lib/grades";
 import { periodLockReason } from "./LockNotice";
 import { statesFromProgress } from "./useSectionData";
 
@@ -23,8 +23,8 @@ export function PeriodTabs({ section, progress, period, onChange }: PeriodTabsPr
     const status = prog?.status ?? "not_started";
     const graded = prog?.gradedCells ?? 0;
     const total = prog?.totalCells ?? 0;
-    const tick = status === "submitted" && (prog?.complete ?? false);
-    const locked = !isPeriodEditable({ section, states, period: p }) && status !== "submitted";
+    const tick = isFinalStatus(status) && (prog?.complete ?? false);
+    const locked = !isPeriodEditable({ section, states, period: p }) && !isFinalStatus(status);
     return {
       key: p,
       label: PERIOD_LABELS[p],

@@ -8,7 +8,7 @@ import { Button, Checkbox, Field, Input, Select } from "../../components/ui";
 import { api } from "../../api";
 import { PERIODS, PERIOD_LABELS } from "../../types";
 import type { DisplayScale, PeriodId, PeriodProgress, ScaleRow, Section } from "../../types";
-import { scaleLookup } from "../../lib/grades";
+import { isFinalStatus, scaleLookup } from "../../lib/grades";
 import { errMessage } from "./useSectionData";
 import { useToast } from "../../components/ui";
 
@@ -266,11 +266,19 @@ export function ScaleTableEditor({ section, progress, readOnly, onSectionChange 
               return (
                 <li key={p} className="sec-scale__unlockrow">
                   <span>{PERIOD_LABELS[p]}</span>
-                  <span className="mono-label">{status === "submitted" ? "submitted" : status === "draft" ? "draft" : "not started"}</span>
+                  <span className="mono-label">
+                    {status === "approved"
+                      ? "approved"
+                      : status === "submitted"
+                        ? "submitted"
+                        : status === "draft"
+                          ? "draft"
+                          : "not started"}
+                  </span>
                   <Checkbox
                     id={`sec-unlock-${p}`}
                     checked={manuallyUnlocked}
-                    disabled={readOnly || busy || status === "submitted"}
+                    disabled={readOnly || busy || isFinalStatus(status)}
                     onChange={(v) => toggleUnlock(p, v)}
                     label="Unlocked"
                   />

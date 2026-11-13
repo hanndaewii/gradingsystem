@@ -4,6 +4,7 @@
 // plain counts. "Submitted this week" = D9: submittedAt within 7 days.
 import type { SectionOverview } from "../../types";
 import { isWithinLastDays } from "../../lib/format";
+import { isFinalStatus } from "../../lib/grades";
 import { Panel } from "../ui";
 
 export function StatsRow({ rows }: { rows: SectionOverview[] }): JSX.Element {
@@ -14,7 +15,8 @@ export function StatsRow({ rows }: { rows: SectionOverview[] }): JSX.Element {
   let thisWeek = 0;
   for (const row of rows) {
     for (const p of row.periods) {
-      if (p.status === "submitted") {
+      // approved counts as submitted — it is further along, not less.
+      if (isFinalStatus(p.status)) {
         submitted += 1;
         if (isWithinLastDays(p.submittedAt, 7)) thisWeek += 1;
       } else if (p.status === "draft") {
@@ -26,7 +28,7 @@ export function StatsRow({ rows }: { rows: SectionOverview[] }): JSX.Element {
   // Sections where nothing has been submitted yet — the actionable one.
   let awaiting = 0;
   for (const row of rows) {
-    if (!row.periods.some((p) => p.status === "submitted")) awaiting += 1;
+    if (!row.periods.some((p) => isFinalStatus(p.status))) awaiting += 1;
   }
 
   const cells: { label: string; value: number; tone: "plain" | "done" | "warn" }[] = [

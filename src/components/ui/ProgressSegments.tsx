@@ -5,7 +5,7 @@ export interface ProgressSegment {
   key: string;
   label: string;
   ratio: number;
-  state: "not_started" | "draft" | "submitted";
+  state: "not_started" | "draft" | "submitted" | "approved";
 }
 
 export interface ProgressSegmentsProps {
@@ -18,7 +18,8 @@ export interface ProgressSegmentsProps {
 
 /** One hairline segment per entry (callers pass the four periods):
  *  outline = not_started · hatched fill by ratio (--draft) = draft ·
- *  solid --accent + paper TickIcon = submitted. */
+ *  solid --accent + paper TickIcon = submitted · filled brand green with the
+ *  tick = approved by the department head. */
 export function ProgressSegments({
   segments,
   size = "md",
@@ -42,7 +43,9 @@ export function ProgressSegments({
               {s.state === "draft" ? (
                 <span className="ui-seg__fill" style={{ width: `${Math.round(ratio * 100)}%` }} />
               ) : null}
-              {s.state === "submitted" ? <TickIcon size={size === "sm" ? 8 : 12} /> : null}
+              {s.state === "submitted" || s.state === "approved" ? (
+                <TickIcon size={size === "sm" ? 8 : 12} />
+              ) : null}
             </div>
             {showLabels ? (
               <span className="ui-seg__label mono-label">{s.label}</span>

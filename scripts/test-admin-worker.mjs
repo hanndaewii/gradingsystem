@@ -32,6 +32,34 @@ ok(hasAccessShape, "GET /teachers → every entry carries hasAccess");
 const anon = await fetch(`${WORKER}/teachers`);
 ok(anon.status === 401, `GET /teachers without a token → ${anon.status}`);
 
+// 2b. the submission notice: signed-in only, own section only, and honest
+//     about whether an email provider is configured
+const notifyAnon = await fetch(`${WORKER}/notify-submission`, {
+  method: "POST",
+  headers: { "Content-Type": "application/json" },
+  body: JSON.stringify({ sectionId: "0c5e8324-32b6-4f3c-83c3-d2f5a801f250", period: "prelim" }),
+});
+ok(notifyAnon.status === 401, `POST /notify-submission without a token → ${notifyAnon.status}`);
+
+const notifyRes = await fetch(`${WORKER}/notify-submission`, {
+  method: "POST",
+  headers,
+  body: JSON.stringify({ sectionId: "0c5e8324-32b6-4f3c-83c3-d2f5a801f250", period: "prelim", periodLabel: "Prelim" }),
+});
+const notifyBody = await notifyRes.json();
+ok(notifyRes.ok && notifyBody.ok === true, `POST /notify-submission → ${notifyRes.status} (${JSON.stringify(notifyBody)})`);
+ok(
+  notifyBody.skipped === true || typeof notifyBody.sent === "number",
+  "and it reports either a send count or that email is off",
+);
+
+const notifyUnknown = await fetch(`${WORKER}/notify-submission`, {
+  method: "POST",
+  headers,
+  body: JSON.stringify({ sectionId: "11111111-2222-3333-4444-555555555555", period: "prelim" }),
+});
+ok(notifyUnknown.status === 404, `an unknown section → ${notifyUnknown.status}`);
+
 // 3. a professor must not be allowed
 const prof = await createTempUser("professor", "rls");
 const profClient = createClient(process.env.SUPABASE_URL, process.env.VITE_SUPABASE_ANON_KEY, {

@@ -7,7 +7,9 @@
 
 export type Role = "professor" | "admin";
 export type PeriodId = "prelim" | "midterm" | "semifinals" | "finals";
-export type PeriodStatus = "not_started" | "draft" | "submitted";
+/** not_started → draft → submitted → approved. "approved" is the department
+ *  head's sign-off: final for the professor, and only the head can undo it. */
+export type PeriodStatus = "not_started" | "draft" | "submitted" | "approved";
 export type DisplayScale = "percent-letter" | "scale5";
 
 export const PERIODS: PeriodId[] = ["prelim", "midterm", "semifinals", "finals"];
@@ -41,7 +43,12 @@ export interface Student { id: string; sectionId: string; studentNo: string; nam
 
 export interface Grade { id: string; sectionId: string; assessmentId: string; studentRowId: string; score: number | null; updatedAt: string }
 
-export interface PeriodState { status: PeriodStatus; submittedAt: string | null }
+export interface PeriodState {
+  status: PeriodStatus;
+  submittedAt: string | null;
+  /** When the department head approved it (null until then). */
+  approvedAt?: string | null;
+}
 
 /** 'p' present, 'a' absent, 'l' late. */
 export type AttendanceStatus = "p" | "a" | "l";
@@ -90,6 +97,8 @@ export interface CalendarEvent {
 
 export interface PeriodProgress {
   period: PeriodId; status: PeriodStatus; submittedAt: string | null;
+  /** Set once the department head has approved the period. */
+  approvedAt?: string | null;
   gradedCells: number; totalCells: number; complete: boolean;
   perAssessment: Record<string, boolean>;    // assessmentId -> fully graded
   periodGrade: number | null;                // section average % for this period
@@ -108,7 +117,8 @@ export interface SectionOverview {
 export interface DeleteImpact { sections: number; students: number; grades: number }
 
 export interface HistoryEntry {
-  id: string; sectionId: string; kind: "grade" | "submit" | "reopen" | "import";
+  id: string; sectionId: string;
+  kind: "grade" | "submit" | "reopen" | "import" | "approve" | "unlock";
   period: PeriodId | null; assessmentId: string | null; studentRowId: string | null;
   oldScore: number | null; newScore: number | null; at: string; actorId: string;
   detail?: string;
@@ -117,7 +127,7 @@ export interface HistoryEntry {
 export interface Comment { id: string; sectionId: string; period: PeriodId | null; authorId: string; authorName: string; body: string; at: string }
 
 export class ApiError extends Error {
-  field?: string; code?: string;   // codes: PERIOD_SUBMITTED | PERIOD_LOCKED | DUPLICATE_CODE | WEIGHTS_NOT_100 | INCOMPLETE | NOT_FOUND | BAD_CREDENTIALS | FORBIDDEN
+  field?: string; code?: string;   // codes: PERIOD_SUBMITTED | PERIOD_APPROVED | PERIOD_LOCKED | PERIOD_STATE | DUPLICATE_CODE | WEIGHTS_NOT_100 | INCOMPLETE | NOT_FOUND | BAD_CREDENTIALS | FORBIDDEN
   constructor(message: string, opts?: { field?: string; code?: string }) {
     super(message);
     this.name = "ApiError";
@@ -221,6 +231,10 @@ export interface Api {
   importCsv(sectionId: string, period: PeriodId, rows: { studentKey: string; scores: Record<string, number | null> }[]): Promise<{ applied: number; skipped: number; skippedKeys: string[] }>;
   submitPeriod(sectionId: string, period: PeriodId): Promise<PeriodState>;   // INCOMPLETE if not 100% graded
   reopenPeriod(sectionId: string, period: PeriodId): Promise<PeriodState>;
+  /** Department head only: sign off a submitted period (final for the professor). */
+  approvePeriod(sectionId: string, period: PeriodId): Promise<PeriodState>;  // PERIOD_STATE if not submitted
+  /** Department head only: send an approved period back to draft for corrections. */
+  unlockPeriod(sectionId: string, period: PeriodId): Promise<PeriodState>;
   setWeights(sectionId: string, weights: Record<PeriodId, number>): Promise<Section>;  // WEIGHTS_NOT_100
   comment(sectionId: string, input: { period: PeriodId | null; body: string }): Promise<Comment>;
 

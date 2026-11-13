@@ -133,6 +133,7 @@ export function buildPeriodProgress(input: { period: PeriodId; students: Student
     period: input.period,
     status: input.state.status,
     submittedAt: input.state.submittedAt,
+    approvedAt: input.state.approvedAt ?? null,
     gradedCells: counting.gradedCells,
     totalCells: counting.totalCells,
     complete: counting.complete,
@@ -143,20 +144,28 @@ export function buildPeriodProgress(input: { period: PeriodId; students: Student
 }
 
 /**
- * D6 — editability rule. Submitted → locked; else enforceOrder === false →
- * editable; else manually unlocked → editable; else editable iff it is the
- * first non-submitted period in PERIODS order.
+ * A period the department head has signed off (or that is awaiting nothing
+ * further): the grading order treats it exactly like a submitted one.
+ */
+export function isFinalStatus(status: PeriodState["status"]): boolean {
+  return status === "submitted" || status === "approved";
+}
+
+/**
+ * D6 — editability rule. Submitted or approved → locked; else
+ * enforceOrder === false → editable; else manually unlocked → editable;
+ * else editable iff it is the first non-final period in PERIODS order.
  */
 export function isPeriodEditable(input: { section: Section; states: Record<PeriodId, PeriodState>; period: PeriodId }): boolean {
   const st = input.states[input.period];
   if (!st) return false;
-  if (st.status === "submitted") return false;
+  if (isFinalStatus(st.status)) return false;
   if (input.section.enforceOrder === false) return true;
   if (input.section.unlockedPeriods.includes(input.period)) return true;
   let firstOpen: PeriodId | null = null;
   for (const p of PERIODS) {
     const s = input.states[p];
-    if (s && s.status !== "submitted") {
+    if (s && !isFinalStatus(s.status)) {
       firstOpen = p;
       break;
     }

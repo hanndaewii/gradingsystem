@@ -7,6 +7,7 @@ import { Link } from "react-router-dom";
 import { PERIOD_LABELS, PERIOD_SHORT } from "../../types";
 import type { Course, PeriodProgress } from "../../types";
 import { plural } from "../../lib/format";
+import { isFinalStatus } from "../../lib/grades";
 import type { SectionOverview } from "../../types";
 import { Button, Menu, ProgressSegments, StatusPill } from "../ui";
 import type { ProgressSegment, StatusPillProps } from "../ui";
@@ -35,14 +36,16 @@ function summaryFor(periods: PeriodProgress[]): { tone: StatusPillProps["tone"];
   const title = periods
     .map((p) => {
       const cells = `${p.gradedCells}/${p.totalCells}`;
+      if (p.status === "approved") return `${PERIOD_LABELS[p.period]}: approved by the head`;
       if (p.status === "submitted") return `${PERIOD_LABELS[p.period]}: submitted`;
       if (p.status === "draft") return `${PERIOD_LABELS[p.period]}: draft — ${cells} entries graded`;
       return `${PERIOD_LABELS[p.period]}: not started`;
     })
     .join(" · ");
-  const submitted = periods.filter((p) => p.status === "submitted").length;
+  const submitted = periods.filter((p) => isFinalStatus(p.status)).length;
   if (submitted === periods.length && periods.length > 0) {
-    return { tone: "done", label: "Complete", title };
+    const allApproved = periods.every((p) => p.status === "approved");
+    return { tone: allApproved ? "approved" : "done", label: allApproved ? "Approved" : "Complete", title };
   }
   if (periods.some((p) => p.status === "draft")) {
     const graded = periods.reduce((acc, p) => acc + p.gradedCells, 0);

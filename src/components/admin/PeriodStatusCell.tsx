@@ -9,12 +9,14 @@ import { PERIOD_LABELS } from "../../types";
 import { formatPercent, formatDateTime, relativeDay } from "../../lib/format";
 
 const PILL_LABEL: Record<PeriodStatus, string> = {
+  approved: "Approved",
   submitted: "Submitted",
   draft: "Draft",
   not_started: "Not started",
 };
 
-function toneFor(status: PeriodStatus): "neutral" | "progress" | "done" {
+function toneFor(status: PeriodStatus): "neutral" | "progress" | "done" | "approved" {
+  if (status === "approved") return "approved";
   return status === "submitted" ? "done" : status === "draft" ? "progress" : "neutral";
 }
 
@@ -38,6 +40,11 @@ export function PeriodStatusCell({ progress }: { progress: PeriodProgress }): JS
       ? `${label} · the term ended on ${ended} and this period has not been submitted`
       : `${label} · the term has ended and this period has not been submitted`;
     detail = status === "draft" ? `${gradedCells}/${totalCells}` : null;
+  } else if (status === "approved" && progress.approvedAt != null) {
+    title = `${label} · signed off ${formatDateTime(progress.approvedAt)}`;
+    if (submittedAt != null) title += ` · submitted ${formatDateTime(submittedAt)}`;
+    if (periodGrade != null) title += ` · period grade ${formatPercent(periodGrade)}`;
+    detail = relativeDay(progress.approvedAt);
   } else if (status === "submitted" && submittedAt != null) {
     title = `${label} · ${formatDateTime(submittedAt)}`;
     if (periodGrade != null) title += ` · period grade ${formatPercent(periodGrade)}`;

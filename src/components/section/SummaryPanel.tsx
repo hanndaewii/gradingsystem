@@ -8,7 +8,7 @@ import type {
   AttendanceRow, PeriodId, PeriodProgress, PeriodStatus, Section, Student, TermDates,
 } from "../../types";
 import type { Assessment, Grade } from "../../types";
-import { classAveragePct, semesterGrade } from "../../lib/grades";
+import { classAveragePct, isFinalStatus, semesterGrade } from "../../lib/grades";
 import { formatGrade, formatPercent, plural } from "../../lib/format";
 import { WeightsEditor } from "./WeightsEditor";
 import { ScaleTableEditor } from "./ScaleTableEditor";
@@ -31,11 +31,23 @@ export interface SummaryPanelProps {
   onTermDatesChange(period: PeriodId, startDate: string | null, endDate: string | null): void;
 }
 
-const pillTone = (status: PeriodStatus): "neutral" | "progress" | "done" =>
-  status === "submitted" ? "done" : status === "draft" ? "progress" : "neutral";
+const pillTone = (status: PeriodStatus): "neutral" | "progress" | "done" | "approved" =>
+  status === "approved"
+    ? "approved"
+    : status === "submitted"
+      ? "done"
+      : status === "draft"
+        ? "progress"
+        : "neutral";
 
 const pillLabel = (status: PeriodStatus): string =>
-  status === "submitted" ? "Submitted" : status === "draft" ? "Draft" : "Not started";
+  status === "approved"
+    ? "Approved"
+    : status === "submitted"
+      ? "Submitted"
+      : status === "draft"
+        ? "Draft"
+        : "Not started";
 
 export function SummaryPanel({
   section, students, assessmentsByPeriod, grades, progress, termDates, attendanceRows,
@@ -54,7 +66,7 @@ export function SummaryPanel({
     grades,
     weights: section.periodWeights,
   });
-  const semesterComplete = progress.length === PERIODS.length && progress.every((p) => p.status === "submitted");
+  const semesterComplete = progress.length === PERIODS.length && progress.every((p) => isFinalStatus(p.status));
 
   return (
     <div className="sec-summary">

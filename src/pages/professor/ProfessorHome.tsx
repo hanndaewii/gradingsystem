@@ -13,7 +13,7 @@ import { useMemo, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { api } from "../../api";
 import { useTerm } from "../../context/TermContext";
-import { isPeriodEditable } from "../../lib/grades";
+import { isFinalStatus, isPeriodEditable } from "../../lib/grades";
 import { formatDateTime, isWithinLastDays, plural, termLabel } from "../../lib/format";
 import { useAsync } from "../../lib/useAsync";
 import { PERIOD_LABELS } from "../../types";
@@ -60,7 +60,7 @@ function computeQueue(rows: SectionOverview[]): QueueItem[] {
     if (row.studentCount === 0) continue; // no roster → nothing to grade
     const states = statesOf(row.periods);
     for (const period of row.periods) {
-      if (period.status === "submitted") continue;
+      if (isFinalStatus(period.status)) continue;  // submitted, or approved by the head
       if (period.totalCells === 0) continue; // no assessments (or no students)
       if (!isPeriodEditable({ section: row.section, states, period: period.period })) continue;
       const item: QueueItem = {
@@ -108,7 +108,7 @@ export default function ProfessorHome(): JSX.Element {
     if (queue.length > 0) return { kind: "grade", item: queue[0] };
     // Nothing gradable: "all submitted" when every period is submitted,
     // otherwise sections exist but have no students/assessments yet.
-    const allSubmitted = overviewData.every((row) => row.periods.every((p) => p.status === "submitted"));
+    const allSubmitted = overviewData.every((row) => row.periods.every((p) => isFinalStatus(p.status)));
     return allSubmitted ? { kind: "done" } : { kind: "stuck" };
   }, [overviewData, queue]);
   const waiting = useMemo(() => queue.slice(1, 5), [queue]);

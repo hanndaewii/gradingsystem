@@ -16,13 +16,25 @@
 //                           token_hash the app exchanges for a session. The role is worked
 //                           out from the password itself, so the sign-in screen has no
 //                           role picker.
+//   POST /notify-submission → tell the department head a period is waiting for
+//                           sign-off {sectionId, period, sectionName, periodLabel}.
+//                           Any signed-in professor may call it for their OWN
+//                           section. With no RESEND_API_KEY it reports
+//                           {skipped:true} and sends nothing.
 //
-// Secrets: SUPABASE_SECRET_KEY (wrangler secret put). Vars: SUPABASE_URL, ALLOWED_ORIGIN.
+// Secrets: SUPABASE_SECRET_KEY (wrangler secret put), optionally RESEND_API_KEY.
+// Vars: SUPABASE_URL, ALLOWED_ORIGIN, optionally NOTIFY_FROM / PORTAL_URL.
 
 export interface Env {
   SUPABASE_URL: string;
   SUPABASE_SECRET_KEY: string;
   ALLOWED_ORIGIN: string;
+  /** Enables the submission email to the department head. */
+  RESEND_API_KEY?: string;
+  /** From-address for that email (defaults to Resend's test sender). */
+  NOTIFY_FROM?: string;
+  /** The portal's public URL, linked from the email. */
+  PORTAL_URL?: string;
 }
 
 interface Teacher {
@@ -258,7 +270,7 @@ export default {
       return json({ token_hash: tokenHash, email, role }, 200, echo);
     }
 
-    // ── everything below requires an admin session ─────────────────────────
+    // ── the signed-in caller (both roles) ──────────────────────────────────
     const auth = request.headers.get("Authorization") ?? "";
     const token = auth.startsWith("Bearer ") ? auth.slice(7).trim() : "";
     if (!token) return json({ error: "Missing session token." }, 401, echo);
@@ -269,6 +281,96 @@ export default {
     if (!userRes.ok) return json({ error: "Your session has expired — sign in again." }, 401, echo);
     const user = (await userRes.json()) as { id: string; email?: string };
 
+    // ── notify the department head that a period is waiting ────────────────
+    // Any signed-in professor may call this, but only for their OWN section
+    // (the head's hat is read-only, so they never submit on someone's behalf).
+    if (request.method === "POST" && url.pathname === "/notify-submission") {
+      const body = (await request.json()) as {
+        sectionId?: string; period?: string; sectionName?: string; periodLabel?: string;
+      };
+      const sectionId = (body.sectionId ?? "").trim();
+      const periodLabel = (body.periodLabel ?? body.period ?? "").trim();
+      if (!sectionId) return json({ error: "A section is required." }, 400, echo);
+
+      // The caller must own the section (the head's hat is read-only, so they
+      // never submit on someone's behalf).
+      const secRes = await adminFetch(
+        env,
+        `/rest/v1/faculty_sections?select=id,course_id,name&id=eq.${encodeURIComponent(sectionId)}&limit=1`,
+      );
+      const sections = (await secRes.json()) as { id: string; course_id: string; name: string }[];
+      const section = sections[0];
+      if (!section) return json({ error: "Section not found." }, 404, echo);
+      const courseRes = await adminFetch(
+        env,
+        `/rest/v1/faculty_courses?select=id,code,title,professor_id&id=eq.${encodeURIComponent(section.course_id)}&limit=1`,
+      );
+      const courses = (await courseRes.json()) as { id: string; code: string; title: string; professor_id: string }[];
+      const course = courses[0];
+      if (!course || course.professor_id !== user.id) {
+        return json({ error: "Only the section's professor can announce it." }, 403, echo);
+      }
+
+      // Who is "the head"? Every admin profile, plus every email holding an
+      // admin credential (the same rule the desk itself uses — a head's
+      // profile role flips with the hat they last signed in with).
+      const [profRes, credRes, meRes] = await Promise.all([
+        adminFetch(env, "/rest/v1/faculty_profiles?select=email,name&role=eq.admin"),
+        adminFetch(env, "/rest/v1/faculty_credentials?select=email&role=eq.admin"),
+        adminFetch(env, `/rest/v1/faculty_profiles?select=name,email&id=eq.${user.id}&limit=1`),
+      ]);
+      const adminProfiles = (await profRes.json()) as { email?: string }[];
+      const adminCreds = (await credRes.json()) as { email?: string }[];
+      const mine = ((await meRes.json()) as { name?: string; email?: string }[])[0];
+      const senderName = mine?.name ?? user.email ?? "A professor";
+      const heads = [
+        ...new Set(
+          [...adminProfiles, ...adminCreds]
+            .map((r) => (r.email ?? "").trim().toLowerCase())
+            .filter((e) => e.includes("@") && e !== (user.email ?? "").toLowerCase()),
+        ),
+      ];
+
+      if (heads.length === 0) {
+        return json({ ok: true, skipped: true, reason: "No department head to notify." }, 200, echo);
+      }
+      if (!env.RESEND_API_KEY) {
+        // Nothing to send with yet — the app says so gently, the head still
+        // sees the submission in Department review.
+        return json({ ok: true, skipped: true, reason: "Email is not configured." }, 200, echo);
+      }
+
+      const portal = (env.PORTAL_URL ?? "https://gradingsystem.hanndaaewii.workers.dev").replace(/\/$/, "");
+      const subject = `${periodLabel || "A period"} submitted · ${course.code} ${section.name}`;
+      const text = [
+        `${senderName} submitted ${periodLabel || "a period"} for ${course.code} ${section.name} and it is waiting for your sign-off.`,
+        "",
+        `Review it: ${portal}/review`,
+        "",
+        "Approving locks it for the professor; unlocking sends it back to draft.",
+      ].join("\n");
+
+      const sent: string[] = [];
+      for (const to of heads) {
+        const res = await fetch("https://api.resend.com/emails", {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${env.RESEND_API_KEY}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            from: env.NOTIFY_FROM ?? "Faculty Grading Portal <onboarding@resend.dev>",
+            to: [to],
+            subject,
+            text,
+          }),
+        });
+        if (res.ok) sent.push(to);
+      }
+      return json({ ok: true, sent: sent.length }, 200, echo);
+    }
+
+    // ── everything below requires an admin session ─────────────────────────
     const meRes = await adminFetch(env, `/rest/v1/faculty_profiles?select=role,email&id=eq.${user.id}`);
     const me = (await meRes.json()) as { role?: string; email?: string }[];
     if (!Array.isArray(me) || me.length === 0) {

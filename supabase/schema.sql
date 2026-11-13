@@ -123,12 +123,17 @@ create table if not exists public.faculty_sections (
 
 -- ── public.faculty_periods ──────────────────────────────────────────────────────────
 -- One row per section × period: status + submitted_at (the PeriodState).
+-- Status chain: not_started → draft → submitted → approved (the department
+-- head's sign-off). The head can send an approved period back to draft.
 create table if not exists public.faculty_periods (
   id           uuid primary key default gen_random_uuid(),
   section_id   uuid not null references public.faculty_sections (id) on delete cascade,
   period       text not null check (period in ('prelim', 'midterm', 'semifinals', 'finals')),
-  status       text not null default 'not_started' check (status in ('not_started', 'draft', 'submitted')),
+  status       text not null default 'not_started'
+               check (status in ('not_started', 'draft', 'submitted', 'approved')),
   submitted_at timestamptz,
+  approved_at  timestamptz,
+  approved_by  uuid references public.faculty_profiles (id) on delete set null,
   -- The term's own window in the school calendar. A class date belongs to
   -- the first term whose window contains it; the attendance calendar follows
   -- these dates, so the school calendar can shift from year to year.
@@ -136,6 +141,15 @@ create table if not exists public.faculty_periods (
   end_date     date,
   unique (section_id, period)
 );
+
+-- upgrades for databases created before approval existed (idempotent)
+alter table public.faculty_periods
+  add column if not exists approved_at timestamptz,
+  add column if not exists approved_by uuid references public.faculty_profiles (id) on delete set null;
+alter table public.faculty_periods drop constraint if exists faculty_periods_status_check;
+alter table public.faculty_periods
+  add constraint faculty_periods_status_check
+  check (status in ('not_started', 'draft', 'submitted', 'approved'));
 
 alter table public.faculty_periods
   add column if not exists start_date date,
@@ -178,7 +192,7 @@ create table if not exists public.faculty_grades (
 create table if not exists public.faculty_grade_history (
   id           uuid primary key default gen_random_uuid(),
   section_id   uuid not null references public.faculty_sections (id) on delete cascade,
-  kind         text not null check (kind in ('grade', 'submit', 'reopen', 'import')),
+  kind         text not null check (kind in ('grade', 'submit', 'reopen', 'import', 'approve', 'unlock')),
   period       text check (period in ('prelim', 'midterm', 'semifinals', 'finals')),
   assessment_id uuid references public.faculty_assessments (id) on delete set null,
   student_id   uuid references public.faculty_students (id) on delete set null,
@@ -188,6 +202,13 @@ create table if not exists public.faculty_grade_history (
   actor_id     uuid references public.faculty_profiles (id) on delete set null,
   detail       text
 );
+
+-- the approve / unlock kinds arrived with the department head's sign-off —
+-- widen the check for databases created before (idempotent)
+alter table public.faculty_grade_history drop constraint if exists faculty_grade_history_kind_check;
+alter table public.faculty_grade_history
+  add constraint faculty_grade_history_kind_check
+  check (kind in ('grade', 'submit', 'reopen', 'import', 'approve', 'unlock'));
 
 -- ── public.faculty_comments ─────────────────────────────────────────────────────────
 create table if not exists public.faculty_comments (
@@ -315,6 +336,13 @@ create policy "periods_professor_all" on public.faculty_periods
 drop policy if exists "periods_admin_read" on public.faculty_periods;
 create policy "periods_admin_read" on public.faculty_periods
   for select to authenticated using (public.faculty_current_role_is_admin());
+-- the department head approves a submitted period and can send an approved
+-- one back to draft — the only admin writes on periods.
+drop policy if exists "periods_admin_update" on public.faculty_periods;
+create policy "periods_admin_update" on public.faculty_periods
+  for update to authenticated
+  using (public.faculty_current_role_is_admin())
+  with check (public.faculty_current_role_is_admin());
 
 drop policy if exists "assessments_professor_all" on public.faculty_assessments;
 create policy "assessments_professor_all" on public.faculty_assessments
@@ -375,7 +403,8 @@ drop policy if exists "grades_admin_read" on public.faculty_grades;
 create policy "grades_admin_read" on public.faculty_grades
   for select to authenticated using (public.faculty_current_role_is_admin());
 
--- grade_history: professors write/read their own; admins read only.
+-- grade_history: professors write/read their own; admins read all and may
+-- append approve/unlock entries.
 drop policy if exists "history_professor_all" on public.faculty_grade_history;
 create policy "history_professor_all" on public.faculty_grade_history
   for all to authenticated
@@ -386,10 +415,13 @@ create policy "history_professor_all" on public.faculty_grade_history
 drop policy if exists "history_admin_read" on public.faculty_grade_history;
 create policy "history_admin_read" on public.faculty_grade_history
   for select to authenticated using (public.faculty_current_role_is_admin());
+-- the head's approve / unlock actions land in the same audit trail
+drop policy if exists "history_admin_insert" on public.faculty_grade_history;
+create policy "history_admin_insert" on public.faculty_grade_history
+  for insert to authenticated with check (public.faculty_current_role_is_admin());
 
--- comments: BOTH roles may read (and write) — the admin's only write besides
--- their own profile. Professors may comment on their own sections; admins on
--- any section.
+-- comments: BOTH roles may read (and write) — professors on their own
+-- sections; admins on any section.
 drop policy if exists "comments_professor_all" on public.faculty_comments;
 create policy "comments_professor_all" on public.faculty_comments
   for all to authenticated

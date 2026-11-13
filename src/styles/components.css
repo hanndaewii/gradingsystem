@@ -149,6 +149,13 @@
   background: var(--danger-soft);
 }
 
+/* approved = filled green: the department head has signed it off */
+.ui-pill--approved {
+  color: #ffffff;
+  border-color: var(--brand);
+  background: var(--brand);
+}
+
 .ui-pill--done .ui-tick {
   color: var(--accent);
 }

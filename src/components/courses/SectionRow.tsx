@@ -58,9 +58,20 @@ export default function SectionRow({ overview, onEdit, onDelete }: SectionRowPro
         <ProgressSegments segments={segmentsFor(periods)} size="sm" />
         <div className="prof-row__pills">
           {periods.map((p) => {
-            const tone = p.status === "submitted" ? "done" : p.status === "draft" ? "progress" : "neutral";
-            const title = `${PERIOD_LABELS[p.period]}: ${p.status.replace("_", " ")} — ${p.gradedCells}/${p.totalCells} entries graded${
-              p.submittedAt ? ` · submitted ${formatDateTime(p.submittedAt)}` : ""
+            const tone =
+              p.status === "approved"
+                ? "approved"
+                : p.status === "submitted"
+                  ? "done"
+                  : p.status === "draft"
+                    ? "progress"
+                    : "neutral";
+            const title = `${PERIOD_LABELS[p.period]}: ${p.status.replace("_", " ")} - ${p.gradedCells}/${p.totalCells} entries graded${
+              p.approvedAt
+                ? ` · approved ${formatDateTime(p.approvedAt)}`
+                : p.submittedAt
+                  ? ` · submitted ${formatDateTime(p.submittedAt)}`
+                  : ""
             }`;
             return <StatusPill key={p.period} tone={tone} label={PERIOD_SHORT[p.period]} title={title} />;
           })}

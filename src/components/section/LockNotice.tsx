@@ -4,6 +4,7 @@
 import type { ReactNode } from "react";
 import { PERIODS, PERIOD_LABELS } from "../../types";
 import type { PeriodId, PeriodState, Section } from "../../types";
+import { isFinalStatus } from "../../lib/grades";
 
 /**
  * Why `period` cannot be edited yet (order lock only — submitted periods are
@@ -16,13 +17,13 @@ export function periodLockReason(
   section?: Pick<Section, "enforceOrder" | "unlockedPeriods"> | null,
 ): string | null {
   const state = states[period];
-  if (!state || state.status === "submitted") return null;
+  if (!state || isFinalStatus(state.status)) return null;
   // Manual unlock or enforceOrder off → the period is open regardless of order.
   if (section && (!section.enforceOrder || section.unlockedPeriods.includes(period))) return null;
   const at = PERIODS.indexOf(period);
   for (let i = 0; i < at; i++) {
     const earlier = states[PERIODS[i]];
-    if (earlier && earlier.status !== "submitted") {
+    if (earlier && !isFinalStatus(earlier.status)) {
       return `${PERIOD_LABELS[PERIODS[i]]} must be submitted before ${PERIOD_LABELS[period]} opens.`;
     }
   }
