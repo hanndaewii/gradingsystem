@@ -102,6 +102,16 @@
   display: grid;
   gap: var(--space-7);
   min-width: 0;
+  /* the column is exactly as wide as the layout gives it — a wide child
+     (tabs, the submit bar) may never push it past the viewport, which is
+     what used to force a horizontal scrollbar on the whole page */
+  grid-template-columns: minmax(0, 1fr);
+}
+
+/* the period tabs keep their labels on one line each, but the row itself
+   wraps instead of overflowing the column */
+.sec-content .ui-tabs--segmented {
+  flex-wrap: wrap;
 }
 
 /* ---- side nav ---- */
@@ -845,13 +855,18 @@
 }
 
 /* The "Blank = equal weight" hint hangs below its input so it doesn't make
-   the Weight field taller — all three inputs keep the same baseline. */
+   the Weight field taller - all three inputs keep the same baseline. The
+   max-width keeps a long hint inside the page instead of pushing a
+   horizontal scrollbar onto it (it wraps rather than overflows). */
 .sec-assess__add .ui-field__hint {
   position: absolute;
   top: 100%;
   left: 0;
   margin-top: 2px;
-  white-space: nowrap;
+  /* one line when it fits, wrapped inside the row when it doesn't */
+  white-space: normal;
+  width: max-content;
+  max-width: 440px;
 }
 
 /* ---- submit bar (sticky bottom, z below header) ---- */
@@ -860,7 +875,9 @@
   position: sticky;
   bottom: 0;
   z-index: var(--z-nav);
-  margin: var(--space-7) calc(-1 * var(--space-6)) 0;
+  /* sits inside the content column — negative side margins used to push it
+     past the viewport and force a horizontal page scrollbar */
+  margin: var(--space-7) 0 0;
   background: var(--paper-2);
   border: none;
   border-top: 1px solid var(--rule);
@@ -995,6 +1012,12 @@
   gap: var(--space-3);
   border-top: 1px solid var(--rule-strong);
   padding-top: var(--space-3);
+}
+
+/* the term-dates table (Term · Starts · Ends · Actions) needs the whole row —
+   squeezed into a third of it its date inputs clip and the table overflows */
+.sec-summary__editor:last-child {
+  grid-column: 1 / -1;
 }
 
 .sec-summary__editor h3 {
@@ -1813,6 +1836,30 @@
 
 .sec-att__table {
   font-size: var(--text-sm);
+  /* the sheet always fits its frame — day columns share the width, so there
+     is nothing to scroll sideways (on very narrow screens the floor keeps
+     the cells usable and the frame scrolls instead) */
+  table-layout: fixed;
+  width: 100%;
+  min-width: 640px;
+}
+
+/* fixed layout sizes columns from the first row: name and the two rate
+   columns keep their width, the days share whatever is left */
+.sec-att__table th.sec-table__name,
+.sec-att__table td.sec-table__name {
+  width: 170px;
+  min-width: 0;
+}
+
+.sec-att__table .sec-att__rate {
+  width: 58px;
+}
+
+/* the weekday/date button shrink-to-fits — stretch it so it centres in the
+   (sometimes very wide) day column */
+.sec-att__daybtn {
+  width: 100%;
 }
 
 .sec-att__table th.sec-table__name,
@@ -1991,6 +2038,9 @@
   text-underline-offset: 2px;
   cursor: pointer;
   white-space: nowrap;
+  /* narrow day columns clip the term name — the tooltip says which term */
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .sec-att__daytag:hover {
@@ -2044,6 +2094,15 @@
 .sec-termdates {
   display: grid;
   gap: var(--space-2);
+  /* the table may shrink to the column — its intrinsic width must never
+     push past the panel (that forced a horizontal page scrollbar) */
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.sec-termdates__table {
+  /* span the panel instead of sizing to the date inputs' intrinsic width
+     (which used to push the page wider than the screen) */
+  width: 100%;
 }
 
 .sec-termdates__table th,
@@ -2060,6 +2119,8 @@
   background: var(--surface);
   color: var(--ink);
   max-width: 170px;
+  min-width: 0;
+  width: 100%;
 }
 
 .sec-termdates__actions {

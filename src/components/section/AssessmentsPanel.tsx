@@ -292,7 +292,7 @@ export function AssessmentsPanel({
           <Field
             label="Total group"
             htmlFor="sec-assess-add-group"
-            hint="Tick to merge into one Total column with the previous assessments (like R-1 / R-2 / R-3)"
+            hint="One Total column with the previous (like R-1 / R-2 / R-3)"
           >
             <Checkbox
               id="sec-assess-add-group"

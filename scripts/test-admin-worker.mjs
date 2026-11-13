@@ -1,7 +1,8 @@
 // Live test of the faculty-admin Worker: sign in as the head, list faculty
-// (with hasAccess), create an account, reset a password, remove and restore
-// access, check that a professor is blocked and that the head cannot lock
-// themselves out — then clean up. Every account it makes is deleted.
+// (with hasAccess), check that a professor is blocked but that the head keeps
+// the desk even when wearing their professor hat, create an account, reset a
+// password, remove and restore access — then clean up. Every account it
+// makes is deleted.
 //   node --env-file=.env scripts/test-admin-worker.mjs
 import { createClient } from "@supabase/supabase-js";
 import { createTempUser, headCredentials, removeTempUser } from "./test-fixtures.mjs";
@@ -42,6 +43,30 @@ if (pSign.data?.session) {
     headers: { Authorization: `Bearer ${pSign.data.session.access_token}` },
   });
   ok(profRes.status === 403, `GET /teachers as a professor → ${profRes.status} (403 = blocked)`);
+}
+
+// 3b. the head wearing their professor hat keeps the desk
+// (the profile's role follows the role used to sign in, so the desk must be
+// judged by the admin credential, never by the last sign-in)
+const hatToken = await (async () => {
+  const signIn = await fetch(`${WORKER}/signin`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ email: head.email, password: process.env.PROF_PASSWORD, role: "professor" }),
+  });
+  const body = await signIn.json();
+  if (!body.token_hash) return null;
+  const hatClient = createClient(process.env.SUPABASE_URL, process.env.VITE_SUPABASE_ANON_KEY, {
+    auth: { persistSession: false, autoRefreshToken: false },
+  });
+  const otp = await hatClient.auth.verifyOtp({ token_hash: body.token_hash, type: "magiclink" });
+  return otp.data?.session?.access_token ?? null;
+})();
+if (hatToken) {
+  const hatRes = await fetch(`${WORKER}/teachers`, { headers: { Authorization: `Bearer ${hatToken}` } });
+  ok(hatRes.status === 200, `GET /teachers with the head's professor password → ${hatRes.status} (200 = the desk stays open)`);
+} else {
+  ok(false, "GET /teachers with the head's professor password (could not make a professor-hat session)");
 }
 
 // 4. create a throwaway teacher

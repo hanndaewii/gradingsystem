@@ -271,8 +271,24 @@ export default {
 
     const meRes = await adminFetch(env, `/rest/v1/faculty_profiles?select=role,email&id=eq.${user.id}`);
     const me = (await meRes.json()) as { role?: string; email?: string }[];
-    if (!Array.isArray(me) || me.length === 0 || me[0].role !== "admin") {
+    if (!Array.isArray(me) || me.length === 0) {
       return json({ error: "Only the department head can manage faculty accounts." }, 403, echo);
+    }
+    // Head access = the profile says admin, or an admin credential exists for
+    // the same email. The credential is checked too because the profile's
+    // role follows the role used to sign in (row-level security needs it to
+    // match the session): a head who signs in with their professor password
+    // has the row flipped to professor, and must not lose their own desk.
+    if (me[0].role !== "admin") {
+      const email = (me[0].email ?? user.email ?? "").trim().toLowerCase();
+      const credRes = await adminFetch(
+        env,
+        `/rest/v1/faculty_credentials?select=id&email=eq.${encodeURIComponent(email)}&role=eq.admin&limit=1`,
+      );
+      const creds = (await credRes.json()) as { id?: string }[];
+      if (!Array.isArray(creds) || creds.length === 0) {
+        return json({ error: "Only the department head can manage faculty accounts." }, 403, echo);
+      }
     }
 
     // ── list faculty ──────────────────────────────────────────────────────
