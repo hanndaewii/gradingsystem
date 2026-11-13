@@ -20,9 +20,10 @@ body {
   background: var(--paper);
   color: var(--ink);
   font-family: var(--font-serif);
-  font-size: var(--text-base); /* 17px — sized up for readability */
+  font-size: var(--text-base); /* 14.5px — the proposal's body size */
   line-height: var(--leading-normal);
   min-height: 100vh;
+  -webkit-font-smoothing: antialiased;
 }
 
 img,
@@ -59,8 +60,9 @@ h3,
 h4,
 h5,
 h6 {
+  font-family: var(--font-display);
   font-weight: 600;
-  line-height: var(--leading-tight);
+  line-height: 1.25;
 }
 
 ::selection {
@@ -82,7 +84,7 @@ h6 {
 }
 
 .mono-label {
-  font-family: var(--font-serif);
+  font-family: var(--font-display);
   font-size: var(--text-sm);
   font-weight: 600;
   letter-spacing: 0;
@@ -119,7 +121,7 @@ h6 {
 ::-webkit-scrollbar-thumb {
   background: var(--rule-strong);
   border: 3px solid var(--paper);
-  border-radius: 0; /* box edges */
+  border-radius: 6px;
 }
 
 /* ---- reduced motion (D21): zero every duration via token override,

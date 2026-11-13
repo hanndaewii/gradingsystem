@@ -1,9 +1,8 @@
 /* ============================================================
    components.css — primitive classes (.ui-*)
-   "Editorial ledger" language: flat sage paper, hairline and
-   ink rules, no cards or shadows, square corners. Bricolage
-   display for tabs/labels, Hanken for UI, mono for numerals.
-   Green is the working colour (brand fills, ticks, focus).
+   The proposal's language: white surfaces on alabaster, hairline
+   rules, 8–10px corners, emerald fills, Plus Jakarta display
+   for buttons/labels, Public Sans for text, mono for numerals.
    Domain CSS (.prof-/.sec-/.adm-/.sh-) must not redefine these.
    ============================================================ */
 
@@ -14,29 +13,29 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: var(--space-2);
+  gap: 6px;
   height: auto;
-  min-height: 40px;
-  padding: 8px 16px;
+  min-height: 36px;
+  padding: 0 14px;
   border: 1px solid transparent;
   border-radius: var(--radius);
   background: transparent;
   color: var(--ink);
-  font-family: var(--font-serif);
-  font-size: var(--text-sm);
+  font-family: var(--font-display);
+  font-size: 13px;
   font-weight: 600;
   line-height: 1.2;
   white-space: nowrap;
   cursor: pointer;
   transition:
-    background-color var(--dur-fast) var(--ease),
-    border-color var(--dur-fast) var(--ease),
-    color var(--dur-fast) var(--ease),
-    opacity var(--dur-fast) var(--ease);
+    background-color var(--dur) var(--ease),
+    border-color var(--dur) var(--ease),
+    color var(--dur) var(--ease),
+    opacity var(--dur) var(--ease);
 }
 
 .ui-btn:disabled {
-  opacity: 0.55;
+  opacity: 0.45;
   cursor: not-allowed;
   background: transparent;
   color: inherit;
@@ -44,11 +43,11 @@
 
 .ui-btn--sm {
   min-height: 32px;
-  padding: 5px 12px;
-  font-size: var(--text-sm);
+  padding: 0 12px;
+  font-size: 12.5px;
 }
 
-/* primary = solid brand fill */
+/* primary = solid emerald fill */
 .ui-btn--primary {
   background: var(--brand);
   border-color: var(--brand);
@@ -60,7 +59,7 @@
   border-color: var(--brand-hover);
 }
 
-/* secondary = white with a soft border */
+/* secondary = white with a hairline border (the proposal's default .btn) */
 .ui-btn--secondary {
   background: var(--surface);
   border-color: var(--rule-strong);
@@ -68,7 +67,8 @@
 }
 
 .ui-btn--secondary:hover:not(:disabled) {
-  background: var(--paper-2);
+  background: var(--surface-hover);
+  border-color: var(--ink-3);
 }
 
 .ui-btn--ghost {
@@ -88,7 +88,7 @@
 }
 
 .ui-btn--danger:hover:not(:disabled) {
-  background: var(--paper-2);
+  background: var(--danger-soft);
 }
 
 .ui-btn--link {
@@ -120,7 +120,7 @@
   border-radius: 999px;
   background: var(--surface);
   font-family: var(--font-serif);
-  font-size: var(--text-xs);
+  font-size: 11.5px;
   font-weight: 600;
   letter-spacing: 0;
   text-transform: none;
@@ -149,9 +149,9 @@
   background: var(--danger-soft);
 }
 
-/* approved = filled green: the department head has signed it off */
+/* approved = filled emerald: the department head has signed it off */
 .ui-pill--approved {
-  color: #ffffff;
+  color: var(--surface);
   border-color: var(--brand);
   background: var(--brand);
 }
@@ -241,19 +241,20 @@
   align-items: stretch;
 }
 
+/* sub-view pills: the selected one lifts onto white with a hairline */
 .ui-tabs--underline {
-  gap: var(--space-4);
-  border-bottom: 1px solid var(--rule);
+  gap: 6px;
+  border-bottom: none;
 }
 
 .ui-tabs--segmented {
   display: flex;
-  gap: 0;
+  gap: 2px;
   width: 100%;
-  padding: 0;
-  border: none;
-  border-radius: 0;
-  background: transparent;
+  padding: 3px;
+  border: 1px solid var(--rule);
+  border-radius: var(--radius);
+  background: var(--paper-2);
   box-shadow: none;
 }
 
@@ -262,66 +263,72 @@
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  padding: var(--space-2) 2px;
-  border: none;
-  border-bottom: 2px solid transparent;
-  border-radius: 0;
-  margin-bottom: -1px;
+  padding: 7px 13px;
+  border: 1px solid transparent;
+  border-radius: var(--radius);
+  margin-bottom: 0;
   background: transparent;
-  color: var(--ink-2);
-  font-family: var(--font-serif);
-  font-size: var(--text-sm);
+  color: var(--ink-3);
+  font-family: var(--font-display);
+  font-size: 13.5px;
+  font-weight: 500;
   white-space: nowrap;
   cursor: pointer;
   transition:
-    color var(--dur-fast) var(--ease),
-    border-color var(--dur-fast) var(--ease),
-    background-color var(--dur-fast) var(--ease);
+    color var(--dur) var(--ease),
+    border-color var(--dur) var(--ease),
+    background-color var(--dur) var(--ease),
+    box-shadow var(--dur) var(--ease);
 }
 
 .ui-tab:hover:not(:disabled):not([aria-selected="true"]) {
   color: var(--ink);
+  background: var(--paper-2);
 }
 
 .ui-tab[aria-selected="true"] {
+  background: var(--surface);
   color: var(--ink);
-  border-bottom-color: var(--ink);
+  border-color: var(--rule);
+  font-weight: 600;
+  box-shadow: var(--shadow-card);
 }
 
 .ui-tab:disabled {
   color: var(--ink-3);
   cursor: not-allowed;
+  background: transparent;
 }
 
 .ui-tabs--segmented .ui-tab {
   flex: 0 1 auto;
   justify-content: flex-start;
-  margin-bottom: -1px;
-  padding: 10px 2px 12px;
+  margin-bottom: 0;
+  padding: 6px 12px;
   border: none;
-  border-bottom: 2px solid transparent;
-  border-radius: 0;
-  font-family: var(--font-serif);
-  font-size: var(--text-base);
+  border-radius: var(--radius-sm);
+  font-family: var(--font-display);
+  font-size: 13px;
   font-weight: 500;
   text-align: left;
   color: var(--ink-2);
 }
 
 .ui-tabs--segmented .ui-tab + .ui-tab {
-  padding-left: var(--space-2);
+  padding-left: 12px;
 }
 
 .ui-tabs--segmented .ui-tab:hover:not(:disabled):not([aria-selected="true"]) {
   color: var(--ink);
+  background: transparent;
 }
 
 .ui-tabs--segmented .ui-tab[aria-selected="true"] {
-  border-bottom: 2px solid var(--brand);
-  background: transparent;
-  color: var(--brand);
-  font-weight: 700;
-  box-shadow: none;
+  border: none;
+  background: var(--surface);
+  color: var(--ink);
+  font-weight: 600;
+  box-shadow: var(--shadow-card);
 }
 
 /* gold tick inside a period tab (allowed: TickIcon) */
@@ -338,6 +345,132 @@
   font-size: var(--text-xs);
   font-variant-numeric: tabular-nums;
   color: var(--ink-3);
+}
+
+/* ---- period strip (the proposal's four-step pipeline) ---- */
+
+.ui-tabs--strip {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  width: 100%;
+  background: var(--surface);
+  border: 1px solid var(--rule);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  box-shadow: var(--shadow-card);
+}
+
+.ui-tabs--strip .ui-tab {
+  position: relative;
+  flex-direction: column;
+  align-items: stretch;
+  justify-content: flex-start;
+  gap: 6px;
+  margin: 0;
+  padding: 13px 16px;
+  border: none;
+  border-right: 1px solid var(--rule);
+  border-bottom: 2.5px solid transparent;
+  border-radius: 0;
+  background: transparent;
+  font-family: var(--font-display);
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--ink);
+  text-align: left;
+  white-space: normal;
+}
+
+.ui-tabs--strip .ui-tab:last-child {
+  border-right: 0;
+}
+
+.ui-tabs--strip .ui-tab:hover:not(:disabled):not([aria-selected="true"]) {
+  background: var(--surface-hover);
+}
+
+.ui-tabs--strip .ui-tab[aria-selected="true"] {
+  background: var(--accent-soft);
+  border-bottom-color: var(--accent);
+  box-shadow: none;
+}
+
+.ui-tabs--strip .ui-tab:disabled {
+  opacity: 0.52;
+  cursor: not-allowed;
+}
+
+.ui-tabs--strip .ui-tab__label {
+  min-width: 0;
+}
+
+.ui-tab__top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.ui-tab__status {
+  font-family: var(--font-serif);
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--ink-3);
+}
+
+.ui-tab__status--done {
+  color: var(--accent-ink);
+}
+
+.ui-tab__status--draft {
+  color: var(--warn);
+}
+
+.ui-tab__bar {
+  display: block;
+  width: 100%;
+  height: 4px;
+  border-radius: 2px;
+  background: var(--rule);
+  overflow: hidden;
+}
+
+.ui-tab__barfill {
+  display: block;
+  height: 100%;
+  background: var(--accent);
+  transition: width 220ms var(--ease);
+}
+
+.ui-tabs--strip .ui-tab__badge {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  width: 100%;
+  font-size: 12px;
+  font-weight: 400;
+  color: var(--ink-3);
+}
+
+@media (max-width: 1024px) {
+  .ui-tabs--strip {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .ui-tabs--strip .ui-tab:nth-child(2n) {
+    border-right: 0;
+  }
+}
+
+@media (max-width: 640px) {
+  .ui-tabs--strip {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .ui-tabs--strip .ui-tab {
+    border-right: 0;
+  }
 }
 
 /* ---- Field / Input / Select / Textarea ---- */
@@ -412,7 +545,7 @@
 
 .ui-select {
   cursor: pointer;
-  min-height: 40px;
+  min-height: 36px;
 }
 
 .ui-textarea {
@@ -456,7 +589,9 @@
   margin: 12vh auto 0;
   padding: var(--space-6);
   background: var(--surface);
-  border: 1px solid var(--rule-strong);
+  border: 1px solid var(--rule);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-pop);
 }
 
 .ui-crash__title {
@@ -577,15 +712,15 @@
   justify-content: space-between;
   gap: var(--space-3);
   min-height: 0;
-  padding: var(--space-3) var(--space-4);
+  padding: 13px 18px;
   border-bottom: 1px solid var(--rule);
   flex-wrap: wrap;
 }
 
 .ui-panel__label {
   min-width: 0;
-  font-family: var(--font-serif);
-  font-size: var(--text-lg);
+  font-family: var(--font-display);
+  font-size: 15px;
   font-weight: 700;
   letter-spacing: -0.01em;
   line-height: 1.2;
@@ -600,7 +735,7 @@
 }
 
 .ui-panel__body {
-  padding: var(--space-4);
+  padding: var(--space-4) var(--space-5);
 }
 
 .ui-panel--dense .ui-panel__head {
@@ -760,7 +895,7 @@
 .ui-modal__backdrop {
   position: absolute;
   inset: 0;
-  background: rgba(28, 26, 22, 0.38);
+  background: rgba(14, 19, 16, 0.45);
 }
 
 [data-theme="dim"] .ui-modal__backdrop {
@@ -875,28 +1010,30 @@
   display: flex;
   align-items: flex-start;
   gap: var(--space-2);
-  padding: 10px var(--space-3);
-  background: var(--surface);
-  border: 1px solid var(--rule);
-  border-left: 3px solid var(--ink-3);
+  padding: 10px 14px;
+  background: var(--spine);
+  color: #ffffff;
+  border: none;
+  border-left: 3px solid rgba(255, 255, 255, 0.35);
   border-radius: var(--radius);
   box-shadow: var(--shadow-pop);
+  font-size: var(--text-sm);
 }
 
 .ui-toast--info {
-  border-left-color: var(--ink-3);
+  border-left-color: rgba(255, 255, 255, 0.35);
 }
 
 .ui-toast--success {
-  border-left-color: var(--ok);
+  border-left-color: #77c799;
 }
 
 .ui-toast--warn {
-  border-left-color: var(--warn);
+  border-left-color: #f5b544;
 }
 
 .ui-toast--danger {
-  border-left-color: var(--danger);
+  border-left-color: #f87171;
 }
 
 .ui-toast__content {
@@ -913,13 +1050,13 @@
 .ui-toast__desc {
   margin-top: 2px;
   font-size: var(--text-xs);
-  color: var(--ink-2);
+  color: rgba(255, 255, 255, 0.78);
   line-height: 1.45;
 }
 
 .ui-toast .ui-tick {
   margin-top: 1px;
-  color: var(--accent); /* gold tick on success toasts (allowed) */
+  color: #77c799; /* light emerald tick on the dark pine toast */
 }
 
 .ui-toast__close {
@@ -929,7 +1066,7 @@
   border: none;
   border-radius: var(--radius);
   background: transparent;
-  color: var(--ink-3);
+  color: rgba(255, 255, 255, 0.75);
   font-family: var(--font-mono);
   font-size: 14px;
   line-height: 1;
@@ -937,6 +1074,6 @@
 }
 
 .ui-toast__close:hover {
-  background: var(--paper-2);
-  color: var(--ink);
+  background: rgba(255, 255, 255, 0.14);
+  color: #ffffff;
 }

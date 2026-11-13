@@ -5,7 +5,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 
 const EDGE = "C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe";
-const APP = "https://gradingsystem.hanndaaewii.workers.dev";
+const APP = process.env.APP_URL ?? "https://gradingsystem.hanndaaewii.workers.dev";
 const EMAIL = process.env.HEAD_EMAIL;
 const PASSWORD = process.env.HEAD_PASSWORD;
 const PORT = 9335;

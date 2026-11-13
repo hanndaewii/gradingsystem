@@ -226,18 +226,26 @@ try {
     (() => {
       const cells = [...document.querySelectorAll(".sec-att__input")];
       const first = cells[0];
+      const focused = document.activeElement;
+      const fi = cells.indexOf(focused);
+      const parts = (el) => (el?.getAttribute("aria-label") ?? "").split(" — ");
+      const [s0, d0] = parts(first);
+      const [sf, df] = parts(focused);
       return {
         value: first.value,
         cls: first.className,
-        focusedIndex: cells.indexOf(document.activeElement),
+        focusedIndex: fi,
+        // a mark lands → focus moves down the day column to the next student;
+        // on the last student it wraps to the next day's first student.
+        advanced: fi > 0 && ((df === d0 && sf !== s0) || (sf === s0 && df !== d0)),
       };
     })()
   `);
   ok(afterType?.value === "p", `typing "p" lands in the cell (value="${afterType?.value}")`);
   ok(/is-p/.test(afterType?.cls ?? ""), "the cell turns green (present)");
   ok(
-    afterType?.focusedIndex === 1,
-    `focus advances to the next cell (index ${afterType?.focusedIndex})`,
+    afterType?.advanced === true,
+    `focus advances to the next student in the same day column (index ${afterType?.focusedIndex})`,
   );
 
   // typing "a" over "p" must replace it (focus selects the old mark)

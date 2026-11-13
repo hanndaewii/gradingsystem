@@ -179,12 +179,26 @@ try {
   console.log("ERROR", err?.message ?? err);
   fails.push("threw");
 } finally {
-  await patchPeriod({
-    status: original?.status ?? "not_started",
-    submitted_at: original?.submitted_at ?? null,
-    approved_at: null,
-    approved_by: null,
-  });
+  // restoring the fixture must survive a transient network blip
+  let restored = false;
+  for (let i = 0; i < 3 && !restored; i += 1) {
+    try {
+      await patchPeriod({
+        status: original?.status ?? "not_started",
+        submitted_at: original?.submitted_at ?? null,
+        approved_at: null,
+        approved_by: null,
+      });
+      restored = true;
+    } catch (e) {
+      console.log(`restore attempt ${i + 1} failed: ${e?.message ?? e}`);
+      await sleep(1500);
+    }
+  }
+  if (!restored) {
+    fails.push("could not restore the period row");
+    process.exitCode = 1;
+  }
   try { browser.kill(); } catch {}
   console.log(fails.length === 0 ? "\nhead approval verified" : `\nFAILED: ${fails.join(" | ")}`);
   process.exitCode = fails.length === 0 ? 0 : 1;

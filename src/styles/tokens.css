@@ -1,55 +1,64 @@
 /* ============================================================
-   tokens.css — design tokens ("calm green").
-   Plain and simple for easy reading: one font family (Hanken
-   Grotesk), a pale green page with white panels, soft 1px
-   borders, gentle green accents, familiar boxed inputs and
-   conventional tabs. Dim mode = soft dark green.
+   tokens.css — design tokens (design proposal: "Crisp
+   Alabaster + Deep Pine Spine + Emerald Accent").
+   Three families: Plus Jakarta Sans (display), Public Sans
+   (body/UI), JetBrains Mono (numerals). White surfaces on a
+   crisp alabaster page, hairline rules, emerald accent, and a
+   deep-pine left navigation spine. Dim mode = deep pine dark.
    ============================================================ */
 
 :root {
-  /* type — a single family keeps the page calm */
-  --font-display: "Hanken Grotesk", system-ui, sans-serif;
-  --font-serif: "Hanken Grotesk", system-ui, sans-serif;
-  --font-mono: "Hanken Grotesk", system-ui, sans-serif;
+  /* type — display / body / numerals */
+  --font-display: "Plus Jakarta Sans", system-ui, -apple-system, sans-serif;
+  --font-serif: "Public Sans", system-ui, -apple-system, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
 
-  --text-xs: 13px;
-  --text-sm: 15px;
-  --text-base: 17px;
-  --text-lg: 20px;
-  --text-xl: 23px;
-  --text-2xl: 28px;
-  --leading-tight: 1.3;
-  --leading-normal: 1.55;
+  --text-xs: 12px;
+  --text-sm: 13px;
+  --text-base: 14.5px;
+  --text-lg: 16.5px;
+  --text-xl: 20px;
+  --text-2xl: 22px;
+  --leading-tight: 1.25;
+  --leading-normal: 1.5;
   --label-tracking: 0.02em;
 
-  /* palette — light (pale green page, white panels) */
-  --paper: #f4f9f0;
-  --paper-2: #e8f2e0;
+  /* palette — light (crisp alabaster page, white surfaces) */
+  --paper: #f7f8f6;
+  --paper-2: #f2f4f0;
   --surface: #ffffff;
-  --rule: #d9e5d1;
-  --rule-strong: #b7c9ad;
-  --ink: #000000;
-  --ink-2: #161d18;
-  --ink-3: #2e3a31;
-  --brand: #3a7d54;         /* calm green — primary buttons, active states */
-  --brand-hover: #336e4a;
-  --accent: #3a7d54;        /* green — ticks / submitted / focus */
-  --accent-ink: #2f6644;
-  --accent-soft: #e3f0dc;
-  --draft: #94a898;         /* hatch fill of in-progress segments */
-  --ok: #3a7d54;
-  --warn: #a06a25;
-  --danger: #b35040;
-  --warn-soft: #fdf3e3;
-  --danger-soft: #fbeae6;
-  --focus-ring: #3a7d54;
+  --surface-hover: #f5f7f3;
+  --rule: #e3e7df;
+  --rule-strong: #c7cfc2;
+  --ink: #111813;
+  --ink-2: #3d4a40;
+  --ink-3: #667569;
+  --brand: #1b6b42;         /* emerald — primary buttons, active states */
+  --brand-hover: #155635;
+  --accent: #1b6b42;        /* emerald — ticks / submitted / focus */
+  --accent-ink: #145232;
+  --accent-soft: #e7f3ec;
+  --draft: #8ea596;         /* hatch fill of in-progress segments */
+  --ok: #1b6b42;
+  --warn: #b45309;
+  --danger: #b91c1c;
+  --warn-soft: #fef3c7;
+  --danger-soft: #fee2e2;
+  --focus-ring: #1b6b42;
   /* placeholder text: readable, but never mistaken for a typed value */
-  --placeholder: #6f7e74;
+  --placeholder: #8a978d;
+
+  /* the deep-pine navigation spine */
+  --spine: #13251b;
+  --spine-hover: #1d3527;
+  --spine-active: #244231;
+  --spine-text: #dce6df;
+  --spine-muted: #8ea596;
 
   /* elevation — barely-there, just enough to separate floats */
-  --shadow-card: 0 1px 2px rgba(31, 43, 34, 0.04);
+  --shadow-card: 0 1px 2px rgba(17, 24, 19, 0.04);
   --shadow-raised: none;
-  --shadow-pop: 0 8px 24px rgba(31, 43, 34, 0.14);
+  --shadow-pop: 0 10px 30px rgba(17, 24, 19, 0.16);
 
   /* space */
   --space-1: 4px;
@@ -61,15 +70,16 @@
   --space-7: 32px;
   --space-8: 48px;
 
-  /* shape — gently rounded, nothing sharp or bubbly */
-  --radius: 6px;
-  --radius-lg: 8px;
+  /* shape — soft corners, nothing sharp or bubbly */
+  --radius-sm: 5px;
+  --radius: 8px;
+  --radius-lg: 10px;
 
   /* motion */
   --dur-fast: 120ms;
-  --dur: 200ms;
-  --dur-slow: 400ms;
-  --ease: cubic-bezier(0.2, 0, 0, 1);
+  --dur: 160ms;
+  --dur-slow: 320ms;
+  --ease: cubic-bezier(0.16, 1, 0.3, 1);
 
   /* layers */
   --z-nav: 10;
@@ -77,40 +87,48 @@
   --z-modal: 50;
   --z-toast: 60;
 
-  /* layout */
-  --header-h: 60px;
+  /* layout — the chrome is a LEFT spine, so there is no top
+     header offset to clear (sticky elements pin to 0) */
+  --header-h: 0px;
   --header-offset: var(--header-h);
-  --layout-max: 1680px;
+  --layout-max: none;
 
   color-scheme: light;
 }
 
-/* dim — soft dark green */
+/* dim — deep pine dark */
 [data-theme="dim"] {
-  --paper: #141a15;
-  --paper-2: #1d2620;
-  --surface: #1a231c;
-  --rule: #2c382e;
-  --rule-strong: #435648;
-  --ink: #e6ece7;
-  --ink-2: #b5c2b8;
-  --ink-3: #8ba093;
-  --brand: #7ab88f;
-  --brand-hover: #8ac29e;
-  --accent: #7ab88f;
-  --accent-ink: #93c9a6;
-  --accent-soft: #24382b;
-  --draft: #8ba093;
-  --ok: #7ab88f;
-  --warn: #d9a253;
-  --danger: #e08a78;
-  --warn-soft: #33291a;
-  --danger-soft: #33201c;
-  --focus-ring: #7ab88f;
-  --placeholder: #7f9187;
+  --paper: #0e1310;
+  --paper-2: #1b241f;
+  --surface: #151c18;
+  --surface-hover: #1f2923;
+  --rule: #26312a;
+  --rule-strong: #39483f;
+  --ink: #eaf0eb;
+  --ink-2: #b8c6bc;
+  --ink-3: #839589;
+  --brand: #63b888;
+  --brand-hover: #77c799;
+  --accent: #63b888;
+  --accent-ink: #8dd3aa;
+  --accent-soft: #1a2f23;
+  --draft: #7c9184;
+  --ok: #63b888;
+  --warn: #f59e0b;
+  --danger: #f87171;
+  --warn-soft: #2e2412;
+  --danger-soft: #311919;
+  --focus-ring: #63b888;
+  --placeholder: #7c9184;
+
+  --spine: #0a0f0c;
+  --spine-hover: #141e18;
+  --spine-active: #1c2c23;
+  --spine-text: #e3ece6;
+  --spine-muted: #7c9184;
 
   --shadow-card: 0 1px 2px rgba(0, 0, 0, 0.3);
-  --shadow-pop: 0 8px 24px rgba(0, 0, 0, 0.4);
+  --shadow-pop: 0 10px 30px rgba(0, 0, 0, 0.45);
 
   color-scheme: dark;
 }

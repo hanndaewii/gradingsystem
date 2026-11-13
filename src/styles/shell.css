@@ -1,129 +1,192 @@
 /* ============================================================
    shell.css — app chrome (.sh- prefix only, tokens only).
-   The masthead is a floating card: surface background, hairline
-   border and a soft shadow, detached from the sage desk.
+   The proposal's frame: a sticky deep-pine navigation spine on
+   the left (brand, nav, term, theme, account) beside an open
+   alabaster canvas. The login screen is a white card.
    ============================================================ */
 
 .sh-root {
   min-height: 100vh;
-  display: flex;
-  flex-direction: column;
+  display: grid;
+  grid-template-columns: 244px minmax(0, 1fr);
 }
 
-/* ---- masthead (floating card) ---- */
+/* ---- navigation spine (left) ---- */
 
 .sh-header {
   position: sticky;
   top: 0;
+  align-self: start;
+  height: 100vh;
+  overflow-y: auto;
   z-index: var(--z-header);
-  width: 100%;
-  background: var(--surface);
-  border-bottom: 1px solid var(--rule);
+  display: flex;
+  background: var(--spine);
+  color: var(--spine-text);
+  border-right: 1px solid rgba(255, 255, 255, 0.06);
 }
 
 .sh-header__inner {
-  max-width: var(--layout-max);
-  margin: 0 auto;
-  min-height: var(--header-h);
-  padding: 10px var(--space-6);
+  width: 100%;
+  min-width: 0;
   display: flex;
-  align-items: center;
-  gap: var(--space-5);
-  flex-wrap: wrap;
+  flex-direction: column;
+  gap: 22px;
+  padding: 20px 14px;
 }
 
-/* the brand and the role line sit side by side */
+/* the brand and the role badge stack at the top of the spine */
 .sh-brandgroup {
   display: flex;
-  align-items: center;
-  gap: var(--space-3);
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-2);
   min-width: 0;
 }
 
+/* emerald monogram tile, per the proposal */
 .sh-brand {
   display: flex;
   align-items: center;
-  gap: var(--space-3);
+  gap: 10px;
   min-width: 0;
+  padding: 4px 8px;
   text-decoration: none;
 }
 
-/* square monogram tile, like the reference */
 .sh-brand::before {
   content: "FP";
   flex: none;
   width: 30px;
   height: 30px;
+  border-radius: 7px;
   display: grid;
   place-items: center;
-  background: var(--brand);
-  color: var(--paper);
+  background: var(--accent);
+  color: #ffffff;
   font-family: var(--font-display);
-  font-size: var(--text-xs);
-  font-weight: 800;
+  font-size: 12px;
+  font-weight: 700;
   letter-spacing: 0.06em;
 }
 
-.sh-brand__title {
-  font-family: var(--font-serif);
-  font-size: 16px;
-  font-weight: 600;
-  letter-spacing: 0;
-  line-height: var(--leading-tight);
-  color: var(--ink);
-  white-space: nowrap;
+[data-theme="dim"] .sh-brand::before {
+  color: #0a140e;
 }
 
-/* the role line: a small badge, so it never reads as a link */
+.sh-brand__title {
+  min-width: 0;
+  font-family: var(--font-display);
+  font-size: 13.5px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  line-height: var(--leading-tight);
+  color: #ffffff;
+}
+
+/* the role line: a quiet badge on the dark spine */
 .sh-brand__role {
-  color: var(--ink-2);
-  background: var(--paper-2);
-  border: 1px solid var(--rule);
+  margin-left: 8px;
+  color: var(--spine-muted);
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.14);
   border-radius: 999px;
   padding: 2px 10px;
+  font-size: 11.5px;
   white-space: nowrap;
 }
 
 .sh-nav {
   display: flex;
-  align-items: center;
-  gap: var(--space-4);
+  flex-direction: column;
+  gap: 4px;
 }
 
 .sh-nav__link {
-  font-family: var(--font-serif);
-  font-size: var(--text-base);
-  color: var(--ink-3);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 8px 10px;
+  border-radius: var(--radius-sm);
+  font-family: var(--font-display);
+  font-size: 13.5px;
+  font-weight: 500;
+  color: var(--spine-text);
   text-decoration: none;
-  padding: var(--space-1) 0;
+  transition: background var(--dur) var(--ease);
 }
 
 .sh-nav__link:hover {
-  color: var(--ink);
-  text-decoration: underline;
-  text-underline-offset: 4px;
+  background: var(--spine-hover);
+  color: #ffffff;
+  text-decoration: none;
 }
 
-/* the page you are on: darker, bolder and underlined in the brand colour */
+/* the page you are on: a lighter pine tile, bold and white (the underline
+   stays — it is the long-standing current-page signal tests pin) */
 .sh-nav__link[aria-current="page"] {
-  color: var(--ink);
+  background: var(--spine-active);
+  color: #ffffff;
   font-weight: 600;
   text-decoration: underline;
-  text-decoration-thickness: 2px;
-  text-underline-offset: 5px;
-  text-decoration-color: var(--brand);
+  text-decoration-thickness: 1.5px;
+  text-underline-offset: 3px;
+  text-decoration-color: rgba(255, 255, 255, 0.55);
 }
 
+/* term + theme + account: pinned to the bottom of the spine */
 .sh-header__end {
-  margin-left: auto;
+  margin-top: auto;
   display: flex;
-  align-items: center;
+  flex-direction: column;
+  align-items: stretch;
   gap: var(--space-2);
+  padding-top: var(--space-4);
+  border-top: 1px solid rgba(255, 255, 255, 0.09);
+}
+
+.sh-header__end .ui-select {
+  width: 100%;
+  height: 34px;
+  min-height: 34px;
+  padding: 0 10px;
+  border-radius: var(--radius-sm);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--spine-text);
+  font-size: 12.5px;
+  cursor: pointer;
+}
+
+.sh-header__end .ui-select option {
+  background: var(--surface);
+  color: var(--ink);
+}
+
+.sh-header__end .ui-btn {
+  width: 100%;
+  justify-content: flex-start;
+  min-height: 34px;
+  height: 34px;
+  padding: 0 10px;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--spine-text);
+  font-family: var(--font-display);
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.sh-header__end .ui-btn:hover:not(:disabled) {
+  background: var(--spine-hover);
+  color: #ffffff;
 }
 
 /* Native button (ui Button doesn't forward aria-pressed) reusing the
    ghost primitive's classes; the glyph line-height is adjusted and the
-   target is big enough to hit comfortably. */
+   target is big enough to hit comfortably (pinned: ≥36×36). */
 .sh-theme-toggle {
   line-height: 1;
   min-width: 38px;
@@ -131,14 +194,20 @@
   justify-content: center;
 }
 
-/* ---- content column ---- */
+/* the full-width stack rule above must not shrink the toggle */
+.sh-header__end .sh-theme-toggle {
+  height: auto;
+  min-height: 38px;
+}
+
+/* ---- content canvas ---- */
 
 .sh-main {
-  flex: 1;
+  min-width: 0;
   width: 100%;
-  max-width: var(--layout-max);
-  margin: 0 auto;
-  padding: var(--space-6) var(--space-6) var(--space-8);
+  max-width: none;
+  margin: 0;
+  padding: 22px 28px 48px;
 }
 
 /* ---- full-page loading (session restore — no login flash) ---- */
@@ -159,11 +228,11 @@
 
 .sh-login__card {
   width: min(480px, 100%);
-  background: transparent;
-  border: none;
-  border-radius: 0;
-  box-shadow: none;
-  padding: 0;
+  background: var(--surface);
+  border: 1px solid var(--rule);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-card);
+  padding: 28px;
 }
 
 .sh-login__head {
@@ -173,11 +242,11 @@
 }
 
 .sh-login__title {
-  font-family: var(--font-serif);
+  font-family: var(--font-display);
   font-size: var(--text-2xl);
   font-weight: 700;
-  letter-spacing: -0.01em;
-  line-height: 1.15;
+  letter-spacing: -0.02em;
+  line-height: 1.2;
 }
 
 .sh-login__sub {
@@ -200,32 +269,36 @@
 
 /* ---- login: mode switch, notices, registration ---- */
 
+/* sign-in / register switch — the proposal's segmented control */
 .sh-login__modes {
   display: flex;
-  gap: var(--space-1);
+  gap: 2px;
   margin-bottom: var(--space-5);
-  padding: 4px;
+  padding: 3px;
   background: var(--paper-2);
   border: 1px solid var(--rule);
+  border-radius: var(--radius);
 }
 
 .sh-login__mode {
   flex: 1 1 0;
   appearance: none;
   border: none;
+  border-radius: var(--radius-sm);
   background: transparent;
   color: var(--ink-2);
-  font-family: var(--font-serif);
+  font-family: var(--font-display);
   font-size: var(--text-sm);
-  font-weight: 600;
-  padding: 8px 10px;
+  font-weight: 500;
+  padding: 7px 10px;
   cursor: pointer;
 }
 
 .sh-login__mode.is-active {
   background: var(--surface);
   color: var(--ink);
-  box-shadow: var(--shadow-raised);
+  font-weight: 600;
+  box-shadow: var(--shadow-card);
 }
 
 .sh-login__notice {
@@ -427,15 +500,70 @@
   color: var(--ink);
 }
 
-/* slim the chrome on smaller screens so the grading sheet fits */
-@media (max-width: 1500px) {
-  .sh-main {
-    padding-left: var(--space-4);
-    padding-right: var(--space-4);
+/* the spine collapses to a top bar on narrow screens (proposal) */
+@media (max-width: 1024px) {
+  .sh-root {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .sh-header {
+    position: static;
+    height: auto;
+    overflow-y: visible;
+    border-right: none;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.06);
   }
 
   .sh-header__inner {
-    padding-left: var(--space-4);
-    padding-right: var(--space-4);
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--space-3) var(--space-4);
+    padding: 12px 16px;
+  }
+
+  .sh-brandgroup {
+    flex-direction: row;
+    align-items: center;
+    gap: var(--space-3);
+  }
+
+  .sh-brand__role {
+    margin-left: 0;
+  }
+
+  .sh-nav {
+    flex-direction: row;
+    flex-wrap: wrap;
+    gap: var(--space-1);
+  }
+
+  .sh-header__end {
+    margin-top: 0;
+    margin-left: auto;
+    flex-direction: row;
+    align-items: center;
+    padding-top: 0;
+    border-top: none;
+  }
+
+  .sh-header__end .ui-select {
+    width: auto;
+    min-width: 150px;
+  }
+
+  .sh-header__end .ui-btn {
+    width: auto;
+  }
+}
+
+/* slim the chrome on smaller screens so the grading sheet fits */
+@media (max-width: 640px) {
+  .sh-main {
+    padding: var(--space-4) var(--space-3) var(--space-8);
+  }
+
+  .sh-header__inner {
+    padding: 10px var(--space-3);
   }
 }

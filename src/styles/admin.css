@@ -256,7 +256,7 @@
   color: var(--ink-3);
 }
 
-/* the main action of the row: a small outlined green button */
+/* the main action of the row: outlined green, not a bare link (pinned) */
 .adm-table__open {
   display: inline-flex;
   align-items: center;
@@ -265,20 +265,20 @@
   border-radius: var(--radius);
   background: transparent;
   color: var(--brand);
-  font-family: var(--font-serif);
+  font-family: var(--font-display);
   font-size: var(--text-xs);
-  font-weight: 700;
+  font-weight: 600;
   letter-spacing: 0;
   text-transform: none;
   text-decoration: none;
   white-space: nowrap;
-  transition: background-color var(--dur-fast) var(--ease), color var(--dur-fast) var(--ease);
+  transition: background-color var(--dur) var(--ease), border-color var(--dur) var(--ease);
 }
 
 .adm-table__open:hover {
-  background: var(--brand);
-  border-color: var(--brand);
-  color: var(--surface);
+  background: var(--accent-soft);
+  border-color: var(--accent-ink);
+  color: var(--accent-ink);
 }
 
 .adm-table__open:focus-visible {
@@ -310,31 +310,39 @@
   color: var(--ink-2);
 }
 
-/* ---- plain overrides (calm green, easy to read) ---- */
+/* ---- proposal overrides (white topbar band, mono stats) ---- */
 
 .adm-mast {
-  border-bottom: none;
+  background: var(--surface);
+  border: 1px solid var(--rule);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-card);
+  padding: 15px 20px;
   margin-bottom: var(--space-5);
 }
 
 .adm-mast__title {
-  font-family: var(--font-serif);
+  font-family: var(--font-display);
   font-weight: 700;
   font-size: var(--text-2xl);
-  line-height: 1.15;
-  letter-spacing: -0.01em;
+  line-height: 1.2;
+  letter-spacing: -0.02em;
 }
 
 .adm-stats__value {
-  font-family: var(--font-serif);
-  font-weight: 700;
-  font-size: var(--text-lg);
-  line-height: 1.1;
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+  font-size: var(--text-xl);
+  line-height: 1.15;
 }
 
 .adm-table thead th {
-  background: var(--surface);
+  background: var(--paper-2);
+  font-family: var(--font-display);
   font-weight: 600;
+  letter-spacing: 0;
+  text-transform: none;
   color: var(--ink-2);
 }
 
@@ -445,7 +453,8 @@
   gap: var(--space-2) var(--space-4);
   margin-bottom: var(--space-5);
   padding: var(--space-4);
-  border: 1.5px solid var(--brand);
+  border: 1px solid var(--accent);
+  border-radius: var(--radius);
   background: var(--accent-soft);
 }
 

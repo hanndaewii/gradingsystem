@@ -10,13 +10,19 @@ export interface TabItem {
   tick?: boolean;
   disabled?: boolean;
   disabledReason?: string;
+  /** strip variant only: the step's status line (e.g. "Draft"). */
+  status?: ReactNode;
+  /** strip variant only: tone for the status line. */
+  statusTone?: "done" | "draft";
+  /** strip variant only: completion0–100 for the step's progress bar. */
+  bar?: number;
 }
 
 export interface TabsProps {
   items: TabItem[];
   value: string;
   onChange: (key: string) => void;
-  variant?: "underline" | "segmented";
+  variant?: "underline" | "segmented" | "strip";
   ariaLabel: string;
 }
 
@@ -78,9 +84,38 @@ export function Tabs({ items, value, onChange, variant = "underline", ariaLabel 
             }}
             onKeyDown={(e) => onKeyDown(e, i)}
           >
-            {it.tick ? <TickIcon size={11} /> : null}
-            <span className="ui-tab__label">{it.label}</span>
-            {it.badge != null ? <span className="ui-tab__badge num">{it.badge}</span> : null}
+            {variant === "strip" ? (
+              <>
+                <span className="ui-tab__top">
+                  {it.tick ? <TickIcon size={11} /> : null}
+                  <span className="ui-tab__label">{it.label}</span>
+                  {it.status != null ? (
+                    <span
+                      className={cx(
+                        "ui-tab__status",
+                        it.statusTone === "done" && "ui-tab__status--done",
+                        it.statusTone === "draft" && "ui-tab__status--draft",
+                      )}
+                    >
+                      {it.status}
+                    </span>
+                  ) : null}
+                </span>
+                <span className="ui-tab__bar" aria-hidden="true">
+                  <span
+                    className="ui-tab__barfill"
+                    style={{ width: `${Math.max(0, Math.min(100, it.bar ?? 0))}%` }}
+                  />
+                </span>
+                {it.badge != null ? <span className="ui-tab__badge num">{it.badge}</span> : null}
+              </>
+            ) : (
+              <>
+                {it.tick ? <TickIcon size={11} /> : null}
+                <span className="ui-tab__label">{it.label}</span>
+                {it.badge != null ? <span className="ui-tab__badge num">{it.badge}</span> : null}
+              </>
+            )}
           </button>
         );
       })}

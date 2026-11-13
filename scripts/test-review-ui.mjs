@@ -177,8 +177,8 @@ try {
   ok(open?.tag === "A" && open?.text === "Open", `it is a button labelled "Open" (${open?.text})`);
   ok(
     (open?.bg === "rgba(0, 0, 0, 0)" || open?.bg === "transparent") &&
-      open?.color === "rgb(58, 125, 84)" &&
-      open?.border === "rgb(58, 125, 84)" &&
+      open?.color === "rgb(27, 107, 66)" && // proposal emerald #1b6b42
+      open?.border === "rgb(27, 107, 66)" &&
       open?.borderWidth === "1px",
     `it is outlined green, not a bare link (bg ${open?.bg}, text ${open?.color}, border ${open?.border})`,
   );
