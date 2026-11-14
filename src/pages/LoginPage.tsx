@@ -3,8 +3,7 @@
 //             grading ground rules (criteria / periods / workflow), plus the
 //             dim-theme toggle.
 //   • Right — the working card: Sign in / Register tabs, email + password
-//             (the password decides the role — nothing to pick), and, on the
-//             demo backend, the quick-fill demo accounts.
+//             (the password decides the role — nothing to pick).
 //
 // Two modes:
 //   • Sign in    — email + password. The role (Professor / Department
@@ -23,7 +22,7 @@ import { useTerm } from "../context/TermContext";
 import { useTheme } from "../lib/useTheme";
 import { termLabel } from "../lib/format";
 import { api, API_MODE } from "../api";
-import { DEMO_ACCOUNTS, DEMO_REGISTRATION_CODE } from "../data/seed";
+import { DEMO_REGISTRATION_CODE } from "../data/seed";
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -97,13 +96,6 @@ export default function LoginPage(): JSX.Element {
   function enterPortal(): void {
     navigate(next, { replace: true });
     window.location.reload();
-  }
-
-  /** Demo quick-fill — one click puts an account on the form. */
-  function fillDemo(email: string, password: string): void {
-    setEmail(email);
-    setPassword(password);
-    resetMessages();
   }
 
   function handleSubmit(e: FormEvent<HTMLFormElement>): void {
@@ -479,34 +471,6 @@ export default function LoginPage(): JSX.Element {
                 Sign in instead
               </button>
             </p>
-          ) : null}
-
-          {mode === "signin" && API_MODE === "demo" ? (
-            <div className="sh-login__demo">
-              <p className="sh-login__demolabel mono-label">Demo accounts (click to fill)</p>
-              <ul className="sh-login__demolist">
-                {DEMO_ACCOUNTS.map((account) => (
-                  <li key={account.email} className="sh-login__demorow">
-                    <div className="sh-login__demowho">
-                      <span className="sh-login__demoname">
-                        {account.label.replace(" · Admin", "")} ·{" "}
-                        {account.role === "admin" ? "Department Head" : "Faculty"}
-                      </span>
-                      <span className="sh-login__demometa num">
-                        {account.email} · {account.password}
-                      </span>
-                    </div>
-                    <button
-                      type="button"
-                      className="sh-login__demofill"
-                      onClick={() => fillDemo(account.email, account.password)}
-                    >
-                      Fill
-                    </button>
-                  </li>
-                ))}
-              </ul>
-            </div>
           ) : null}
         </form>
         </div>
