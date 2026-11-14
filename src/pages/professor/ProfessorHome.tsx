@@ -111,7 +111,9 @@ export default function ProfessorHome(): JSX.Element {
     const allSubmitted = overviewData.every((row) => row.periods.every((p) => isFinalStatus(p.status)));
     return allSubmitted ? { kind: "done" } : { kind: "stuck" };
   }, [overviewData, queue]);
-  const waiting = useMemo(() => queue.slice(1, 5), [queue]);
+  // "Also waiting" caps at four rows; "+N more waiting" expands to the rest.
+  const [queueExpanded, setQueueExpanded] = useState(false);
+  const waiting = useMemo(() => (queueExpanded ? queue.slice(1) : queue.slice(1, 5)), [queue, queueExpanded]);
   const extraWaiting = Math.max(0, queue.length - 5);
   const heroKey = hero !== null && hero.kind === "grade" ? `${hero.item.sectionId}:${hero.item.period}` : "";
 
@@ -271,7 +273,16 @@ export default function ProfessorHome(): JSX.Element {
                       </span>
                     </Link>
                   ))}
-                  {extraWaiting > 0 ? <p className="prof-hero__more num">+{extraWaiting} more waiting</p> : null}
+                  {extraWaiting > 0 ? (
+                    <button
+                      type="button"
+                      className="prof-hero__more prof-hero__more--toggle num"
+                      aria-expanded={queueExpanded}
+                      onClick={() => setQueueExpanded((v) => !v)}
+                    >
+                      {queueExpanded ? "− Show less" : `+${extraWaiting} more waiting`}
+                    </button>
+                  ) : null}
                 </div>
               ) : null}
             </>
