@@ -65,6 +65,7 @@ export function Header(): JSX.Element {
       <div className="sh-header__inner">
         <div className="sh-brandgroup">
           <Link to="/" className="sh-brand" aria-label="Faculty Grading Portal home">
+            <img className="sh-brand__logo" src="/school-logo.png" alt="" width={30} height={30} />
             <span className="sh-brand__title">Faculty Grading Portal</span>
           </Link>
           <span className="sh-brand__role mono-label">

@@ -229,9 +229,7 @@ export default function LoginPage(): JSX.Element {
       <aside className="sh-login__pine">
         <div className="sh-login__brandrow">
           <span className="sh-login__brand">
-            <span className="sh-login__brandtile" aria-hidden="true">
-              FP
-            </span>
+            <img className="sh-login__brandlogo" src="/school-logo.png" alt="" width={30} height={30} />
             Faculty Grading Portal
           </span>
           <button type="button" className="sh-login__themebtn" onClick={toggle}>

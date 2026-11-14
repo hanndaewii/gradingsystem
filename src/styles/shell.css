@@ -44,7 +44,7 @@
   min-width: 0;
 }
 
-/* emerald monogram tile, per the proposal */
+/* the school seal leads the brand on the pine spine */
 .sh-brand {
   display: flex;
   align-items: center;
@@ -54,24 +54,12 @@
   text-decoration: none;
 }
 
-.sh-brand::before {
-  content: "FP";
+.sh-brand__logo {
   flex: none;
   width: 30px;
   height: 30px;
-  border-radius: 7px;
-  display: grid;
-  place-items: center;
-  background: var(--accent);
-  color: #ffffff;
-  font-family: var(--font-display);
-  font-size: 12px;
-  font-weight: 700;
-  letter-spacing: 0.06em;
-}
-
-[data-theme="dim"] .sh-brand::before {
-  color: #0a140e;
+  border-radius: 50%;
+  background: #ffffff;
 }
 
 .sh-brand__title {
@@ -254,23 +242,12 @@
   color: #ffffff;
 }
 
-.sh-login__brandtile {
+.sh-login__brandlogo {
   flex: none;
   width: 30px;
   height: 30px;
-  border-radius: 7px;
-  display: grid;
-  place-items: center;
-  background: var(--accent);
-  color: #ffffff;
-  font-family: var(--font-display);
-  font-size: 12px;
-  font-weight: 700;
-  letter-spacing: 0.06em;
-}
-
-[data-theme="dim"] .sh-login__brandtile {
-  color: #0a140e;
+  border-radius: 50%;
+  background: #ffffff;
 }
 
 .sh-login__themebtn {
