@@ -38,6 +38,7 @@ import { HistoryWidget } from "../../components/section/HistoryWidget";
 import { CommentsThread } from "../../components/section/CommentsThread";
 import { Celebration, createChime } from "../../components/section/Celebration";
 import type { CelebrationVariant } from "../../components/section/Celebration";
+import { SectionStrip } from "../../components/section/SectionStrip";
 import { uid } from "../../lib/id";
 import "../../styles/section.css";
 
@@ -788,6 +789,10 @@ export default function SectionPage(): JSX.Element {
 
   return (
     <div className="sec-page">
+      {/* The fast way across the term's sections — chips carry the current
+          view and period. Raw params (not the computed period) so a section
+          without one keeps its own D2 default. */}
+      <SectionStrip currentSectionId={sectionId} view={searchParams.get("view")} period={searchParams.get("period")} />
       <header className="sec-header">
         <div className="sec-header__main">
           <div>

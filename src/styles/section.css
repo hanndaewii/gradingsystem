@@ -2185,3 +2185,109 @@
   margin: var(--space-2) 0;
   padding-left: var(--space-5);
 }
+
+/* ---- section strip (the carousel of sections above the header) ---- */
+
+.sec-strip {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
+.sec-strip__arrow {
+  flex: none;
+  width: 26px;
+  height: 26px;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  border: 1px solid var(--rule);
+  border-radius: 999px;
+  background: var(--surface);
+  color: var(--ink-2);
+  font-size: 10px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.sec-strip__arrow:hover:enabled {
+  border-color: var(--ink-3);
+  color: var(--ink);
+}
+
+.sec-strip__arrow:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+
+.sec-strip__track {
+  display: flex;
+  gap: 6px;
+  min-width: 0;
+  overflow-x: auto;
+  /* proximity: snap only near a chip edge, so a slide never fights the
+     smooth scroll halfway across the row */
+  scroll-snap-type: x proximity;
+  /* the arrows + native scroll own overflow — no scrollbar gutter */
+  scrollbar-width: none;
+  /* room for focus rings without clipping */
+  padding: 2px;
+}
+
+.sec-strip__track::-webkit-scrollbar {
+  display: none;
+}
+
+.sec-strip__chip {
+  flex: none;
+  scroll-snap-align: center;
+  display: inline-flex;
+  align-items: baseline;
+  gap: 5px;
+  white-space: nowrap;
+  border: 1px solid var(--rule);
+  border-radius: 999px;
+  padding: 4px 11px;
+  background: var(--surface);
+  color: var(--ink-2);
+  font-size: var(--text-xs);
+  text-decoration: none;
+  transition:
+    border-color 120ms ease,
+    background-color 120ms ease,
+    color 120ms ease;
+}
+
+.sec-strip__chip:hover {
+  border-color: var(--ink-3);
+  color: var(--ink);
+}
+
+.sec-strip__code {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.02em;
+}
+
+.sec-strip__dot {
+  color: var(--ink-3);
+}
+
+.sec-strip__chip--active {
+  background: var(--accent-soft);
+  border-color: var(--accent);
+  color: var(--accent-ink);
+  font-weight: 600;
+}
+
+.sec-strip__chip--active .sec-strip__dot {
+  color: inherit;
+  opacity: 0.7;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sec-strip__chip {
+    transition: none;
+  }
+}
