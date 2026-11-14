@@ -67,8 +67,10 @@ function AppRoutes(): JSX.Element {
   return (
     <ErrorBoundary>
       <Routes>
+        {/* The front door is a full-bleed split page — it carries its own
+            brand panel, so it lives outside the app shell. */}
+        <Route path="/login" element={<LoginPage />} />
         <Route element={<AppShell />}>
-          <Route path="/login" element={<LoginPage />} />
           <Route element={<RequireAuth />}>
             <Route path="/" element={<RoleHome />} />
             <Route element={<RequireProfessor />}>

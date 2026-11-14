@@ -218,21 +218,307 @@
   place-items: center;
 }
 
-/* ---- login ---- */
+/* ---- login: a full-bleed split page (pine pitch | working card) ---- */
 
 .sh-login {
-  min-height: calc(100vh - var(--header-h) - var(--space-8));
+  min-height: 100vh;
+  display: grid;
+  grid-template-columns: minmax(400px, 44%) minmax(0, 1fr);
+}
+
+/* left: the deep-pine brand panel */
+.sh-login__pine {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-6);
+  padding: 26px 42px 30px;
+  background: var(--spine);
+  color: var(--spine-text);
+  border-right: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.sh-login__brandrow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+
+.sh-login__brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  font-family: var(--font-display);
+  font-size: 13.5px;
+  font-weight: 700;
+  color: #ffffff;
+}
+
+.sh-login__brandtile {
+  flex: none;
+  width: 30px;
+  height: 30px;
+  border-radius: 7px;
   display: grid;
   place-items: center;
+  background: var(--accent);
+  color: #ffffff;
+  font-family: var(--font-display);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+}
+
+[data-theme="dim"] .sh-login__brandtile {
+  color: #0a140e;
+}
+
+.sh-login__themebtn {
+  appearance: none;
+  cursor: pointer;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--spine-text);
+  font-family: var(--font-display);
+  font-size: 12.5px;
+  padding: 6px 12px;
+  border-radius: var(--radius-sm);
+  transition: background var(--dur) var(--ease);
+}
+
+.sh-login__themebtn:hover {
+  background: var(--spine-hover);
+  color: #ffffff;
+}
+
+.sh-login__hero {
+  margin: auto 0;
+  display: grid;
+  gap: var(--space-4);
+  max-width: 46ch;
+}
+
+.sh-login__eyebrow {
+  margin: 0;
+  color: var(--spine-muted);
+  letter-spacing: 0.14em;
+}
+
+.sh-login__headline {
+  margin: 0;
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: clamp(28px, 2.9vw, 40px);
+  line-height: 1.14;
+  letter-spacing: -0.02em;
+  color: #ffffff;
+}
+
+.sh-login__lede {
+  margin: 0;
+  color: var(--spine-muted);
+  font-size: 15px;
+  line-height: 1.6;
+}
+
+/* the ground rules at the foot of the panel */
+.sh-login__specs {
+  display: grid;
+  margin: 0;
+}
+
+.sh-login__spec {
+  display: grid;
+  grid-template-columns: 92px minmax(0, 1fr);
+  gap: var(--space-4);
+  padding: 12px 0;
+  border-top: 1px solid rgba(255, 255, 255, 0.09);
+}
+
+.sh-login__spec dt {
+  margin: 0;
+  padding-top: 2px;
+  color: var(--spine-muted);
+  font-size: 11px;
+}
+
+.sh-login__spec dd {
+  margin: 0;
+  color: var(--spine-text);
+  font-size: var(--text-sm);
+}
+
+/* right: the working canvas */
+.sh-login__canvas {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  padding: 22px 34px 16px;
+  background: var(--paper);
+}
+
+.sh-login__topbar {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 24px;
+}
+
+.sh-login__term {
+  color: var(--ink-3);
+  font-size: 12.5px;
+}
+
+.sh-login__preview {
+  position: absolute;
+  right: 0;
+  top: 0;
+  font-family: var(--font-display);
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--brand);
+  text-decoration: none;
+}
+
+.sh-login__preview:hover {
+  color: var(--brand-hover);
+  text-decoration: underline;
+}
+
+.sh-login__cardwrap {
+  margin: auto 0;
+  display: flex;
+  justify-content: center;
+  padding: var(--space-6) 0;
+}
+
+.sh-login__footer {
+  text-align: center;
+  color: var(--ink-3);
+  font-size: var(--text-xs);
+  padding-top: var(--space-2);
 }
 
 .sh-login__card {
-  width: min(480px, 100%);
+  width: min(440px, 100%);
   background: var(--surface);
   border: 1px solid var(--rule);
   border-radius: var(--radius-lg);
   box-shadow: var(--shadow-card);
-  padding: 28px;
+  padding: 24px;
+}
+
+/* demo quick-fill — only on the demo backend */
+.sh-login__demo {
+  border-top: 1px solid var(--rule);
+  padding-top: var(--space-4);
+  display: grid;
+  gap: var(--space-2);
+}
+
+.sh-login__demolabel {
+  margin: 0;
+  color: var(--ink-3);
+  font-size: 11px;
+}
+
+.sh-login__demolist {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 8px;
+}
+
+.sh-login__demorow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  background: var(--paper-2);
+  border: 1px solid var(--rule);
+  border-radius: var(--radius);
+  padding: 10px 12px;
+}
+
+.sh-login__demowho {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.sh-login__demoname {
+  font-family: var(--font-display);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.sh-login__demometa {
+  font-size: 11.5px;
+  color: var(--ink-3);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sh-login__demofill {
+  appearance: none;
+  border: none;
+  background: none;
+  cursor: pointer;
+  flex: none;
+  color: var(--brand);
+  font-family: var(--font-display);
+  font-size: 13px;
+  font-weight: 600;
+  padding: 4px 6px;
+  border-radius: var(--radius-sm);
+}
+
+.sh-login__demofill:hover {
+  color: var(--brand-hover);
+  text-decoration: underline;
+}
+
+@media (max-width: 900px) {
+  .sh-login {
+    grid-template-columns: 1fr;
+  }
+
+  .sh-login__pine {
+    padding: 20px 22px 22px;
+    gap: var(--space-5);
+  }
+
+  .sh-login__hero {
+    max-width: none;
+  }
+
+  .sh-login__headline {
+    font-size: 26px;
+  }
+
+  .sh-login__specs {
+    display: none;
+  }
+
+  .sh-login__canvas {
+    padding: 14px 16px 12px;
+  }
+
+  .sh-login__topbar {
+    justify-content: space-between;
+  }
+
+  .sh-login__preview {
+    position: static;
+  }
+
+  .sh-login__cardwrap {
+    padding: var(--space-5) 0;
+  }
 }
 
 .sh-login__head {
@@ -309,34 +595,7 @@
   padding: var(--space-3);
 }
 
-/* role picker — one email can sign in as a professor or as the head */
-.sh-login__roles {
-  display: flex;
-  gap: var(--space-4);
-  margin: calc(-1 * var(--space-2)) 0 var(--space-5);
-}
-
-.sh-login__role {
-  appearance: none;
-  border: none;
-  background: none;
-  padding: 0 0 4px;
-  color: var(--ink-3);
-  font-family: var(--font-serif);
-  font-size: var(--text-sm);
-  font-weight: 600;
-  cursor: pointer;
-  border-bottom: 2px solid transparent;
-}
-
-.sh-login__role.is-active {
-  color: var(--ink);
-  border-bottom-color: var(--brand);
-}
-
-.sh-login__role:hover {
-  color: var(--ink);
-}
+/* role picker — removed: the password decides the role */
 
 .sh-login__hint {
   font-size: var(--text-sm);

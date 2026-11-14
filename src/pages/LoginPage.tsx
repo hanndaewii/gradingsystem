@@ -1,20 +1,29 @@
-// LoginPage — the portal's front door.
+// LoginPage — the portal's front door, a full-bleed split page:
+//   • Left  — the deep-pine brand panel: eyebrow, the ledger pitch, and the
+//             grading ground rules (criteria / periods / workflow), plus the
+//             dim-theme toggle.
+//   • Right — the working card: Sign in / Register tabs, email + password
+//             (the password decides the role — nothing to pick), and, on the
+//             demo backend, the quick-fill demo accounts.
 //
 // Two modes:
 //   • Sign in    — email + password. The role (Professor / Department
-//                   head) is detected from the password, so there is nothing
-//                   to pick — the right password opens the right door.
+//                  head) is detected from the password, so there is nothing
+//                  to pick — the right password opens the right door.
 //   • Register   — name + department + email → we email a one-time code →
-//                   they set their own password → done. After that they sign
-//                   in with email + password like everyone else.
+//                  they set their own password → done. After that they sign
+//                  in with email + password like everyone else.
 import { useEffect, useState } from "react";
 import type { FormEvent } from "react";
 import { Navigate, useNavigate, useSearchParams } from "react-router-dom";
 import { ApiError } from "../types";
 import { Button, Field, Input, PasswordInput, Spinner } from "../components/ui";
 import { useAuth } from "../context/AuthContext";
+import { useTerm } from "../context/TermContext";
+import { useTheme } from "../lib/useTheme";
+import { termLabel } from "../lib/format";
 import { api, API_MODE } from "../api";
-import { DEMO_REGISTRATION_CODE } from "../data/seed";
+import { DEMO_ACCOUNTS, DEMO_REGISTRATION_CODE } from "../data/seed";
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -25,6 +34,8 @@ export default function LoginPage(): JSX.Element {
   const auth = useAuth();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
+  const { term } = useTerm();
+  const { theme, toggle } = useTheme();
   const [mode, setMode] = useState<Mode>("signin");
   const [regStep, setRegStep] = useState<RegStep>("details");
 
@@ -86,6 +97,13 @@ export default function LoginPage(): JSX.Element {
   function enterPortal(): void {
     navigate(next, { replace: true });
     window.location.reload();
+  }
+
+  /** Demo quick-fill — one click puts an account on the form. */
+  function fillDemo(email: string, password: string): void {
+    setEmail(email);
+    setPassword(password);
+    resetMessages();
   }
 
   function handleSubmit(e: FormEvent<HTMLFormElement>): void {
@@ -216,32 +234,81 @@ export default function LoginPage(): JSX.Element {
 
   return (
     <div className="sh-login">
-      <div className="sh-login__card">
-        <header className="sh-login__head">
-          <h1 className="sh-login__title">{heading}</h1>
-          <p className="sh-login__sub">{subline}</p>
-        </header>
-
-        <div className="sh-login__modes" role="tablist" aria-label="Sign in or register">
-          <button
-            type="button"
-            role="tab"
-            aria-selected={mode === "signin"}
-            className={`sh-login__mode${mode === "signin" ? " is-active" : ""}`}
-            onClick={() => switchMode("signin")}
-          >
-            Sign in
-          </button>
-          <button
-            type="button"
-            role="tab"
-            aria-selected={mode === "register"}
-            className={`sh-login__mode${mode === "register" ? " is-active" : ""}`}
-            onClick={() => switchMode("register")}
-          >
-            Register
+      <aside className="sh-login__pine">
+        <div className="sh-login__brandrow">
+          <span className="sh-login__brand">
+            <span className="sh-login__brandtile" aria-hidden="true">
+              FP
+            </span>
+            Faculty Grading Portal
+          </span>
+          <button type="button" className="sh-login__themebtn" onClick={toggle}>
+            {theme === "dim" ? "Light theme" : "Dim theme"}
           </button>
         </div>
+
+        <div className="sh-login__hero">
+          <p className="sh-login__eyebrow mono-label">Academic gradebook &amp; approval</p>
+          <h1 className="sh-login__headline">Grade sheets, attendance, and department sign&#8209;off in one ledger.</h1>
+          <p className="sh-login__lede">
+            Enter student scores inline, track weighted period standing in real time, and submit
+            completed terms for department review.
+          </p>
+        </div>
+
+        <dl className="sh-login__specs">
+          <div className="sh-login__spec">
+            <dt className="mono-label">Criteria</dt>
+            <dd>Attendance 10% · Recitation 30% · Quizzes 20% · Exam 40%</dd>
+          </div>
+          <div className="sh-login__spec">
+            <dt className="mono-label">Periods</dt>
+            <dd>Prelim · Midterm · Semifinals · Finals (25% each)</dd>
+          </div>
+          <div className="sh-login__spec">
+            <dt className="mono-label">Workflow</dt>
+            <dd>Faculty draft &amp; submission, then Department Head approval</dd>
+          </div>
+        </dl>
+      </aside>
+
+      <section className="sh-login__canvas">
+        <div className="sh-login__topbar">
+          <span className="sh-login__term num">{termLabel(term)}</span>
+          {import.meta.env.DEV ? (
+            <a className="sh-login__preview" href="/kit-preview.html">
+              Open Gradebook preview →
+            </a>
+          ) : null}
+        </div>
+
+        <div className="sh-login__cardwrap">
+          <div className="sh-login__card">
+            <div className="sh-login__modes" role="tablist" aria-label="Sign in or register">
+              <button
+                type="button"
+                role="tab"
+                aria-selected={mode === "signin"}
+                className={`sh-login__mode${mode === "signin" ? " is-active" : ""}`}
+                onClick={() => switchMode("signin")}
+              >
+                Sign in
+              </button>
+              <button
+                type="button"
+                role="tab"
+                aria-selected={mode === "register"}
+                className={`sh-login__mode${mode === "register" ? " is-active" : ""}`}
+                onClick={() => switchMode("register")}
+              >
+                Register
+              </button>
+            </div>
+
+            <header className="sh-login__head">
+              <h2 className="sh-login__title">{heading}</h2>
+              <p className="sh-login__sub">{subline}</p>
+            </header>
 
         <form className="sh-login__form" onSubmit={handleSubmit} noValidate>
           {mode === "register" && regStep === "details" ? (
@@ -413,8 +480,40 @@ export default function LoginPage(): JSX.Element {
               </button>
             </p>
           ) : null}
+
+          {mode === "signin" && API_MODE === "demo" ? (
+            <div className="sh-login__demo">
+              <p className="sh-login__demolabel mono-label">Demo accounts (click to fill)</p>
+              <ul className="sh-login__demolist">
+                {DEMO_ACCOUNTS.map((account) => (
+                  <li key={account.email} className="sh-login__demorow">
+                    <div className="sh-login__demowho">
+                      <span className="sh-login__demoname">
+                        {account.label.replace(" · Admin", "")} ·{" "}
+                        {account.role === "admin" ? "Department Head" : "Faculty"}
+                      </span>
+                      <span className="sh-login__demometa num">
+                        {account.email} · {account.password}
+                      </span>
+                    </div>
+                    <button
+                      type="button"
+                      className="sh-login__demofill"
+                      onClick={() => fillDemo(account.email, account.password)}
+                    >
+                      Fill
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ) : null}
         </form>
+        </div>
       </div>
+
+      <footer className="sh-login__footer">Cavite West Point College · Faculty Grading System</footer>
+    </section>
     </div>
   );
 }
