@@ -741,6 +741,28 @@ export default function SectionPage(): JSX.Element {
     }
   }
 
+  // The official SUMMARY OF GRADES form — same on-demand chunk load.
+  async function handleExportSummary(): Promise<void> {
+    if (course === null || section === null) return;
+    try {
+      const { exportSummaryOfGrades } = await import("../../lib/summarySheet");
+      await exportSummaryOfGrades({
+        course,
+        section,
+        students,
+        assessmentsByPeriod,
+        grades,
+        professorName: auth.profile?.name ?? "",
+      });
+    } catch (err) {
+      toast.push({
+        tone: "danger",
+        title: "Could not export the summary of grades",
+        description: errMessage(err),
+      });
+    }
+  }
+
   if (notFound) {
     return (
       <div className="sec-page">
@@ -888,6 +910,14 @@ export default function SectionPage(): JSX.Element {
                       ) : null}
                       <Button size="sm" variant="secondary" onClick={handleExportClassRecord}>
                         Export .xlsx
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="secondary"
+                        onClick={() => void handleExportSummary()}
+                        title="Download the official Summary of Grades form"
+                      >
+                        Summary .xlsx
                       </Button>
                       {!readOnly ? (
                         <>
