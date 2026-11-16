@@ -69,6 +69,9 @@ function addEquivalentSheet(wb: ExcelJS.Workbook, section: Section): void {
     ws.getRow(r).getCell(2).value = rows[i].grade5;
     ws.getRow(r).getCell(2).numFmt = "0.00";
     ws.getRow(r).getCell(3).value = `${rows[i].minPct}-${upper}%`;
+    for (let c = 1; c <= 3; c++) {
+      ws.getRow(r).getCell(c).font = { name: "Georgia", size: 12, color: { argb: "FF000000" } };
+    }
   }
 }
 
@@ -158,6 +161,23 @@ export function fillSummaryWorkbook(wb: ExcelJS.Workbook, input: SummaryExportIn
   // "Prepared by:" — the name line above "Instructor/ Professor", both pages.
   ws.getRow(53).getCell(1).value = input.professorName;
   ws.getRow(118).getCell(1).value = input.professorName;
+
+  // Solid black type, one size up throughout — the template's theme color
+  // can render grayish, and the paper form reads better a touch larger.
+  // Two passes: cells SHARE style objects in ExcelJS, so reading cell.font
+  // while assigning must never interleave (a shared font would accumulate
+  // the +1 once per cell that references it). Snapshot first, then set
+  // absolute values.
+  const fontTargets: Array<{ cell: ExcelJS.Cell; font: Partial<ExcelJS.Font> & { size: number } }> = [];
+  ws.eachRow((row) => {
+    row.eachCell({ includeEmpty: true }, (cell) => {
+      const size = typeof cell.font?.size === "number" ? cell.font.size : 11;
+      fontTargets.push({ cell, font: { ...cell.font, name: cell.font?.name ?? "Georgia", size: size + 1, color: { argb: "FF000000" } } });
+    });
+  });
+  for (const { cell, font } of fontTargets) {
+    cell.font = font;
+  }
 
   addEquivalentSheet(wb, section);
 }
