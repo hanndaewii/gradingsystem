@@ -131,15 +131,6 @@ export function AttendancePanel({
     return rowMap.get(key) ?? null;
   };
 
-  /** The term each marked date was filed under. */
-  const dayTermMap = useMemo(() => {
-    const map = new Map<string, PeriodId>();
-    for (const r of rows) {
-      if (!map.has(r.sessionDate)) map.set(r.sessionDate, r.period);
-    }
-    return map;
-  }, [rows]);
-
   /** The dates the class did not meet (typhoon, suspension, holiday). */
   const noClassDates = useMemo(() => {
     const set = new Set<string>();
@@ -151,7 +142,12 @@ export function AttendancePanel({
 
   /**
    * The term a class date belongs to: the first term whose window in the
-   * school calendar contains it, else the term its mark was filed under.
+   * school calendar contains it. WITHOUT windows every date belongs to the
+   * sheet you are on — the old "first period the date was marked under"
+   * fallback permanently locked dates out of the other periods' sheets (one
+   * stray mark greyed the date everywhere else), which is exactly why
+   * midterm-to-finals marks stopped recording. The mark's period is the
+   * active tab, never history.
    */
   const ownerOf = useCallback(
     (date: string): PeriodId | null => {
@@ -159,9 +155,9 @@ export function AttendancePanel({
         const w = termDates?.[p];
         if (w?.startDate && w?.endDate && date >= w.startDate && date <= w.endDate) return p;
       }
-      return dayTermMap.get(date) ?? null;
+      return null;
     },
-    [termDates, dayTermMap],
+    [termDates],
   );
 
   const monthDays = useMemo(() => daysInMonth(month.year, month.month), [month]);
