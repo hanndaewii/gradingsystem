@@ -246,18 +246,20 @@ export function AttendancePanel({
     el.select();
   }
 
-  /** After a mark lands, move to the next student in the same day column. */
+  /** After a mark lands, move along the ROW — the next day for the same
+   *  student; at the row's end, the next student's first day. (The old
+   *  column-wise jump made the very next keystroke land on the student
+   *  below — it read as "my mark went to the wrong kid".) */
   function advance(date: string, studentRowId: string): void {
-    const index = students.findIndex((s) => s.id === studentRowId);
-    const next = students[index + 1];
-    if (next) {
-      focusCell(next.id, date);
-      return;
-    }
-    // Last student of the day → the first student of the next day.
     const dayIndex = displayedDays.indexOf(date);
     const nextDay = displayedDays[dayIndex + 1];
-    if (nextDay && students[0]) focusCell(students[0].id, nextDay);
+    if (nextDay) {
+      focusCell(studentRowId, nextDay);
+      return;
+    }
+    const index = students.findIndex((s) => s.id === studentRowId);
+    const next = students[index + 1];
+    if (next && displayedDays[0]) focusCell(next.id, displayedDays[0]);
   }
 
   async function handleType(
