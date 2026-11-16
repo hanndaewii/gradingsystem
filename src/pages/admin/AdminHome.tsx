@@ -1,13 +1,12 @@
 // AdminHome (WO-6) — the department head's read-only home (route "/").
 // Masthead, five-stat StatsRow, AdminFilters and the all-sections
 // SectionsTable for the selected term, all fed by a single
-// api.getTermOverview read through useAsync (reload on term change).
+// cached term-overview read (useTermOverview; reload on term change).
 // No edit affordances anywhere: the admin's only writes in this app are
 // comments (on the section page) and their own profile.
 import { useEffect, useMemo, useState } from "react";
-import { api } from "../../api";
 import { termLabel } from "../../lib/format";
-import { useAsync } from "../../lib/useAsync";
+import { useTermOverview } from "../../lib/useTermOverview";
 import { useTerm } from "../../context/TermContext";
 import { Button, EmptyState, Panel, Spinner } from "../../components/ui";
 import { StatsRow } from "../../components/admin/StatsRow";
@@ -18,10 +17,7 @@ import "../../styles/admin.css";
 
 export default function AdminHome(): JSX.Element {
   const { term } = useTerm();
-  const { data, loading, error, reload } = useAsync(
-    () => api.getTermOverview(term),
-    [term.academicYear, term.semester],
-  );
+  const { data, loading, error, reload } = useTermOverview(term);
 
   // Filters are local state only; a term change invalidates any selection.
   const [filters, setFilters] = useState<AdminFilterState>(EMPTY_FILTERS);

@@ -10,9 +10,8 @@
 // sections — with nothing to switch to the row is only noise.
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
-import { api } from "../../api";
-import { useAsync } from "../../lib/useAsync";
 import { useTerm } from "../../context/TermContext";
+import { useTermOverview } from "../../lib/useTermOverview";
 
 export interface SectionStripProps {
   /** The section on screen — its chip is filled emerald. */
@@ -28,7 +27,7 @@ const prefersReducedMotion = (): boolean =>
 
 export function SectionStrip({ currentSectionId, view, period }: SectionStripProps): JSX.Element | null {
   const { term } = useTerm();
-  const overviewQ = useAsync(() => api.getTermOverview(term), [term]);
+  const overviewQ = useTermOverview(term);
   // Stable identity — a fresh array here would make the effect below (and
   // with it the whole page) re-render forever.
   const items = useMemo(

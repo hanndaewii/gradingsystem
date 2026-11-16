@@ -9,22 +9,13 @@ import { buildPeriodProgress } from "../../lib/grades";
 import { PERIODS } from "../../types";
 import type {
   Assessment, Comment, Course, Grade, HistoryEntry, PeriodId, PeriodProgress,
-  PeriodState, Section, Student,
+  PeriodState, SectionBundleData, Section, Student,
 } from "../../types";
 
 /** Query-state views of the section page (D2). */
 export type SectionView = "gradebook" | "attendance" | "summary" | "history" | "discussion";
 
-export interface SectionBundle {
-  section: Section;
-  course: Course;
-  students: Student[];
-  assessmentsByPeriod: Record<PeriodId, Assessment[]>;
-  grades: Grade[];
-  progress: PeriodProgress[];
-  history: HistoryEntry[];
-  comments: Comment[];
-}
+export type SectionBundle = SectionBundleData;
 
 /** Human text for any thrown value (ApiError.message included). */
 export function errMessage(err: unknown): string {
@@ -32,32 +23,9 @@ export function errMessage(err: unknown): string {
 }
 
 async function loadBundle(sectionId: string): Promise<SectionBundle | null> {
-  const section = await api.getSection(sectionId);
-  if (!section) return null; // unknown id OR foreign section (api scopes reads)
-  const course = await api.getCourse(section.courseId);
-  if (!course) return null;
-  const [prelim, midterm, semifinals, finals, students, grades, progress, history, comments] =
-    await Promise.all([
-      api.listAssessments(sectionId, "prelim"),
-      api.listAssessments(sectionId, "midterm"),
-      api.listAssessments(sectionId, "semifinals"),
-      api.listAssessments(sectionId, "finals"),
-      api.listStudents(sectionId),
-      api.listGrades(sectionId),
-      api.getSectionProgress(sectionId),
-      api.listHistory(sectionId),
-      api.listComments(sectionId),
-    ]);
-  return {
-    section,
-    course,
-    students,
-    assessmentsByPeriod: { prelim, midterm, semifinals, finals },
-    grades,
-    progress,
-    history,
-    comments,
-  };
+  // One round trip through the section-bundle RPC (a null is an unknown id
+  // OR a section the caller may not read — the api scopes reads).
+  return api.getSectionBundle(sectionId);
 }
 
 /** Period states recovered from the loaded progress rows. */

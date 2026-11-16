@@ -114,6 +114,18 @@ export interface SectionOverview {
   periods: PeriodProgress[]; classAverage: number | null; lastSubmitAt: string | null;
 }
 
+/** Everything a section page renders — the payload of Api.getSectionBundle. */
+export interface SectionBundleData {
+  section: Section;
+  course: Course;
+  students: Student[];
+  assessmentsByPeriod: Record<PeriodId, Assessment[]>;
+  grades: Grade[];
+  progress: PeriodProgress[];
+  history: HistoryEntry[];
+  comments: Comment[];
+}
+
 export interface DeleteImpact { sections: number; students: number; grades: number }
 
 export interface HistoryEntry {
@@ -208,6 +220,9 @@ export interface Api {
   getCourse(id: string): Promise<Course | null>;
   listSections(courseId: string): Promise<Section[]>;
   getSection(id: string): Promise<Section | null>;
+  /** Everything a section page renders, in one round trip. null = unknown
+   *  id or a section the caller may not read. */
+  getSectionBundle(sectionId: string): Promise<SectionBundleData | null>;
   listAssessments(sectionId: string, period: PeriodId): Promise<Assessment[]>;
   listStudents(sectionId: string): Promise<Student[]>;
   listGrades(sectionId: string): Promise<Grade[]>;

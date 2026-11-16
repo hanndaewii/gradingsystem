@@ -479,6 +479,32 @@ export function createLocalApi(): Api {
       return found ? found.section : null;
     },
 
+    /** The demo backend has no latency problem to solve — this just assembles
+     *  the same bundle shape from its own reads so the interface matches. */
+    async getSectionBundle(sectionId) {
+      const section = await api.getSection(sectionId);
+      if (!section) return null;
+      const course = await api.getCourse(section.courseId);
+      if (!course) return null;
+      const [prelim, midterm, semifinals, finals, students, grades, progress, history, comments] =
+        await Promise.all([
+          api.listAssessments(sectionId, "prelim"),
+          api.listAssessments(sectionId, "midterm"),
+          api.listAssessments(sectionId, "semifinals"),
+          api.listAssessments(sectionId, "finals"),
+          api.listStudents(sectionId),
+          api.listGrades(sectionId),
+          api.getSectionProgress(sectionId),
+          api.listHistory(sectionId),
+          api.listComments(sectionId),
+        ]);
+      return {
+        section, course, students,
+        assessmentsByPeriod: { prelim, midterm, semifinals, finals },
+        grades, progress, history, comments,
+      };
+    },
+
     async listAssessments(sectionId, period) {
       await delay(LATENCY_MS);
       if (!readableSection(sectionId)) return [];

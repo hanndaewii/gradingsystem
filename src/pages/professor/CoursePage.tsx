@@ -11,6 +11,7 @@ import { useAuth } from "../../context/AuthContext";
 import { useTerm } from "../../context/TermContext";
 import { plural, termLabel } from "../../lib/format";
 import { useAsync } from "../../lib/useAsync";
+import { useTermOverview } from "../../lib/useTermOverview";
 import type { Course, DeleteImpact, Section, SectionOverview } from "../../types";
 import { Button, ConfirmDialog, EmptyState, Spinner, useToast } from "../../components/ui";
 import CourseFormModal from "../../components/courses/CourseFormModal";
@@ -34,14 +35,7 @@ export default function CoursePage(): JSX.Element {
   // directly from another AY still lists its sections (the header term must
   // not blank the list). Falls back to the header term until the course loads.
   const overviewTerm = courseData ?? term;
-  const overviewQ = useAsync(
-    () =>
-      api.getTermOverview({
-        academicYear: overviewTerm.academicYear,
-        semester: overviewTerm.semester,
-      }),
-    [overviewTerm.academicYear, overviewTerm.semester],
-  );
+  const overviewQ = useTermOverview(overviewTerm);
 
   const [createOpen, setCreateOpen] = useState(false);
   const [editCourseOpen, setEditCourseOpen] = useState(false);

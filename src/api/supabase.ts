@@ -24,7 +24,7 @@ import { verifyCredential } from "./adminApi";
 import type {
   Api, Assessment, AttendanceRow, AttendanceStatus, CalendarEvent, Comment, Course, Grade,
   HistoryEntry, PeriodId,
-  PeriodProgress, PeriodState, Profile, ScaleRow, Section, SectionOverview,
+  PeriodProgress, PeriodState, Profile, ScaleRow, Section, SectionBundleData, SectionOverview,
   Student, Term, TermDateMove, TermDates,
 } from "../types";
 import { buildPeriodProgress, classAveragePct, isFinalStatus, isPeriodEditable } from "../lib/grades";
@@ -239,6 +239,101 @@ function groupBy<K, V>(pairs: [K, V][]): Map<K, V[]> {
   return m;
 }
 
+// ── one-round-trip bundles (RPC) ────────────────────────────────────────────
+// faculty_section_bundle / faculty_term_overview return raw snake_case rows;
+// the same mappers the per-query path uses turn them into app shapes.
+
+interface SectionBundleRpc {
+  section: SectionRow | null;
+  course: CourseRow | null;
+  term: { academic_year: string; semester: number } | null;
+  periods: (PeriodRow & { section_id: string })[];
+  assessments: (AssessmentRow & { period: string })[];
+  students: StudentRow[];
+  grades: GradeRow[];
+  history: HistoryRow[];
+  comments: CommentRow[];
+}
+
+interface TermOverviewRpc {
+  term: TermRow;
+  courses: CourseRow[];
+  profiles: { id: string; name: string }[];
+  sections: SectionRow[];
+  students: StudentRow[];
+  assessments: (AssessmentRow & { period: string })[];
+  grades: GradeRow[];
+  periods: (PeriodRow & { section_id: string })[];
+}
+
+/** PostgREST says PGRST202 when the RPC migration is not applied yet. */
+function isMissingFunction(err: unknown): boolean {
+  if ((err as { code?: string }).code === "PGRST202") return true;
+  const msg = err instanceof Error ? err.message : String(err);
+  return msg.includes("Could not find the function");
+}
+
+/** The term overview from pre-fetched rows — both the RPC path and the
+ *  legacy sequential path funnel through here, so they cannot drift. */
+function overviewFromRows(raw: TermOverviewRpc): SectionOverview[] {
+  const termInfo: { academicYear: string; semester: 1 | 2 } = {
+    academicYear: raw.term.academic_year, semester: raw.term.semester === 2 ? 2 : 1,
+  };
+  const nameById = new Map(raw.profiles.map((p) => [p.id, p.name]));
+  const studentsBySection = groupBy(raw.students.map((r): [string, Student] => [r.section_id, mapStudent(r)]));
+  const assessmentsBySection = groupBy(
+    raw.assessments.flatMap((r): [string, Assessment][] => {
+      const p = asPeriod(r.period);
+      return p ? [[r.section_id, mapAssessment(r, p)]] : [];
+    }),
+  );
+  const gradesBySection = groupBy(raw.grades.map((r): [string, Grade] => [r.section_id, mapGrade(r)]));
+  const periodRowsBySection = groupBy(raw.periods.map((r): [string, PeriodRow] => [r.section_id, r]));
+  const overview: SectionOverview[] = [];
+  for (const courseRow of raw.courses) {
+    const course = mapCourseRow(courseRow, termInfo);
+    const professorName = nameById.get(courseRow.professor_id) ?? "—";
+    for (const secRow of raw.sections.filter((s) => s.course_id === courseRow.id)) {
+      const section = mapSection(secRow);
+      const students = studentsBySection.get(section.id) ?? [];
+      const assessments = assessmentsBySection.get(section.id) ?? [];
+      const grades = gradesBySection.get(section.id) ?? [];
+      const states = statesFromRows(periodRowsBySection.get(section.id) ?? []);
+      const periodRows = periodRowsBySection.get(section.id) ?? [];
+      const today = new Date().toISOString().slice(0, 10);
+      const periods = PERIODS.map((p) => {
+        const progress = buildPeriodProgress({
+          period: p, students, assessments, grades, state: states[p],
+        });
+        // A period whose school-calendar window has passed and that is
+        // not submitted is late.
+        const window = periodRows.find((r) => r.period === p);
+        const ended = window?.end_date != null && window.end_date < today;
+        return {
+          ...progress,
+          endedAt: window?.end_date ?? null,
+          overdue: ended === true && progress.status !== "submitted",
+        };
+      });
+      const lastSubmitAt = periods.reduce<string | null>(
+        (acc, p) => (p.submittedAt != null && (acc == null || p.submittedAt > acc) ? p.submittedAt : acc),
+        null,
+      );
+      // A class average only means something once a period has actually
+      // been submitted (approved counts — it is further along).
+      const anySubmitted = periods.some((p) => isFinalStatus(p.status));
+      overview.push({
+        section, course, professorName, studentCount: students.length, periods,
+        classAverage: anySubmitted
+          ? classAveragePct({ students, assessments, grades, weights: section.periodWeights })
+          : null,
+        lastSubmitAt,
+      });
+    }
+  }
+  return overview;
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 export function createSupabaseApi(): Api {
   if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
@@ -286,13 +381,23 @@ export function createSupabaseApi(): Api {
   const fetchProfileRow = (id: string): Promise<ProfileRow | null> =>
     single<ProfileRow>(tbl("profiles").select("*", { count: "estimated" }).eq("id", id).maybeSingle(), "Could not load the profile.");
 
+  // The profile never changes mid-session except through updateProfile, so
+  // one fetch per session kills a round trip on EVERY api call.
+  let actorCache: { uid: string; profile: Profile } | null = null;
+
   const actor = async (): Promise<Profile> => {
     const { data } = await supabase.auth.getSession();
     const uid = data.session?.user?.id;
-    if (!uid) throw new ApiError("You are not signed in.", { code: "FORBIDDEN" });
+    if (!uid) {
+      actorCache = null;
+      throw new ApiError("You are not signed in.", { code: "FORBIDDEN" });
+    }
+    if (actorCache && actorCache.uid === uid) return actorCache.profile;
     const row = await fetchProfileRow(uid);
     if (!row) throw new ApiError("No profile for this account.", { code: "FORBIDDEN" });
-    return mapProfile(row);
+    const profile = mapProfile(row);
+    actorCache = { uid, profile };
+    return profile;
   };
 
   // Ownership is by course.professor_id — the department head may also teach,
@@ -417,6 +522,81 @@ export function createSupabaseApi(): Api {
     });
     const states = statesFromRows(periodRows);
     return PERIODS.map((period) => buildPeriodProgress({ period, students, assessments, grades, state: states[period] }));
+  };
+
+  // ── legacy sequential paths ── the fallbacks while the RPC migration is
+  // not applied (isMissingFunction); they must produce identical shapes.
+
+  const termOverviewLegacy = async (term: Term): Promise<SectionOverview[]> => {
+    const termRow = await resolveTermRow(term.academicYear, term.semester);
+    if (!termRow) return [];
+    const courseRows = await list<CourseRow>(
+      tbl("courses").select("*", { count: "estimated" }).eq("term_id", termRow.id).order("code"),
+      "Could not load courses.",
+    );
+    if (courseRows.length === 0) return [];
+    const profIds = [...new Set(courseRows.map((c) => c.professor_id))];
+    const profileRows = await list<{ id: string; name: string }>(
+      tbl("profiles").select("id, name", { count: "estimated" }).in("id", profIds), "Could not load profiles.",
+    );
+    const sectionRows = await list<SectionRow>(
+      tbl("sections").select("*", { count: "estimated" }).in("course_id", courseRows.map((c) => c.id)).order("name"),
+      "Could not load sections.",
+    );
+    const sectionIds = sectionRows.map((s) => s.id);
+    let students: StudentRow[] = [];
+    let assessments: (AssessmentRow & { period: string })[] = [];
+    let grades: GradeRow[] = [];
+    let periods: (PeriodRow & { section_id: string })[] = [];
+    if (sectionIds.length > 0) {
+      const [studentRows, assessmentRows, gradeRows, periodRows] = await Promise.all([
+        list<StudentRow>(tbl("students").select("*", { count: "estimated" }).in("section_id", sectionIds), "Could not load students."),
+        list<AssessmentRow>(tbl("assessments").select("*", { count: "estimated" }).in("section_id", sectionIds), "Could not load assessments."),
+        list<GradeRow>(tbl("grades").select("*", { count: "estimated" }).in("section_id", sectionIds), "Could not load grades."),
+        list<PeriodRow>(
+          tbl("periods")
+            .select("id, section_id, period, status, submitted_at, approved_at, start_date, end_date", { count: "estimated" })
+            .in("section_id", sectionIds),
+          "Could not load period states.",
+        ),
+      ]);
+      const periodTextById = new Map(periodRows.map((r): [string, string] => [r.id, r.period]));
+      students = studentRows;
+      assessments = assessmentRows.flatMap((r) => {
+        const p = periodTextById.get(r.period_id);
+        return p ? [{ ...r, period: p }] : [];
+      });
+      grades = gradeRows;
+      periods = periodRows as (PeriodRow & { section_id: string })[];
+    }
+    return overviewFromRows({
+      term: termRow, courses: courseRows, profiles: profileRows, sections: sectionRows,
+      students, assessments, grades, periods,
+    });
+  };
+
+  const sectionBundleLegacy = async (sectionId: string, user: Profile): Promise<SectionBundleData | null> => {
+    const section = await readableSection(sectionId, user);
+    if (!section) return null;
+    const courseRow = await fetchCourseRow(section.courseId);
+    if (!courseRow) return null;
+    const course = mapCourseRow(courseRow, await termOf(courseRow.term_id));
+    const [prelim, midterm, semifinals, finals, students, grades, progress, history, comments] = await Promise.all([
+      api.listAssessments(sectionId, "prelim"),
+      api.listAssessments(sectionId, "midterm"),
+      api.listAssessments(sectionId, "semifinals"),
+      api.listAssessments(sectionId, "finals"),
+      api.listStudents(sectionId),
+      api.listGrades(sectionId),
+      api.getSectionProgress(sectionId),
+      api.listHistory(sectionId),
+      api.listComments(sectionId),
+    ]);
+    return {
+      section, course, students,
+      assessmentsByPeriod: { prelim, midterm, semifinals, finals },
+      grades, progress, history, comments,
+    };
   };
 
   // ── attendance ────────────────────────────────────────────────────────────
@@ -704,6 +884,7 @@ export function createSupabaseApi(): Api {
     },
 
     async signOut() {
+      actorCache = null;
       await supabase.auth.signOut();
     },
 
@@ -797,7 +978,9 @@ export function createSupabaseApi(): Api {
       const rows = await list<ProfileRow>(tbl("profiles").update(payload).eq("id", id).select("*"), "Could not update the profile.");
       const row = rows[0];
       if (!row) throw new ApiError("You can only edit your own profile.", { code: "FORBIDDEN" });
-      return mapProfile(row);
+      const profile = mapProfile(row);
+      actorCache = { uid: id, profile };   // keep the session cache in step
+      return profile;
     },
 
     // ── reads ────────────────────────────────────────────────────────────────
@@ -845,6 +1028,44 @@ export function createSupabaseApi(): Api {
     async getSection(id) {
       const user = await actor();
       return readableSection(id, user);
+    },
+
+    async getSectionBundle(sectionId) {
+      const user = await actor();
+      try {
+        const { data, error } = await supabase.rpc("faculty_section_bundle", { p_section_id: sectionId });
+        if (error) throw error;
+        const raw = (data ?? null) as SectionBundleRpc | null;
+        if (!raw || !raw.section || !raw.course || !raw.term) return null;
+        const section = mapSection(raw.section);
+        const course = mapCourseRow(raw.course, {
+          academicYear: raw.term.academic_year, semester: raw.term.semester === 2 ? 2 : 1,
+        });
+        const students = raw.students.map(mapStudent);
+        const grades = raw.grades.map(mapGrade);
+        const assessmentsByPeriod: Record<PeriodId, Assessment[]> = {
+          prelim: [], midterm: [], semifinals: [], finals: [],
+        };
+        for (const r of raw.assessments) {
+          const p = asPeriod(r.period);
+          if (p) assessmentsByPeriod[p].push(mapAssessment(r, p));
+        }
+        const assessments = PERIODS.flatMap((p) => assessmentsByPeriod[p]);
+        const states = statesFromRows(raw.periods);
+        const progress = PERIODS.map((period) =>
+          buildPeriodProgress({ period, students, assessments, grades, state: states[period] }),
+        );
+        const history = raw.history.map(mapHistory);
+        const comments = raw.comments.map((r): Comment => ({
+          id: r.id, sectionId: r.section_id, period: asPeriod(r.period),
+          authorId: r.author_id, authorName: r.author?.name ?? "—", body: r.body, at: normTs(r.at),
+        }));
+        return { section, course, students, assessmentsByPeriod, grades, progress, history, comments };
+      } catch (err) {
+        if (!isMissingFunction(err)) throw err;
+        // The migration has not been applied yet — the sequential path still works.
+        return sectionBundleLegacy(sectionId, user);
+      }
     },
 
     async listAssessments(sectionId, period) {
@@ -917,99 +1138,21 @@ export function createSupabaseApi(): Api {
 
     async getTermOverview(term) {
       await actor();
-      const termRow = await resolveTermRow(term.academicYear, term.semester);
-      if (!termRow) return [];
-      const termInfo: { academicYear: string; semester: 1 | 2 } = {
-        academicYear: termRow.academic_year, semester: termRow.semester === 2 ? 2 : 1,
-      };
-      const courseRows = await list<CourseRow>(
-        tbl("courses").select("*", { count: "estimated" }).eq("term_id", termRow.id).order("code"),
-        "Could not load courses.",
-      );
-      if (courseRows.length === 0) return [];
-      const profIds = [...new Set(courseRows.map((c) => c.professor_id))];
-      const profileRows = await list<{ id: string; name: string }>(
-        tbl("profiles").select("id, name", { count: "estimated" }).in("id", profIds), "Could not load profiles.",
-      );
-      const nameById = new Map(profileRows.map((p) => [p.id, p.name]));
-      const sectionRows = await list<SectionRow>(
-        tbl("sections").select("*", { count: "estimated" }).in("course_id", courseRows.map((c) => c.id)).order("name"),
-        "Could not load sections.",
-      );
-      const sectionIds = sectionRows.map((s) => s.id);
-      let studentsBySection = new Map<string, Student[]>();
-      let assessmentsBySection = new Map<string, Assessment[]>();
-      let gradesBySection = new Map<string, Grade[]>();
-      let periodRowsBySection = new Map<string, PeriodRow[]>();
-      if (sectionIds.length > 0) {
-        const [studentRows, assessmentRows, gradeRows, periodRows] = await Promise.all([
-          list<StudentRow>(tbl("students").select("*", { count: "estimated" }).in("section_id", sectionIds), "Could not load students."),
-          list<AssessmentRow>(tbl("assessments").select("*", { count: "estimated" }).in("section_id", sectionIds), "Could not load assessments."),
-          list<GradeRow>(tbl("grades").select("*", { count: "estimated" }).in("section_id", sectionIds), "Could not load grades."),
-          list<PeriodRow>(
-            tbl("periods")
-              .select("id, section_id, period, status, submitted_at, approved_at, start_date, end_date", { count: "estimated" })
-              .in("section_id", sectionIds),
-            "Could not load period states.",
-          ),
-        ]);
-        studentsBySection = groupBy(studentRows.map((r): [string, Student] => [r.section_id, mapStudent(r)]));
-        const periodRowById = new Map(periodRows.map((r): [string, PeriodRow] => [r.id, r]));
-        assessmentsBySection = groupBy(
-          assessmentRows.flatMap((r): [string, Assessment][] => {
-            const pRow = periodRowById.get(r.period_id);
-            const p = pRow ? asPeriod(pRow.period) : null;
-            return p ? [[r.section_id, mapAssessment(r, p)]] : [];
-          }),
-        );
-        gradesBySection = groupBy(gradeRows.map((r): [string, Grade] => [r.section_id, mapGrade(r)]));
-        periodRowsBySection = groupBy(
-          (periodRows as (PeriodRow & { section_id: string })[]).map((r): [string, PeriodRow] => [r.section_id, r]),
-        );
+      try {
+        const { data, error } = await supabase.rpc("faculty_term_overview", {
+          p_academic_year: term.academicYear, p_semester: term.semester,
+        });
+        if (error) throw error;
+        const raw = (data ?? null) as TermOverviewRpc | null;
+        if (!raw || !raw.term) return [];
+        return overviewFromRows({
+          term: raw.term, courses: raw.courses, profiles: raw.profiles, sections: raw.sections,
+          students: raw.students, assessments: raw.assessments, grades: raw.grades, periods: raw.periods,
+        });
+      } catch (err) {
+        if (!isMissingFunction(err)) throw err;
+        return termOverviewLegacy(term);
       }
-      const overview: SectionOverview[] = [];
-      for (const courseRow of courseRows) {
-        const course = mapCourseRow(courseRow, termInfo);
-        const professorName = nameById.get(courseRow.professor_id) ?? "—";
-        for (const secRow of sectionRows.filter((s) => s.course_id === courseRow.id)) {
-          const section = mapSection(secRow);
-          const students = studentsBySection.get(section.id) ?? [];
-          const assessments = assessmentsBySection.get(section.id) ?? [];
-          const grades = gradesBySection.get(section.id) ?? [];
-          const states = statesFromRows(periodRowsBySection.get(section.id) ?? []);
-          const periodRows = periodRowsBySection.get(section.id) ?? [];
-          const today = new Date().toISOString().slice(0, 10);
-          const periods = PERIODS.map((p) => {
-            const progress = buildPeriodProgress({
-              period: p, students, assessments, grades, state: states[p],
-            });
-            // A period whose school-calendar window has passed and that is
-            // not submitted is late.
-            const window = periodRows.find((r) => r.period === p);
-            const ended = window?.end_date != null && window.end_date < today;
-            return {
-              ...progress,
-              endedAt: window?.end_date ?? null,
-              overdue: ended === true && progress.status !== "submitted",
-            };
-          });
-          const lastSubmitAt = periods.reduce<string | null>(
-            (acc, p) => (p.submittedAt != null && (acc == null || p.submittedAt > acc) ? p.submittedAt : acc),
-            null,
-          );
-          // A class average only means something once a period has actually
-          // been submitted (approved counts — it is further along).
-          const anySubmitted = periods.some((p) => isFinalStatus(p.status));
-          overview.push({
-            section, course, professorName, studentCount: students.length, periods,
-            classAverage: anySubmitted
-              ? classAveragePct({ students, assessments, grades, weights: section.periodWeights })
-              : null,
-            lastSubmitAt,
-          });
-        }
-      }
-      return overview;
     },
 
     async getDeleteImpact(kind, id) {

@@ -16,6 +16,7 @@ import { useTerm } from "../../context/TermContext";
 import { isFinalStatus, isPeriodEditable } from "../../lib/grades";
 import { formatDateTime, isWithinLastDays, plural, termLabel } from "../../lib/format";
 import { useAsync } from "../../lib/useAsync";
+import { useTermOverview } from "../../lib/useTermOverview";
 import { PERIOD_LABELS } from "../../types";
 import type { Course, DeleteImpact, PeriodId, PeriodProgress, PeriodState, PeriodStatus, SectionOverview } from "../../types";
 import { Button, ConfirmDialog, EmptyState, Panel, Spinner, useToast } from "../../components/ui";
@@ -89,7 +90,7 @@ export default function ProfessorHome(): JSX.Element {
   const navigate = useNavigate();
 
   const coursesQ = useAsync(() => api.listCourses(term), [term.academicYear, term.semester]);
-  const overviewQ = useAsync(() => api.getTermOverview(term), [term.academicYear, term.semester]);
+  const overviewQ = useTermOverview(term);
 
   const [courseModal, setCourseModal] = useState<{ mode: "create" } | { mode: "edit"; course: Course } | null>(null);
   const [sectionCourse, setSectionCourse] = useState<Course | null>(null);

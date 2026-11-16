@@ -959,3 +959,117 @@ grant execute on function public.faculty_current_role_is_admin() to authenticate
 --                     └─▶ comments
 -- Deleting a course therefore removes every section, student, grade and
 -- history row beneath it — exactly what Api.getDeleteImpact reports.
+
+-- --------------------------------------------------------------------------------
+-- faculty.section_bundle / faculty.term_overview
+--
+-- One round trip per page: every row a section page (or a term overview)
+-- needs, in a single call. SECURITY INVOKER on purpose - the RLS policies
+-- scope every table exactly as the per-query path did (professor: own
+-- courses; admin: read everything), so an unreadable section simply comes
+-- back with a null section and the app shows "not found".
+-- --------------------------------------------------------------------------------
+
+create or replace function public.faculty_section_bundle(p_section_id uuid)
+returns jsonb
+language sql
+stable
+set search_path = public
+as $$
+  select jsonb_build_object(
+    'section',
+    (select to_jsonb(s) from public.faculty_sections s where s.id = p_section_id),
+    'course',
+    (select to_jsonb(c)
+       from public.faculty_courses c
+      where c.id = (select s.course_id from public.faculty_sections s where s.id = p_section_id)),
+    'term',
+    (select to_jsonb(t)
+       from public.faculty_terms t
+      where t.id = (select c.term_id
+                      from public.faculty_sections s
+                      join public.faculty_courses c on c.id = s.course_id
+                     where s.id = p_section_id)),
+    'periods',
+    (select coalesce(jsonb_agg(to_jsonb(p) order by case p.period
+                         when 'prelim' then 1 when 'midterm' then 2
+                         when 'semifinals' then 3 else 4 end), '[]'::jsonb)
+       from public.faculty_periods p
+      where p.section_id = p_section_id),
+    'assessments',
+    (select coalesce(jsonb_agg(to_jsonb(a) || jsonb_build_object('period', p.period)
+                         order by a."order", a.name), '[]'::jsonb)
+       from public.faculty_assessments a
+       join public.faculty_periods p on p.id = a.period_id
+      where a.section_id = p_section_id),
+    'students',
+    (select coalesce(jsonb_agg(to_jsonb(st) order by st.name), '[]'::jsonb)
+       from public.faculty_students st
+      where st.section_id = p_section_id),
+    'grades',
+    (select coalesce(jsonb_agg(to_jsonb(g)), '[]'::jsonb)
+       from public.faculty_grades g
+      where g.section_id = p_section_id),
+    'history',
+    (select coalesce(jsonb_agg(to_jsonb(h) order by h.at desc), '[]'::jsonb)
+       from public.faculty_grade_history h
+      where h.section_id = p_section_id),
+    'comments',
+    (select coalesce(jsonb_agg(jsonb_build_object(
+                 'id', cm.id, 'section_id', cm.section_id, 'period', cm.period,
+                 'author_id', cm.author_id, 'body', cm.body, 'at', cm.at,
+                 'author', jsonb_build_object('name', pr.name))
+                 order by cm.at desc), '[]'::jsonb)
+       from public.faculty_comments cm
+       left join public.faculty_profiles pr on pr.id = cm.author_id
+      where cm.section_id = p_section_id)
+  );
+$$;
+
+revoke execute on function public.faculty_section_bundle(uuid) from public;
+grant execute on function public.faculty_section_bundle(uuid) to authenticated;
+
+create or replace function public.faculty_term_overview(p_academic_year text, p_semester int)
+returns jsonb
+language sql
+stable
+set search_path = public
+as $$
+  with t as (
+    select * from public.faculty_terms
+     where academic_year = p_academic_year and semester = p_semester
+     limit 1
+  ),
+  crs as (
+    select c.* from public.faculty_courses c join t on c.term_id = t.id
+  )
+  select jsonb_build_object(
+    'term',     (select to_jsonb(t) from t),
+    'courses',  (select coalesce(jsonb_agg(to_jsonb(c) order by c.code), '[]'::jsonb) from crs c),
+    'profiles', (select coalesce(jsonb_agg(distinct jsonb_build_object('id', pr.id, 'name', pr.name)), '[]'::jsonb)
+                   from public.faculty_profiles pr
+                   join crs c on c.professor_id = pr.id),
+    'sections', (select coalesce(jsonb_agg(to_jsonb(s) order by s.name), '[]'::jsonb)
+                   from public.faculty_sections s
+                   join crs c on s.course_id = c.id),
+    'students', (select coalesce(jsonb_agg(to_jsonb(st)), '[]'::jsonb)
+                   from public.faculty_students st
+                   join public.faculty_sections s on st.section_id = s.id
+                   join crs c on s.course_id = c.id),
+    'assessments', (select coalesce(jsonb_agg(to_jsonb(a)), '[]'::jsonb)
+                   from public.faculty_assessments a
+                   join public.faculty_sections s on a.section_id = s.id
+                   join crs c on s.course_id = c.id),
+    'grades',   (select coalesce(jsonb_agg(to_jsonb(g)), '[]'::jsonb)
+                   from public.faculty_grades g
+                   join public.faculty_sections s on g.section_id = s.id
+                   join crs c on s.course_id = c.id),
+    'periods',  (select coalesce(jsonb_agg(to_jsonb(p)), '[]'::jsonb)
+                   from public.faculty_periods p
+                   join public.faculty_sections s on p.section_id = s.id
+                   join crs c on s.course_id = c.id)
+  );
+$$;
+
+revoke execute on function public.faculty_term_overview(text, int) from public;
+grant execute on function public.faculty_term_overview(text, int) to authenticated;
