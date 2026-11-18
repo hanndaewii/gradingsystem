@@ -1,12 +1,13 @@
 /* ============================================================
    tokens.css — design tokens.
    Single source of truth: DESIGN-apple.md (the Apple design
-   analysis). One interactive color (Action Blue #0066cc),
-   near-black ink on white/parchment canvases, hairline rules,
+   analysis), themed light green per the faculty portal's brand:
+   one interactive color (Action Green #0e7c42), near-black ink
+   on green-tinted white/parchment canvases, hairline rules,
    pill actions, no shadows on UI chrome. SF Pro via the system
    stack, Inter as the off-Apple substitute. The global nav is
    the only pure black. Dim mode = the dark-tile palette
-   (#272729 family) with Sky Link Blue (#2997ff).
+   (#272729 family) with the literal light green (#4ade80).
    ============================================================ */
 
 :root {
@@ -29,28 +30,28 @@
   --label-tracking: -0.01em;
   --tracking-display: -0.022em;  /* the "Apple tight" headline cadence */
 
-  /* palette — light (white canvas, parchment rhythm) */
-  --paper: #f5f5f7;          /* parchment — the page canvas */
-  --paper-2: #fafafc;        /* pearl — secondary fills, ghost buttons */
+  /* palette — light (green-tinted white canvas, parchment rhythm) */
+  --paper: #f2f7f2;          /* green-tinted parchment — the page canvas */
+  --paper-2: #f6faf6;        /* pearl — secondary fills, ghost buttons */
   --surface: #ffffff;        /* pure white — cards, sheets, inputs */
-  --surface-hover: #fafafc;
-  --rule: #e0e0e0;           /* hairline */
+  --surface-hover: #f6faf6;
+  --rule: #dfe8e0;           /* green-tinted hairline */
   --rule-strong: rgba(0, 0, 0, 0.16);
   --ink: #1d1d1f;            /* near-black ink — every headline, every body */
   --ink-2: #333333;          /* ink muted 80 */
   --ink-3: #7a7a7a;          /* ink muted 48 — captions, disabled, legal */
-  --brand: #0066cc;          /* Action Blue — the single interactive color */
-  --brand-hover: #0055b3;
-  --accent: #0066cc;
-  --accent-ink: #0066cc;
-  --accent-soft: rgba(0, 102, 204, 0.08);
-  --draft: #d2d2d7;          /* hatch fill of in-progress segments */
-  --ok: #0066cc;
+  --brand: #0e7c42;          /* Action Green — the single interactive color */
+  --brand-hover: #0b6335;
+  --accent: #0e7c42;
+  --accent-ink: #0e7c42;
+  --accent-soft: rgba(14, 124, 66, 0.08);
+  --draft: #d8e5da;          /* hatch fill of in-progress segments */
+  --ok: #0e7c42;
   --warn: #b25000;
   --danger: #d70015;
   --warn-soft: #fff7e6;
   --danger-soft: #ffe5e8;
-  --focus-ring: #0071e3;     /* Focus Blue — the keyboard focus ring */
+  --focus-ring: #128a4a;     /* Focus Green — the keyboard focus ring */
   --placeholder: #86868b;
 
   /* the global nav — the only pure black */
@@ -114,18 +115,18 @@
   --ink: #f5f5f7;
   --ink-2: #cccccc;
   --ink-3: #86868b;
-  --brand: #2997ff;          /* Sky Link Blue — Action Blue's dark-surface variant */
-  --brand-hover: #54aaff;
-  --accent: #2997ff;
-  --accent-ink: #2997ff;
-  --accent-soft: rgba(41, 151, 255, 0.16);
+  --brand: #4ade80;          /* the literal light green — Action Green's dark-surface variant */
+  --brand-hover: #86efac;
+  --accent: #4ade80;
+  --accent-ink: #4ade80;
+  --accent-soft: rgba(74, 222, 128, 0.16);
   --draft: #3a3a3c;
-  --ok: #2997ff;
+  --ok: #4ade80;
   --warn: #ffd60a;
   --danger: #ff453a;
   --warn-soft: rgba(255, 214, 10, 0.12);
   --danger-soft: rgba(255, 69, 58, 0.14);
-  --focus-ring: #2997ff;
+  --focus-ring: #4ade80;
   --placeholder: #6e6e73;
 
   --spine: #000000;

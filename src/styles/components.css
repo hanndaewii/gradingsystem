@@ -1034,7 +1034,7 @@
 }
 
 .ui-toast--success {
-  border-left-color: #2997ff;
+  border-left-color: #4ade80;
 }
 
 .ui-toast--warn {
@@ -1065,7 +1065,7 @@
 
 .ui-toast .ui-tick {
   margin-top: 1px;
-  color: #2997ff; /* Sky Link Blue tick on the black toast */
+  color: #4ade80; /* Sky Link Blue tick on the black toast */
 }
 
 .ui-toast__close {
