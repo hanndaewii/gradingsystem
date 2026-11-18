@@ -1,63 +1,62 @@
 /* ============================================================
    shell.css — app chrome (.sh- prefix only, tokens only).
-   The proposal's frame: a sticky deep-pine navigation spine on
-   the left (brand, nav, term, theme, account) beside an open
-   alabaster canvas. The login screen is a white card.
+   The frame per DESIGN-apple.md: an ultra-thin pure-black
+   global nav across the top (brand, nav, term, theme, account)
+   over an open parchment canvas with a 1440px content lock.
+   The login screen is a centered white card on parchment.
    ============================================================ */
 
 .sh-root {
   min-height: 100vh;
-  display: grid;
-  grid-template-columns: 244px minmax(0, 1fr);
+  display: block;
 }
 
-/* ---- navigation spine (left) ---- */
+/* ---- the global nav (top, pure black, ultra-thin) ---- */
 
 .sh-header {
   position: sticky;
   top: 0;
-  align-self: start;
-  height: 100vh;
-  overflow-y: auto;
   z-index: var(--z-header);
-  display: flex;
+  height: var(--header-h);
   background: var(--spine);
   color: var(--spine-text);
-  border-right: 1px solid rgba(255, 255, 255, 0.06);
 }
 
 .sh-header__inner {
   width: 100%;
+  max-width: var(--layout-max);
+  margin: 0 auto;
   min-width: 0;
+  height: 100%;
   display: flex;
-  flex-direction: column;
-  gap: 22px;
-  padding: 20px 14px;
+  align-items: center;
+  gap: 20px;
+  padding: 0 24px;
 }
 
-/* the brand and the role badge stack at the top of the spine */
+/* the brand and the role badge sit together at the left */
 .sh-brandgroup {
   display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: var(--space-2);
+  flex-direction: row;
+  align-items: center;
+  gap: 10px;
   min-width: 0;
 }
 
-/* the school seal leads the brand on the pine spine */
+/* the school seal leads the brand in the global nav */
 .sh-brand {
   display: flex;
   align-items: center;
   gap: 10px;
   min-width: 0;
-  padding: 4px 8px;
+  padding: 0;
   text-decoration: none;
 }
 
 .sh-brand__logo {
   flex: none;
-  width: 30px;
-  height: 30px;
+  width: 26px;
+  height: 26px;
   border-radius: 50%;
   background: #ffffff;
 }
@@ -65,19 +64,19 @@
 .sh-brand__title {
   min-width: 0;
   font-family: var(--font-display);
-  font-size: 13.5px;
-  font-weight: 700;
+  font-size: 13px;
+  font-weight: 600;
   letter-spacing: -0.01em;
   line-height: var(--leading-tight);
   color: #ffffff;
+  white-space: nowrap;
 }
 
-/* the role line: a quiet badge on the dark spine */
+/* the role line: a quiet badge in the nav */
 .sh-brand__role {
-  margin-left: 8px;
   color: var(--spine-muted);
-  background: rgba(255, 255, 255, 0.06);
-  border: 1px solid rgba(255, 255, 255, 0.14);
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.16);
   border-radius: 999px;
   padding: 2px 10px;
   font-size: 11.5px;
@@ -86,20 +85,21 @@
 
 .sh-nav {
   display: flex;
-  flex-direction: column;
-  gap: 4px;
+  flex-direction: row;
+  align-items: center;
+  gap: 2px;
 }
 
 .sh-nav__link {
-  display: flex;
+  display: inline-flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 10px;
-  padding: 8px 10px;
+  gap: 6px;
+  padding: 5px 12px;
   border-radius: var(--radius-sm);
-  font-family: var(--font-display);
-  font-size: 13.5px;
-  font-weight: 500;
+  font-family: var(--font-serif);
+  font-size: 12.5px;
+  font-weight: 400;
+  letter-spacing: -0.01em;
   color: var(--spine-text);
   text-decoration: none;
   transition: background var(--dur) var(--ease);
@@ -123,25 +123,24 @@
   text-decoration-color: rgba(255, 255, 255, 0.55);
 }
 
-/* term + theme + account: pinned to the bottom of the spine */
+/* term + theme + account: the nav's right cluster */
 .sh-header__end {
-  margin-top: auto;
+  margin-left: auto;
   display: flex;
-  flex-direction: column;
-  align-items: stretch;
+  flex-direction: row;
+  align-items: center;
   gap: var(--space-2);
-  padding-top: var(--space-4);
-  border-top: 1px solid rgba(255, 255, 255, 0.09);
 }
 
 .sh-header__end .ui-select {
-  width: 100%;
-  height: 34px;
-  min-height: 34px;
-  padding: 0 10px;
+  width: auto;
+  max-width: 180px;
+  height: 30px;
+  min-height: 30px;
+  padding: 0 8px;
   border-radius: var(--radius-sm);
-  border: 1px solid rgba(255, 255, 255, 0.14);
-  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  background: rgba(255, 255, 255, 0.08);
   color: var(--spine-text);
   font-size: 12.5px;
   cursor: pointer;
@@ -153,18 +152,16 @@
 }
 
 .sh-header__end .ui-btn {
-  width: 100%;
-  justify-content: flex-start;
-  min-height: 34px;
-  height: 34px;
+  min-height: 30px;
+  height: 30px;
   padding: 0 10px;
   border: 0;
   border-radius: var(--radius-sm);
   background: transparent;
   color: var(--spine-text);
-  font-family: var(--font-display);
-  font-size: 13px;
-  font-weight: 500;
+  font-family: var(--font-serif);
+  font-size: 12.5px;
+  font-weight: 400;
 }
 
 .sh-header__end .ui-btn:hover:not(:disabled) {
@@ -173,19 +170,18 @@
 }
 
 /* Native button (ui Button doesn't forward aria-pressed) reusing the
-   ghost primitive's classes; the glyph line-height is adjusted and the
-   target is big enough to hit comfortably (pinned: ≥36×36). */
+   ghost primitive's classes; the glyph is a compact square target. */
 .sh-theme-toggle {
   line-height: 1;
-  min-width: 38px;
-  min-height: 38px;
+  min-width: 30px;
+  min-height: 30px;
   justify-content: center;
+  color: var(--spine-text);
+  background: transparent;
 }
 
-/* the full-width stack rule above must not shrink the toggle */
-.sh-header__end .sh-theme-toggle {
-  height: auto;
-  min-height: 38px;
+.sh-theme-toggle:hover:not(:disabled) {
+  background: var(--spine-hover);
 }
 
 /* ---- content canvas ---- */
@@ -193,9 +189,9 @@
 .sh-main {
   min-width: 0;
   width: 100%;
-  max-width: none;
-  margin: 0;
-  padding: 22px 28px 48px;
+  max-width: var(--layout-max);
+  margin: 0 auto;
+  padding: 32px 24px 80px;
 }
 
 /* ---- full-page loading (session restore — no login flash) ---- */
@@ -206,7 +202,7 @@
   place-items: center;
 }
 
-/* ---- login: a full-bleed split page (pine pitch | working card) ---- */
+/* ---- login: a white hero tile over the parchment canvas ---- */
 
 .sh-login {
   min-height: 100vh;
@@ -214,15 +210,15 @@
   grid-template-columns: minmax(400px, 44%) minmax(0, 1fr);
 }
 
-/* left: the deep-pine brand panel */
+/* left: the white hero tile (ink type, hairline structure) */
 .sh-login__pine {
   display: flex;
   flex-direction: column;
   gap: var(--space-6);
   padding: 26px 42px 30px;
-  background: var(--spine);
-  color: var(--spine-text);
-  border-right: 1px solid rgba(255, 255, 255, 0.06);
+  background: var(--surface);
+  color: var(--ink);
+  border-right: 1px solid var(--rule);
 }
 
 .sh-login__brandrow {
@@ -237,35 +233,37 @@
   align-items: center;
   gap: 10px;
   font-family: var(--font-display);
-  font-size: 13.5px;
-  font-weight: 700;
-  color: #ffffff;
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  color: var(--ink);
 }
 
 .sh-login__brandlogo {
   flex: none;
-  width: 30px;
-  height: 30px;
+  width: 28px;
+  height: 28px;
   border-radius: 50%;
   background: #ffffff;
+  border: 1px solid var(--rule);
 }
 
 .sh-login__themebtn {
   appearance: none;
   cursor: pointer;
-  border: 1px solid rgba(255, 255, 255, 0.16);
-  background: rgba(255, 255, 255, 0.06);
-  color: var(--spine-text);
-  font-family: var(--font-display);
-  font-size: 12.5px;
-  padding: 6px 12px;
-  border-radius: var(--radius-sm);
-  transition: background var(--dur) var(--ease);
+  border: 1px solid var(--rule);
+  background: var(--surface);
+  color: var(--ink-2);
+  font-family: var(--font-serif);
+  font-size: 13px;
+  padding: 6px 14px;
+  border-radius: var(--radius-pill);
+  transition: background var(--dur) var(--ease), border-color var(--dur) var(--ease);
 }
 
 .sh-login__themebtn:hover {
-  background: var(--spine-hover);
-  color: #ffffff;
+  border-color: var(--ink-3);
+  color: var(--ink);
 }
 
 .sh-login__hero {
@@ -277,28 +275,31 @@
 
 .sh-login__eyebrow {
   margin: 0;
-  color: var(--spine-muted);
-  letter-spacing: 0.14em;
+  color: var(--ink-3);
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
 }
 
 .sh-login__headline {
   margin: 0;
   font-family: var(--font-display);
-  font-weight: 700;
-  font-size: clamp(28px, 2.9vw, 40px);
-  line-height: 1.14;
-  letter-spacing: -0.02em;
-  color: #ffffff;
+  font-weight: 600;
+  font-size: clamp(32px, 3vw, 40px);
+  line-height: 1.1;
+  letter-spacing: var(--tracking-display);
+  color: var(--ink);
 }
 
 .sh-login__lede {
   margin: 0;
-  color: var(--spine-muted);
-  font-size: 15px;
-  line-height: 1.6;
+  color: var(--ink-2);
+  font-size: var(--text-lg);
+  line-height: 1.47;
+  letter-spacing: -0.011em;
 }
 
-/* the ground rules at the foot of the panel */
+/* the ground rules at the foot of the tile */
 .sh-login__specs {
   display: grid;
   margin: 0;
@@ -309,23 +310,24 @@
   grid-template-columns: 92px minmax(0, 1fr);
   gap: var(--space-4);
   padding: 12px 0;
-  border-top: 1px solid rgba(255, 255, 255, 0.09);
+  border-top: 1px solid var(--rule);
 }
 
 .sh-login__spec dt {
   margin: 0;
   padding-top: 2px;
-  color: var(--spine-muted);
-  font-size: 11px;
+  color: var(--ink-3);
+  font-size: 14px;
+  font-weight: 600;
 }
 
 .sh-login__spec dd {
   margin: 0;
-  color: var(--spine-text);
-  font-size: var(--text-sm);
+  color: var(--ink);
+  font-size: var(--text-base);
 }
 
-/* right: the working canvas */
+/* right: the parchment working canvas */
 .sh-login__canvas {
   display: flex;
   flex-direction: column;
@@ -344,22 +346,21 @@
 
 .sh-login__term {
   color: var(--ink-3);
-  font-size: 12.5px;
+  font-size: 14px;
 }
 
 .sh-login__preview {
   position: absolute;
   right: 0;
   top: 0;
-  font-family: var(--font-display);
-  font-size: 13.5px;
-  font-weight: 600;
+  font-family: var(--font-serif);
+  font-size: 14px;
+  font-weight: 400;
   color: var(--brand);
   text-decoration: none;
 }
 
 .sh-login__preview:hover {
-  color: var(--brand-hover);
   text-decoration: underline;
 }
 
@@ -370,20 +371,19 @@
   padding: var(--space-6) 0;
 }
 
-.sh-login__footer {
-  text-align: center;
-  color: var(--ink-3);
-  font-size: var(--text-xs);
-  padding-top: var(--space-2);
-}
-
 .sh-login__card {
   width: min(440px, 100%);
   background: var(--surface);
   border: 1px solid var(--rule);
   border-radius: var(--radius-lg);
-  box-shadow: var(--shadow-card);
-  padding: 24px;
+  padding: 28px;
+}
+
+.sh-login__footer {
+  text-align: center;
+  color: var(--ink-3);
+  font-size: var(--text-xs);
+  padding-top: var(--space-2);
 }
 
 @media (max-width: 900px) {
@@ -401,7 +401,7 @@
   }
 
   .sh-login__headline {
-    font-size: 26px;
+    font-size: 28px;
   }
 
   .sh-login__specs {
@@ -423,38 +423,6 @@
   .sh-login__cardwrap {
     padding: var(--space-5) 0;
   }
-}
-
-.sh-login__head {
-  display: grid;
-  gap: var(--space-1);
-  margin-bottom: var(--space-5);
-}
-
-.sh-login__title {
-  font-family: var(--font-display);
-  font-size: var(--text-2xl);
-  font-weight: 700;
-  letter-spacing: -0.02em;
-  line-height: 1.2;
-}
-
-.sh-login__sub {
-  color: var(--ink-2);
-  font-size: var(--text-sm);
-}
-
-.sh-login__form {
-  display: grid;
-  gap: var(--space-4);
-}
-
-.sh-login__alert {
-  border: 1px solid var(--danger);
-  border-radius: var(--radius);
-  color: var(--danger);
-  font-size: var(--text-sm);
-  padding: var(--space-2) var(--space-3);
 }
 
 /* ---- login: mode switch, notices, registration ---- */
