@@ -606,17 +606,18 @@
   background: var(--paper-2);
 }
 
-/* ---- score inputs: borderless mono cells (the grid lines ARE the sheet) ---- */
+/* ---- score inputs: boxed fields. Solid box = editable; the dashed chip
+   (.sec-cell__locked) = locked. One rule covers every period tab. ---- */
 
 .sec-table td.sec-cell .sec-cell__input {
-  border: none;
+  border: 1px solid var(--rule);
   border-radius: var(--radius-sm);
   min-height: 34px;
   min-width: 0;
   width: 100%;
   padding: 4px;
   text-align: center;
-  background: transparent;
+  background: var(--surface);
   font-family: var(--font-mono);
   font-size: var(--text-sm);
   font-weight: 600;
@@ -624,15 +625,14 @@
 }
 
 .sec-table td.sec-cell .sec-cell__input:hover:not(:disabled) {
-  background: var(--accent-soft);
+  border-color: var(--rule-strong);
 }
 
 .sec-table td.sec-cell .sec-cell__input:focus {
-  border: none;
+  border-color: var(--accent);
   background: var(--surface);
-  outline: 2px solid var(--accent);
-  outline-offset: -2px;
-  box-shadow: none;
+  outline: none;
+  box-shadow: 0 0 0 1px var(--accent);
 }
 
 /* locked periods still show a cell chip (dashed, wash) so the sheet always
