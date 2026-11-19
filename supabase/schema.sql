@@ -1056,8 +1056,9 @@ as $$
                    from public.faculty_students st
                    join public.faculty_sections s on st.section_id = s.id
                    join crs c on s.course_id = c.id),
-    'assessments', (select coalesce(jsonb_agg(to_jsonb(a)), '[]'::jsonb)
+    'assessments', (select coalesce(jsonb_agg(to_jsonb(a) || jsonb_build_object('period', p.period)), '[]'::jsonb)
                    from public.faculty_assessments a
+                   join public.faculty_periods p on p.id = a.period_id
                    join public.faculty_sections s on a.section_id = s.id
                    join crs c on s.course_id = c.id),
     'grades',   (select coalesce(jsonb_agg(to_jsonb(g)), '[]'::jsonb)
